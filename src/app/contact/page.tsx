@@ -26,9 +26,9 @@ export default function ContactPage() {
           <div className="lg:col-span-2">
             <h2 className="text-xl font-bold">Reach us directly</h2>
             <p className="mt-3 leading-relaxed text-slate-600">
-              Email is the fastest way to reach the team. If your question is about an
-              existing application, include your reference number (it starts with
-              &ldquo;AP-&rdquo;).
+              Email is the fastest way to reach the team — a real person reads every
+              message. If your question is about an existing application, include your
+              reference number (it starts with &ldquo;AP-&rdquo;).
             </p>
             <a
               href="mailto:support@anglerpermit.com"

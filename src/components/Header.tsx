@@ -48,7 +48,7 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           <Link href="/states" className={`${buttonClasses("accent", "md")} hidden sm:inline-flex`}>
-            Start Application
+            Start My Application
           </Link>
           <button
             type="button"
@@ -84,7 +84,7 @@ export function Header() {
               onClick={() => setOpen(false)}
               className={`${buttonClasses("accent", "lg")} mt-2`}
             >
-              Start Application
+              Start My Application
             </Link>
           </div>
         </nav>

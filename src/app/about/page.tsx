@@ -36,10 +36,10 @@ export default function AboutPage() {
             licensing portal on your behalf.
           </p>
           <p>
-            Every form on this site is built by carefully reviewing the official state
-            portal — field by field — so the information we collect is exactly what the
-            state requires, nothing more. Each state page cites the official portal it was
-            matched against and shows when it was last verified.
+            Every form on this site is built from a careful review of the official state
+            licensing portal, so we ask for exactly what the state requires — nothing
+            more. Each state page cites the official source of its license data and
+            shows when it was last verified.
           </p>
           <p>
             We believe in straightforward pricing. The official state fee is passed through

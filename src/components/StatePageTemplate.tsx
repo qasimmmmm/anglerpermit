@@ -35,7 +35,7 @@ export function StatePageTemplate({ config }: { config: StateConfig }) {
               href="#application"
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-forest-600 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-forest-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-navy"
             >
-              Start Application
+              Start My Application
             </a>
             <ul className="flex flex-wrap items-center gap-5 text-sm text-slate-300">
               <li className="flex items-center gap-2">
@@ -44,7 +44,7 @@ export function StatePageTemplate({ config }: { config: StateConfig }) {
               </li>
               <li className="flex items-center gap-2">
                 <FileCheck2 className="h-4 w-4 text-forest-300" aria-hidden="true" />
-                Matched to the official {config.officialPortalName} form
+                Itemized state + service fees
               </li>
             </ul>
           </div>
@@ -62,7 +62,7 @@ export function StatePageTemplate({ config }: { config: StateConfig }) {
       <section className="border-t border-slate-200 py-10">
         <div className="container-site max-w-3xl">
           <p className="text-sm text-slate-500">
-            Form matched against{" "}
+            License data sourced from{" "}
             <a
               href={config.officialPortalUrl}
               target="_blank"
@@ -72,7 +72,7 @@ export function StatePageTemplate({ config }: { config: StateConfig }) {
               {config.officialPortalName} ({config.officialPortalUrl})
               <ExternalLink className="ml-1 inline h-3.5 w-3.5" aria-hidden="true" />
             </a>{" "}
-            — last verified {config.lastVerified}. You can also purchase directly from the
+            &middot; Last verified {config.lastVerified}. You can also purchase directly from the
             official {config.officialAgencyName} portal at the state&apos;s listed fees.
           </p>
           <DisclaimerBanner className="mt-6" />

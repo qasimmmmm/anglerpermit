@@ -51,7 +51,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "What information do I need to apply?",
     answer:
-      "Typically your full legal name, date of birth, contact information, address, and a form of identification. Some states also require a Social Security number or physical descriptors. Each state page's form matches exactly what that state's official portal asks — nothing more.",
+      "Typically your full legal name, date of birth, contact information, address, and a form of identification. Some states also require a Social Security number or physical descriptors. Each state page's form asks only what that state requires — nothing more.",
   },
   {
     question: "Do I need to be a resident to buy a license?",

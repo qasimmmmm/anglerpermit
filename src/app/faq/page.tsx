@@ -19,7 +19,8 @@ export default function FaqPage() {
             Frequently asked questions
           </h1>
           <p className="mt-4 text-lg text-slate-300">
-            Everything anglers ask us before applying. Can&apos;t find your answer?{" "}
+            Straight answers about pricing, timing, your information, and who we are
+            — and who we are not. Can&apos;t find your answer?{" "}
             <Link href="/contact" className="font-medium text-forest-300 underline">
               Contact us
             </Link>

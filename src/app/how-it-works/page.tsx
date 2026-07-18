@@ -24,12 +24,12 @@ const TIMELINE = [
   {
     icon: MapPin,
     title: "Choose your state and license",
-    body: "Select your state, tell us your residency status, and pick from the same license options the official portal offers — filtered exactly the same way. Add any stamps or validations you need; required ones are added automatically.",
+    body: "Select your state, tell us your residency status, and choose from the state's current license options at official prices. Add any stamps or validations you need; required ones are added automatically.",
   },
   {
     icon: ClipboardList,
     title: "Fill one simple form",
-    body: "Our wizard asks for exactly what the official state application asks — same fields, same order, same options — in a cleaner, guided format with inline validation that catches mistakes before they cost you time.",
+    body: "Our guided form asks for exactly what the state application requires — nothing more — in a clean, plain-English format with inline validation that catches mistakes before they cost you time.",
   },
   {
     icon: ClipboardCheck,
@@ -56,7 +56,8 @@ export default function HowItWorksPage() {
           <h1 className="text-3xl font-bold text-white sm:text-4xl">How it works</h1>
           <p className="mt-4 text-lg text-slate-300">
             AnglerPermit is a private license-assistance service. You give us the details
-            the state needs; we do the paperwork and the purchasing for you.
+            the state needs — we handle the paperwork, the purchase, and the
+            follow-through. Here is exactly what happens after you apply.
           </p>
         </div>
       </section>
@@ -99,7 +100,7 @@ export default function HowItWorksPage() {
                 What we do
               </h3>
               <ul className="mt-4 space-y-2.5 text-sm leading-relaxed text-slate-600">
-                <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-600" aria-hidden="true" />Guide you through a simple, state-matched application form.</li>
+                <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-600" aria-hidden="true" />Guide you through a simple, plain-English application form.</li>
                 <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-600" aria-hidden="true" />Review your application for errors before it costs you time.</li>
                 <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-600" aria-hidden="true" />Purchase your license from the official state portal on your behalf.</li>
                 <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-600" aria-hidden="true" />Itemize official state fees and our service fee separately.</li>

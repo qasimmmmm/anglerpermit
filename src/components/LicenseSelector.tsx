@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 
 /**
  * Step 1 of the wizard: residency -> license -> add-ons.
- * Mirrors the official portal flow: the residency choice FILTERS the license list.
+ * Follows the official portal flow: the residency choice FILTERS the license list.
  */
 
 export interface LicenseSelection {
@@ -52,8 +52,8 @@ export function LicenseSelector({
           </span>
         </legend>
         <p className="mt-1 text-sm text-slate-500">
-          Select your residency to see the licenses available to you — exactly as the
-          official {config.officialPortalName} portal does.
+          Select your residency to see the licenses available to you — current options
+          and official prices from {config.officialPortalName} data.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Residency status">
           {config.residencyOptions.map((opt) => {

@@ -36,7 +36,7 @@ export function StateGrid({ states }: { states: StateConfig[] }) {
                 </div>
                 <p className="mt-3 flex-1 text-sm text-slate-600">
                   {state.licenses.length} license option{state.licenses.length === 1 ? "" : "s"} · Official
-                  fee {lowestPrice > 0 ? `from ${formatPrice(lowestPrice)}` : "Free"} · Matched to{" "}
+                  fee {lowestPrice > 0 ? `from ${formatPrice(lowestPrice)}` : "Free"} · Data from{" "}
                   {state.officialPortalName}
                 </p>
                 <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-forest-700">

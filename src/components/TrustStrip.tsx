@@ -1,4 +1,4 @@
-import { FileCheck2, Info, Receipt, ShieldCheck } from "lucide-react";
+import { Clock, Info, Receipt, ShieldCheck } from "lucide-react";
 
 /**
  * Slim assurance band rendered directly under the homepage hero.
@@ -16,9 +16,9 @@ const ITEMS = [
     caption: "Official + service fees itemized",
   },
   {
-    icon: FileCheck2,
-    title: "Matched to official portals",
-    caption: "Forms verified against state sites",
+    icon: Clock,
+    title: "Fast, human review",
+    caption: "Most applications reviewed within 1 business day",
   },
   {
     icon: Info,

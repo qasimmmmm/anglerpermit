@@ -6,7 +6,7 @@ import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 export const metadata: Metadata = {
   title: "States We Serve",
   description:
-    "Fishing license assistance by state. Each application form is matched against the official state licensing portal.",
+    "Fishing license assistance by state. Current license data, official fees, and transparent itemized pricing for every state we serve.",
 };
 
 export default async function StatesPage() {
@@ -18,9 +18,9 @@ export default async function StatesPage() {
         <div className="container-site">
           <h1 className="text-3xl font-bold text-white sm:text-4xl">States we serve</h1>
           <p className="mt-4 max-w-2xl text-lg text-slate-300">
-            Select your state to start your application. Each form mirrors the official
-            state licensing portal — same licenses, same fields, official prices —
-            with our service fee always itemized separately.
+            Select your state to start your application. Every state guide is built from
+            current licensing data — real license options at official prices — with our
+            service fee always itemized separately.
           </p>
         </div>
       </section>

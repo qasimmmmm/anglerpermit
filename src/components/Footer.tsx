@@ -27,9 +27,9 @@ export function Footer() {
             <Link href="/" className="flex items-center gap-2.5">
               <Logo variant="mark" size={32} />
               {/* Name is announced once via the mark's sr-only label. */}
-              <span aria-hidden="true" className="text-lg font-bold tracking-tight">
+              <span aria-hidden="true" className="text-lg font-semibold">
                 <span className="text-white">Angler</span>
-                <span className="text-forest-300">Permit</span>
+                <span className="font-medium text-forest-300">Permit</span>
               </span>
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-slate-400">
