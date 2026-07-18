@@ -94,6 +94,8 @@ function SsnInput({
   helpText,
   required,
   label,
+  useMask,
+  placeholder,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -103,6 +105,10 @@ function SsnInput({
   helpText?: string;
   required?: boolean;
   label: string;
+  /** Apply the dashed 123-45-6789 input mask (default). False when the field
+   * defines its own validation.pattern (e.g. raw 9-digit SSN). */
+  useMask: boolean;
+  placeholder?: string;
 }) {
   const [visible, setVisible] = useState(false);
   return (
@@ -112,12 +118,12 @@ function SsnInput({
       type={visible ? "text" : "password"}
       inputMode="numeric"
       autoComplete="off"
-      placeholder="123-45-6789"
+      placeholder={placeholder ?? (useMask ? "123-45-6789" : undefined)}
       value={value}
       error={error}
       helpText={helpText}
       required={required}
-      onChange={(e) => onChange(applyMask("ssn", e.target.value))}
+      onChange={(e) => onChange(useMask ? applyMask("ssn", e.target.value) : e.target.value)}
       onBlur={onBlur}
       rightAdornment={
         <button
@@ -163,6 +169,10 @@ function FieldControl({
           case "text":
           case "zip":
           case "date": {
+            // A field-level validation.pattern takes precedence over the
+            // default format — don't force the dashed input mask on such
+            // fields (e.g. TX raw 10-digit phone, TX 5-digit ZIP).
+            const useMask = Boolean(def.mask) && !def.validation?.pattern;
             const inputType =
               def.type === "email" ? "email" : def.type === "tel" ? "tel" : def.type === "date" && !def.mask ? "date" : "text";
             const autoComplete =
@@ -174,11 +184,11 @@ function FieldControl({
                 name={f.name}
                 type={inputType}
                 inputMode={def.mask ? "numeric" : undefined}
-                placeholder={def.placeholder ?? (def.mask === "dob" ? "MM/DD/YYYY" : undefined)}
+                placeholder={def.placeholder ?? (useMask && def.mask === "dob" ? "MM/DD/YYYY" : undefined)}
                 autoComplete={autoComplete}
                 value={(value as string) ?? ""}
                 onChange={(e) =>
-                  f.onChange(def.mask ? applyMask(def.mask, e.target.value) : e.target.value)
+                  f.onChange(useMask && def.mask ? applyMask(def.mask, e.target.value) : e.target.value)
                 }
                 onBlur={f.onBlur}
                 error={error}
@@ -199,6 +209,8 @@ function FieldControl({
                   error={error}
                   helpText={def.helpText}
                   required={def.required}
+                  useMask={!def.validation?.pattern}
+                  placeholder={def.placeholder}
                 />
                 {config.requiresSSN && config.ssnExplainer && (
                   <details className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm">
@@ -242,12 +254,34 @@ function FieldControl({
                 required={def.required}
               />
             );
-          case "select":
+          case "select": {
+            const options = def.options ?? [];
+            if (options.length === 0) {
+              // Free-text fallback: the official option list could not be
+              // verified (see the field's officialNote TODO, kept as
+              // provenance). A dropdown with zero options would make the
+              // form impossible to complete.
+              return (
+                <Input
+                  label={def.label}
+                  name={f.name}
+                  type="text"
+                  placeholder={def.placeholder}
+                  autoComplete={def.autocomplete}
+                  value={(value as string) ?? ""}
+                  onChange={f.onChange}
+                  onBlur={f.onBlur}
+                  error={error}
+                  helpText={def.helpText}
+                  required={def.required}
+                />
+              );
+            }
             return (
               <Select
                 label={def.label}
                 name={f.name}
-                options={def.options ?? []}
+                options={options}
                 placeholderOption="Select an option"
                 value={(value as string) ?? ""}
                 onChange={f.onChange}
@@ -257,6 +291,7 @@ function FieldControl({
                 required={def.required}
               />
             );
+          }
           case "radio":
             return (
               <fieldset aria-describedby={error ? `${f.name}-error` : undefined}>
@@ -383,7 +418,11 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
   const addOnIds = watch("addOnIds");
   const watchedData = watch("data");
 
-  const visibleFields = config.formFields.filter((f) => isFieldVisible(f, watchedData));
+  // Conditional fields may reference another applicant field OR the selected
+  // license (conditional.field === "licenseId"), e.g. MI's daily-license start date.
+  const visibleFields = config.formFields.filter((f) =>
+    isFieldVisible(f, { ...watchedData, licenseId }),
+  );
 
   // Focus the step heading whenever the step changes (a11y).
   useEffect(() => {

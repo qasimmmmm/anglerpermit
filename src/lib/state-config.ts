@@ -16,7 +16,8 @@ export interface FieldOption {
 }
 
 export interface ConditionalRule {
-  field: string; // name of the controlling field
+  field: string; // name of the controlling applicant field; the wizard also
+  // exposes "licenseId" so a field can condition on the selected license
   equals?: string; // show this field when controlling field === value
   oneOf?: string[]; // show when controlling field is one of these
 }
@@ -97,15 +98,41 @@ export interface StateConfig {
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-/** Licenses visible for a given residency selection ('any' licenses always visible). */
+/**
+ * Map a residency selection to its pricing tier.
+ *
+ * Every state sells exactly two price tiers: resident and nonresident.
+ * Selections such as TX "senior" / "youth" or NC "Full Time NC Student" /
+ * "Military Stationed In NC" / "Nonresident Active Duty Military" are all
+ * RESIDENT-priced under state rules, so any value that is not
+ * nonresident-like maps to the resident tier (generic alias mechanism).
+ */
+export function residencyPricingTier(residency: string): "resident" | "nonresident" {
+  const normalized = residency.trim().toLowerCase().replace(/[^a-z]/g, "");
+  return normalized === "nonresident" ? "nonresident" : "resident";
+}
+
+/**
+ * Licenses visible for a given residency selection.
+ *
+ * - No selection: the full catalog is shown (the wizard prompts for residency).
+ * - Nonresident tier: nonresident + any.
+ * - Resident tier (resident, senior, youth, NC student/military aliases):
+ *   resident + senior + youth + any. Senior/youth licenses in all seven
+ *   states' data are resident-tier; their names/descriptions carry the age
+ *   terms, so residents of any age see every license they can buy.
+ */
 export function licensesForResidency(
   config: StateConfig,
   residency: string | undefined,
 ): LicenseOption[] {
   if (!residency) return config.licenses;
-  return config.licenses.filter(
-    (l) => l.residency === "any" || l.residency === residency,
-  );
+  const tier = residencyPricingTier(residency);
+  return config.licenses.filter((l) => {
+    if (l.residency === "any") return true;
+    if (tier === "nonresident") return l.residency === "nonresident";
+    return l.residency !== "nonresident";
+  });
 }
 
 /** Add-ons applicable to a given license (omit appliesTo = applies to all). */
@@ -165,29 +192,48 @@ export function buildFieldSchema(field: FormFieldDef): z.ZodTypeAny {
       return wrapRequired(s, field, label);
     }
     case "tel": {
-      const s = z
-        .string()
-        .regex(PHONE_PATTERN, `Enter a valid phone number, e.g. (555) 123-4567`);
+      // A field-level validation.pattern (e.g. TX/NC raw 10-digit) takes
+      // precedence over the default masked-phone pattern.
+      const s = v.pattern
+        ? z
+            .string()
+            .regex(new RegExp(v.pattern), v.patternMessage ?? `Enter a valid phone number`)
+        : z
+            .string()
+            .regex(PHONE_PATTERN, `Enter a valid phone number, e.g. (555) 123-4567`);
       return wrapRequired(s, field, label);
     }
     case "date": {
-      // DOB-style mask (MM/DD/YYYY) or free date string
-      const s =
-        field.mask === "dob"
+      // Field-level pattern wins; then DOB-style mask (MM/DD/YYYY); else free date string.
+      const s = v.pattern
+        ? z
+            .string()
+            .regex(new RegExp(v.pattern), v.patternMessage ?? `${label} is not in the expected format`)
+        : field.mask === "dob"
           ? z.string().regex(DOB_PATTERN, `Enter ${label} as MM/DD/YYYY`)
           : z.string().min(1, `${label} is required`);
       return wrapRequired(s, field, label);
     }
     case "ssn": {
-      const s = z
-        .string()
-        .regex(SSN_PATTERN, `Enter a valid SSN in the format 123-45-6789`);
+      // A field-level validation.pattern (e.g. TX/FL/CO/NC raw 9-digit) takes
+      // precedence over the default dashed 123-45-6789 pattern.
+      const s = v.pattern
+        ? z
+            .string()
+            .regex(new RegExp(v.pattern), v.patternMessage ?? `Enter a valid Social Security number`)
+        : z
+            .string()
+            .regex(SSN_PATTERN, `Enter a valid SSN in the format 123-45-6789`);
       return wrapRequired(s, field, label);
     }
     case "zip": {
-      const s = z
-        .string()
-        .regex(ZIP_PATTERN, `Enter a valid ZIP code, e.g. 12345 or 12345-6789`);
+      const s = v.pattern
+        ? z
+            .string()
+            .regex(new RegExp(v.pattern), v.patternMessage ?? `Enter a valid ZIP code`)
+        : z
+            .string()
+            .regex(ZIP_PATTERN, `Enter a valid ZIP code, e.g. 12345 or 12345-6789`);
       return wrapRequired(s, field, label);
     }
     case "select":

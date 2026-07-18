@@ -1373,10 +1373,9 @@ export const config: StateConfig = {
       description: "For Michigan residents age 65 or older, or Michigan residents who are legally blind. Includes $1 surcharge.",
       officialNote: "Name/price per michigan.gov/dnr/things-to-do/fishing/license-info; senior discount age 65+ confirmed in eLicense FAQ.",
     },
-    // TODO(purchase flow): on the official portal the buyer of a daily license
-    // sets the date/time the license starts (valid 24 hours). That is a purchase
-    // option in the official flow, not an applicant field — the scaffold has no
-    // start-date/time picker at the license step. Noted for the orchestrator.
+    // Purchase flow: on the official portal the buyer of a daily license sets
+    // the date/time the license starts (valid 24 hours). Resolved in QA phase —
+    // see the conditional `licenseStartDate` field appended to formFields.
     {
       id: "daily-all-species",
       name: "Daily all species resident/nonresident",
@@ -1903,6 +1902,20 @@ export const config: StateConfig = {
       helpText: "Select YES if you are a Michigan resident.",
       step: 2,
       officialNote: "Exact label/help text from the portal's 'Customer Declaration Information' section. Resident = domiciled in MI with intent to remain, full-time MI college student residing in MI, or full-time U.S. military stationed in MI / maintaining MI residency.",
+    },
+    // Purchase-flow addition (NOT part of the official Create New Customer
+    // form): the official portal asks the buyer of the 24-hour Daily all
+    // species license to set the date/time the license starts. Shown only
+    // when the daily license is selected in step 1 (conditional on licenseId).
+    {
+      name: "licenseStartDate",
+      label: "License start date",
+      type: "date",
+      required: false,
+      conditional: { field: "licenseId", equals: "daily-all-species" },
+      helpText: "Required for 24-hour daily licenses — choose when your license should start",
+      step: 2,
+      officialNote: "Portal purchase flow sets the start date/time for the Daily all species license ($10, valid 24 hours from the selected date/time). Collected here so the purchase can be completed on the applicant's behalf.",
     },
   ],
   stateIdentifiers: [
