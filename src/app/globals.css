@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  body {
+    @apply bg-white text-slate-700 antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply text-navy font-semibold tracking-tight;
+  }
+  /* Visible focus ring for keyboard navigation (WCAG 2.1 AA) */
+  :focus-visible {
+    @apply outline-none ring-2 ring-forest-500 ring-offset-2 rounded-sm;
+  }
+}
+
+@layer components {
+  .container-site {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+}

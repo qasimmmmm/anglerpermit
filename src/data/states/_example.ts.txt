@@ -1,0 +1,95 @@
+// ============================================================================
+// STATE FILE TEMPLATE — copy to src/data/states/<slug>.ts (e.g. michigan.ts)
+// ----------------------------------------------------------------------------
+// Rules:
+//  1. The file name MUST be the state slug: michigan.ts, north-carolina.ts...
+//  2. Export BOTH a named `config` and a default export (discovery needs it).
+//  3. config.slug MUST equal the file name (without .ts).
+//  4. NEVER invent licenses, prices, or fields. If something cannot be
+//     verified on the official portal, keep it out or mark it with
+//     officialNote: "TODO: verify — <url>".
+//  5. Prices are numbers in USD (26.00 -> 26).
+//  6. formFields must mirror the official portal's applicant fields, in the
+//     portal's order, with EXACT labels and dropdown options.
+//  7. Do NOT edit shared files (src/lib, src/components). If something is
+//     missing for your state, report it to the orchestrator.
+//
+// Then create src/app/<slug>/page.tsx:
+//
+//   import type { Metadata } from "next";
+//   import { StatePageTemplate } from "@/components/StatePageTemplate";
+//   import { config } from "@/data/states/<slug>";
+//   export const metadata: Metadata = {
+//     title: `${config.stateName} Fishing License`,
+//     description: `Apply for a ${config.stateName} fishing license online...`,
+//   };
+//   export default function Page() {
+//     return <StatePageTemplate config={config} />;
+//   }
+// ============================================================================
+
+import type { StateConfig } from "@/lib/state-config";
+
+export const config: StateConfig = {
+  slug: "example", // MUST match the file name (example.ts)
+  stateName: "Example",
+  officialAgencyName: "Example Department of Natural Resources",
+  officialPortalName: "Example DNR eLicense",
+  officialPortalUrl: "https://example.gov/licensing",
+  lastVerified: "2025-01-01", // YYYY-MM-DD — date you verified the portal
+  serviceFee: 29, // editable placeholder
+  requiresSSN: false, // true only if the official portal requires SSN
+  ssnExplainer: undefined, // one-liner citing state law when requiresSSN
+  residencyOptions: [
+    // drives the license filtering, mirroring the official portal
+    { value: "resident", label: "Resident" },
+    { value: "nonresident", label: "Nonresident" },
+  ],
+  licenseYearNote: undefined, // e.g. "Valid Sep 1 – Aug 31"
+  licenses: [
+    {
+      id: "resident-annual-freshwater", // kebab-case, unique within this file
+      name: "Resident Annual Freshwater License", // EXACT official name
+      price: 26, // official price USD (number)
+      residency: "resident", // resident | nonresident | senior | youth | any
+      duration: "Annual", // e.g. Annual, 1-Day, 10-Day, Lifetime
+      category: "freshwater", // freshwater | saltwater | all-water | combo | other
+      description: "Short official description (optional).",
+      suggestedAddOns: ["habitat-stamp"], // optional
+      officialNote: "Source: https://example.gov/licenses#freshwater (verified 2025-01-01)",
+    },
+  ],
+  addOns: [
+    {
+      id: "habitat-stamp",
+      name: "Habitat Stamp", // EXACT official name
+      price: 10,
+      required: true, // true => auto-selected & locked in the UI (e.g. CO Habitat Stamp)
+      appliesTo: ["resident-annual-freshwater"], // omit to apply to all licenses
+      description: "Required before or with fishing license purchase.",
+      officialNote: "Source: https://example.gov/stamps (verified 2025-01-01)",
+    },
+  ],
+  formFields: [
+    {
+      name: "firstName", // camelCase key
+      label: "First Name", // EXACT label from the official portal
+      type: "text", // text|email|tel|date|select|radio|checkbox|ssn|number|zip|textarea
+      required: true,
+      placeholder: undefined, // optional
+      helpText: undefined, // optional explainer shown under the field
+      mask: undefined, // 'ssn' | 'phone' | 'dob' | 'zip'
+      autocomplete: "given-name",
+      options: undefined, // for select/radio — EXACT official options
+      validation: { minLength: 1, maxLength: 50 }, // zod-compatible rules
+      conditional: undefined, // e.g. { field: 'idType', equals: 'other' } or { field: 'x', oneOf: ['a','b'] }
+      step: 2, // always 2 — applicant fields render in wizard step 2
+      officialNote: "Source: https://example.gov/apply (verified 2025-01-01)",
+    },
+  ],
+  stateIdentifiers: undefined, // e.g. [{ name: 'goId', label: 'GO ID', helpText: '...', required: false }]
+  consentExtra: undefined, // state-specific consent language, if any
+  researchNotes: "List discrepancies, unverifiable items, and source URLs here.",
+};
+
+export default config;
