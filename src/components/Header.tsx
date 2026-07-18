@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Fish, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { buttonClasses } from "@/components/ui/Button";
+import { Logo } from "@/components/Logo";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -24,13 +25,10 @@ export function Header() {
       <div className="container-site flex h-16 items-center justify-between gap-4">
         <Link
           href="/"
-          className="flex items-center gap-2 text-lg font-bold tracking-tight text-navy"
+          className="flex items-center"
           onClick={() => setOpen(false)}
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy text-white">
-            <Fish className="h-5 w-5" aria-hidden="true" />
-          </span>
-          AnglerPermit
+          <Logo size={32} />
         </Link>
 
         <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">

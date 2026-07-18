@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Fish, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { NON_AFFILIATION_DISCLAIMER } from "@/components/ui/DisclaimerBanner";
+import { Logo } from "@/components/Logo";
 
 const LEGAL_LINKS = [
   { href: "/privacy", label: "Privacy Policy" },
@@ -19,15 +20,17 @@ const SITE_LINKS = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-slate-200 bg-navy text-slate-300">
+    <footer className="border-t border-white/10 bg-navy text-slate-300">
       <div className="container-site py-12">
         <div className="grid gap-10 md:grid-cols-3">
           <div>
-            <Link href="/" className="flex items-center gap-2 text-lg font-bold text-white">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
-                <Fish className="h-5 w-5" aria-hidden="true" />
+            <Link href="/" className="flex items-center gap-2.5">
+              <Logo variant="mark" size={32} />
+              {/* Name is announced once via the mark's sr-only label. */}
+              <span aria-hidden="true" className="text-lg font-bold tracking-tight">
+                <span className="text-white">Angler</span>
+                <span className="text-forest-300">Permit</span>
               </span>
-              AnglerPermit
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-slate-400">
               A private license-assistance service that handles the paperwork so you can
