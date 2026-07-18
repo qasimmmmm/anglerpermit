@@ -499,14 +499,17 @@ export const config: StateConfig = {
       label: "Suffix",
       type: "select",
       required: false,
+      // Options in conventional suffix order (JR, SR, then ascending numerals,
+      // then professional) — values/labels verbatim, order only.
       options: [
-        { value: "DR", label: "DR" }, { value: "ESQ", label: "ESQ" },
+        { value: "JR", label: "JR" }, { value: "SR", label: "SR" },
         { value: "I", label: "I" }, { value: "II", label: "II" },
         { value: "III", label: "III" }, { value: "IV", label: "IV" },
-        { value: "IX", label: "IX" }, { value: "JR", label: "JR" },
-        { value: "MD", label: "MD" }, { value: "SR", label: "SR" }, { value: "V", label: "V" },
-        { value: "VI", label: "VI" }, { value: "VII", label: "VII" },
-        { value: "VIII", label: "VIII" }, { value: "X", label: "X" }
+        { value: "V", label: "V" }, { value: "VI", label: "VI" },
+        { value: "VII", label: "VII" }, { value: "VIII", label: "VIII" },
+        { value: "IX", label: "IX" }, { value: "X", label: "X" },
+        { value: "DR", label: "DR" }, { value: "ESQ", label: "ESQ" },
+        { value: "MD", label: "MD" }
       ],
       step: 2,
     },

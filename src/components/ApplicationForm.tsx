@@ -26,9 +26,11 @@ import type { FormFieldDef, StateConfig } from "@/lib/state-config";
 import {
   addOnsForLicense,
   buildSubmissionSchema,
+  digitsOnlyPatternCount,
   isFieldVisible,
   licensesForResidency,
   maskSSN,
+  residencyPricingTier,
 } from "@/lib/state-config";
 import { applyMask } from "@/lib/masks";
 import { Button } from "@/components/ui/Button";
@@ -95,6 +97,7 @@ function SsnInput({
   required,
   label,
   useMask,
+  maxDigits,
   placeholder,
 }: {
   value: string;
@@ -108,6 +111,8 @@ function SsnInput({
   /** Apply the dashed 123-45-6789 input mask (default). False when the field
    * defines its own validation.pattern (e.g. raw 9-digit SSN). */
   useMask: boolean;
+  /** Digit cap for unmasked (raw-pattern) entry — 9 for a full SSN. */
+  maxDigits: number;
   placeholder?: string;
 }) {
   const [visible, setVisible] = useState(false);
@@ -123,7 +128,14 @@ function SsnInput({
       error={error}
       helpText={helpText}
       required={required}
-      onChange={(e) => onChange(useMask ? applyMask("ssn", e.target.value) : e.target.value)}
+      onChange={(e) =>
+        onChange(
+          useMask
+            ? applyMask("ssn", e.target.value)
+            : // Digits-only live entry; the mask already strips non-digits.
+              e.target.value.replace(/\D/g, "").slice(0, maxDigits),
+        )
+      }
       onBlur={onBlur}
       rightAdornment={
         <button
@@ -169,10 +181,15 @@ function FieldControl({
           case "text":
           case "zip":
           case "date": {
-            // A field-level validation.pattern takes precedence over the
-            // default format — don't force the dashed input mask on such
-            // fields (e.g. TX raw 10-digit phone, TX 5-digit ZIP).
-            const useMask = Boolean(def.mask) && !def.validation?.pattern;
+            // A field-level validation.pattern normally suppresses the input
+            // mask so the raw value can match (e.g. TX 5-digit ZIP). Phone
+            // fields with a digits-only pattern (TX ^\d{10}$) keep the
+            // (xxx) xxx-xxxx display mask — the schema strips non-digits
+            // before applying the pattern.
+            const digitLimit = digitsOnlyPatternCount(def.validation?.pattern);
+            const useMask =
+              Boolean(def.mask) &&
+              (!def.validation?.pattern || (def.mask === "phone" && digitLimit !== null));
             const inputType =
               def.type === "email" ? "email" : def.type === "tel" ? "tel" : def.type === "date" && !def.mask ? "date" : "text";
             const autoComplete =
@@ -183,13 +200,21 @@ function FieldControl({
                 label={def.label}
                 name={f.name}
                 type={inputType}
-                inputMode={def.mask ? "numeric" : undefined}
+                inputMode={def.mask || digitLimit !== null ? "numeric" : undefined}
                 placeholder={def.placeholder ?? (useMask && def.mask === "dob" ? "MM/DD/YYYY" : undefined)}
                 autoComplete={autoComplete}
                 value={(value as string) ?? ""}
-                onChange={(e) =>
-                  f.onChange(useMask && def.mask ? applyMask(def.mask, e.target.value) : e.target.value)
-                }
+                onChange={(e) => {
+                  if (useMask && def.mask) {
+                    f.onChange(applyMask(def.mask, e.target.value));
+                  } else if (digitLimit !== null) {
+                    // Live digits-only entry for digits-only patterns
+                    // (e.g. NC last-4-of-SSN ^\d{4}$).
+                    f.onChange(e.target.value.replace(/\D/g, "").slice(0, digitLimit));
+                  } else {
+                    f.onChange(e.target.value);
+                  }
+                }}
                 onBlur={f.onBlur}
                 error={error}
                 helpText={def.helpText}
@@ -210,6 +235,7 @@ function FieldControl({
                   helpText={def.helpText}
                   required={def.required}
                   useMask={!def.validation?.pattern}
+                  maxDigits={digitsOnlyPatternCount(def.validation?.pattern) ?? 9}
                   placeholder={def.placeholder}
                 />
                 {config.requiresSSN && config.ssnExplainer && (
@@ -436,6 +462,36 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
     const stillVisible = licensesForResidency(config, value).some((l) => l.id === getValues("licenseId"));
     if (!stillVisible) setValue("licenseId", "");
     syncRequiredAddOns(getValues("licenseId"));
+    syncResidencyField(value);
+  }
+
+  /**
+   * Default the Step 2 residency applicant field from the Step 1 selection
+   * (the applicant can still change it). Handles exact-value fields (CA/CO/
+   * FL/NC "residency", CO "residencyDeclaration") and Yes/No declarations
+   * (TX "texasResident", MI "michiganResident"); states without such a
+   * field (SC) are skipped.
+   */
+  function syncResidencyField(wizardResidency: string) {
+    const field = config.formFields.find(
+      (f) =>
+        /residen/i.test(f.name) &&
+        (f.type === "select" || f.type === "radio") &&
+        (f.options?.length ?? 0) > 0,
+    );
+    if (!field?.options) return;
+    const path = `data.${field.name}` as Path<WizardValues>;
+    // Exact-value fields: wizard values are a subset of the field options
+    // (resident / nonresident / NC student & military aliases).
+    if (field.options.some((o) => o.value === wizardResidency)) {
+      setValue(path, wizardResidency);
+      return;
+    }
+    // Yes/No declarations: resident-priced tiers map to "yes" (e.g. TX
+    // senior/youth are residents); option casing varies ("yes" vs "Yes").
+    const target = residencyPricingTier(wizardResidency) === "resident" ? "yes" : "no";
+    const match = field.options.find((o) => o.value.toLowerCase() === target);
+    if (match) setValue(path, match.value);
   }
 
   function handleLicenseChange(id: string) {

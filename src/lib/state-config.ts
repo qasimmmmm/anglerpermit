@@ -179,11 +179,26 @@ function normalizeEmpty(value: unknown): unknown {
 }
 
 /**
+ * Matches digits-only field patterns such as ^\d{4}$ / ^\d{10}$ and returns
+ * the required digit count (null for any other pattern). Drives (a) live
+ * digits-only input behavior and (b) digit normalization before validation
+ * for masked phone display values (e.g. TX phone).
+ */
+export function digitsOnlyPatternCount(pattern: string | undefined): number | null {
+  if (!pattern) return null;
+  const match = pattern.match(/^\^\\d\{(\d+)\}\$$/);
+  return match ? Number(match[1]) : null;
+}
+
+/**
  * Build a zod schema for ONE form field from its definition.
  * Every supported FieldType is handled.
  */
 export function buildFieldSchema(field: FormFieldDef): z.ZodTypeAny {
-  const label = field.label;
+  // Official labels are kept verbatim in state data — including trailing
+  // colons ("First Name:") — so strip the colon when composing messages
+  // ("First Name: is required" reads like a bug).
+  const label = field.label.replace(/:\s*$/, "");
   const v = field.validation ?? {};
 
   switch (field.type) {
@@ -193,11 +208,21 @@ export function buildFieldSchema(field: FormFieldDef): z.ZodTypeAny {
     }
     case "tel": {
       // A field-level validation.pattern (e.g. TX/NC raw 10-digit) takes
-      // precedence over the default masked-phone pattern.
+      // precedence over the default masked-phone pattern. For digits-only
+      // patterns the (xxx) xxx-xxxx display mask stays enabled in the form,
+      // so non-digits are stripped before the pattern is applied.
+      const digitCount = digitsOnlyPatternCount(v.pattern);
       const s = v.pattern
-        ? z
-            .string()
-            .regex(new RegExp(v.pattern), v.patternMessage ?? `Enter a valid phone number`)
+        ? digitCount !== null
+          ? z.preprocess(
+              (val) => (typeof val === "string" ? val.replace(/\D/g, "") : val),
+              z
+                .string()
+                .regex(new RegExp(v.pattern), v.patternMessage ?? `Enter a valid phone number`),
+            )
+          : z
+              .string()
+              .regex(new RegExp(v.pattern), v.patternMessage ?? `Enter a valid phone number`)
         : z
             .string()
             .regex(PHONE_PATTERN, `Enter a valid phone number, e.g. (555) 123-4567`);
@@ -283,7 +308,7 @@ export function buildFieldSchema(field: FormFieldDef): z.ZodTypeAny {
 
 /** Apply required/optional semantics to string-ish schemas. */
 function wrapRequired(
-  inner: z.ZodString,
+  inner: z.ZodTypeAny,
   field: FormFieldDef,
   label: string,
 ): z.ZodTypeAny {
@@ -291,7 +316,7 @@ function wrapRequired(
     // Empty/missing input must fail with a friendly message even when no other rule catches it.
     return z.preprocess(
       normalizeEmpty,
-      z.string().min(1, `${label} is required`).pipe(inner),
+      z.string().min(1, `${label} is required`).pipe(inner as z.ZodType<unknown, string>),
     );
   }
   return z.preprocess(
