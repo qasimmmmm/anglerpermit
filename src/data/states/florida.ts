@@ -499,17 +499,20 @@ export const config: StateConfig = {
       label: "Suffix",
       type: "select",
       required: false,
-      // Options in conventional suffix order (JR, SR, then ascending numerals,
-      // then professional) — values/labels verbatim, order only.
+      // AUDIT FIX (form-audit): restored the official portal's alphabetical
+      // option order per florida.md ("Suffix (select: DR, ESQ, I, II, III, IV,
+      // IX, JR, MD, SR, V, VI, VII, VIII, X)") and florida.json — the build had
+      // re-sorted them into conventional order (JR, SR, I..X, DR, ESQ, MD),
+      // which drifted from the official dropdown.
       options: [
-        { value: "JR", label: "JR" }, { value: "SR", label: "SR" },
+        { value: "DR", label: "DR" }, { value: "ESQ", label: "ESQ" },
         { value: "I", label: "I" }, { value: "II", label: "II" },
         { value: "III", label: "III" }, { value: "IV", label: "IV" },
+        { value: "IX", label: "IX" }, { value: "JR", label: "JR" },
+        { value: "MD", label: "MD" }, { value: "SR", label: "SR" },
         { value: "V", label: "V" }, { value: "VI", label: "VI" },
         { value: "VII", label: "VII" }, { value: "VIII", label: "VIII" },
-        { value: "IX", label: "IX" }, { value: "X", label: "X" },
-        { value: "DR", label: "DR" }, { value: "ESQ", label: "ESQ" },
-        { value: "MD", label: "MD" }
+        { value: "X", label: "X" }
       ],
       step: 2,
     },

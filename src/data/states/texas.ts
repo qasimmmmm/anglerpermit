@@ -438,7 +438,13 @@ export const config: StateConfig = {
     },
     {
       name: "driversLicenseState",
-      label: "Driver's License",
+      // AUDIT FIX (form-audit): research JSON labeled BOTH DL fields
+      // "Driver's License" (the official screen shows ONE 'Driver's License'
+      // label over a state select + number input group - texas.md 'View/Edit
+      // Customer Details': "Driver's License (state select default TX + number
+      // input)"). Two identical labels confused live QA on step 2, so the
+      // sub-fields are disambiguated per the official group's structure.
+      label: "Driver's License State",
       type: "select",
       required: false,
       step: 2,
@@ -446,7 +452,11 @@ export const config: StateConfig = {
     },
     {
       name: "driversLicenseNumber",
-      label: "Driver's License",
+      // AUDIT FIX (form-audit): was "Driver's License" (duplicate of the state
+      // dropdown's label). Official login-screen phrasing for this pair is
+      // "Driver's License (# and state)" - texas.md Step A / texas.json
+      // driversLicenseNumber officialNote.
+      label: "Driver's License Number",
       type: "text",
       required: false,
       autocomplete: "off",
