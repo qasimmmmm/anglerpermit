@@ -2,7 +2,7 @@
 
 import { Check } from "lucide-react";
 import type { StateConfig } from "@/lib/state-config";
-import { addOnsForLicense, licensesForResidency } from "@/lib/state-config";
+import { addOnsForLicense, displayPrice, licensesForResidency } from "@/lib/state-config";
 import { CATEGORY_LABELS, formatPrice } from "@/lib/format";
 import { Badge } from "@/components/ui/Badge";
 
@@ -52,8 +52,8 @@ export function LicenseSelector({
           </span>
         </legend>
         <p className="mt-1 text-sm text-slate-500">
-          Select your residency to see the licenses available to you — current options
-          and official prices from {config.officialPortalName} data.
+          Select your residency to see the licenses available to you — license
+          options based on current {config.officialPortalName} data.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Residency status">
           {config.residencyOptions.map((opt) => {
@@ -149,8 +149,10 @@ export function LicenseSelector({
                               </span>
                             </span>
                           </span>
+                          {/* Markup applied at display time (displayPrice);
+                              label is just the price — never "official fee". */}
                           <span className="whitespace-nowrap text-base font-bold text-navy">
-                            {formatPrice(license.price)}
+                            {formatPrice(displayPrice(license.price))}
                           </span>
                         </span>
                         {license.description && (
@@ -208,7 +210,7 @@ export function LicenseSelector({
                     <span className="flex items-center justify-between gap-3">
                       <span className="text-sm font-medium text-navy">{addOn.name}</span>
                       <span className="text-sm font-semibold text-navy">
-                        {formatPrice(addOn.price)}
+                        {formatPrice(displayPrice(addOn.price))}
                       </span>
                     </span>
                     {addOn.description && (

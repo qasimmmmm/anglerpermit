@@ -14,9 +14,9 @@ export const FAQ_ITEMS: FaqItem[] = [
       "No. AnglerPermit.com is a privately owned license-assistance service and is not affiliated with, endorsed by, or operated by any government agency. Fishing licenses are also available directly from official state agencies, often at a lower cost. We provide a convenience service: you fill out one simple form, and our team completes the purchase on the official state portal for you.",
   },
   {
-    question: "Why is there a service fee?",
+    question: "How does pricing work?",
     answer:
-      "The official state license fee goes directly to the state — we never mark it up. Our separate service fee covers reviewing your application for errors, completing the purchase on the official state portal on your behalf, handling any issues with the state system, and delivering your license by email. Both amounts are always itemized separately before you submit, so there are no surprises.",
+      "You see one clear total before you pay — no hidden fees. That single bundled price covers your license and add-ons plus AnglerPermit's application review, purchase handling on your behalf, license delivery by email, and customer support. What you're quoted at checkout is exactly what your card is charged.",
   },
   {
     question: "Is my Social Security number safe?",
@@ -41,12 +41,12 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     question: "What is your refund policy?",
     answer:
-      "Our service fee is refundable until we purchase your license from the state. Once a license has been purchased, state license fees are generally non-refundable because state agencies do not offer refunds to us. If we cannot complete your purchase for any reason, you receive a full refund of everything you paid. See the Refund Policy page for details.",
+      "Your payment is refundable until we purchase your license from the state. Once a license has been purchased, state license fees are generally non-refundable because state agencies do not offer refunds to us. If we cannot complete your purchase for any reason, you receive a full refund of everything you paid. See the Refund Policy page for details.",
   },
   {
     question: "Can I buy directly from the state instead?",
     answer:
-      "Absolutely — every state page links to the official portal, and you will pay only the state's listed fees there. AnglerPermit exists for anglers who prefer a simpler, guided application with itemized pricing and hands-on support.",
+      "Absolutely — every state page links to the official portal, and you will pay only the state's listed fees there. AnglerPermit exists for anglers who prefer a simpler, guided application with one clear total and hands-on support.",
   },
   {
     question: "What information do I need to apply?",

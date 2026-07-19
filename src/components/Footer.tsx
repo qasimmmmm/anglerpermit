@@ -20,7 +20,7 @@ const SITE_LINKS = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-navy text-slate-300">
+    <footer data-site-footer className="border-t border-white/10 bg-navy text-slate-300">
       <div className="container-site py-12">
         <div className="grid gap-10 md:grid-cols-3">
           <div>
@@ -65,10 +65,15 @@ export function Footer() {
           </nav>
         </div>
 
-        {/* Mandatory persistent non-affiliation disclaimer — keep verbatim. */}
-        <div className="mt-10 rounded-lg border border-white/10 bg-white/5 px-5 py-4">
-          <p className="text-sm leading-relaxed text-slate-200">{NON_AFFILIATION_DISCLAIMER}</p>
-        </div>
+        {/* Mandatory persistent non-affiliation disclaimer — kept verbatim,
+            styled as a single small, quiet line (subtle but legible). The full
+            version with context lives on /disclaimer. */}
+        <p className="mt-10 text-xs leading-relaxed text-slate-500">
+          {NON_AFFILIATION_DISCLAIMER}{" "}
+          <Link href="/disclaimer" className="underline decoration-slate-600 underline-offset-2 hover:text-slate-300">
+            Learn more
+          </Link>
+        </p>
 
         <div className="mt-6 flex items-start gap-2 text-xs text-slate-400">
           <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-300" aria-hidden="true" />

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Refund Policy",
   description:
-    "AnglerPermit's refund policy: full refunds before we purchase your license, why official state fees are non-refundable after purchase, our-error corrections, and how to request a refund.",
+    "AnglerPermit's refund policy: full refunds before we purchase your license, why payments are generally non-refundable after purchase, our-error corrections, and how to request a refund.",
 };
 
 const EFFECTIVE_DATE = "July 19, 2026";
@@ -52,8 +52,8 @@ export default function RefundPage() {
                 correction where the state allows one.
               </li>
               <li>
-                After we purchase: official state fees are non-refundable because state
-                agencies do not refund them; the service fee has been earned.
+                After we purchase: payments are generally non-refundable because state
+                agencies do not refund issued licenses and the service has been performed.
               </li>
               <li>
                 Duplicate charge: refunded in full. Approved refunds reach your bank in
@@ -89,8 +89,7 @@ export default function RefundPage() {
               You may cancel your application for a full refund at any time{" "}
               <strong className="text-navy">before we complete the purchase</strong> of your
               license on the official state portal. On cancellation before purchase, we
-              refund 100% of what you paid — the official state fees and our service fee —
-              to your original payment method.
+              refund 100% of what you paid to your original payment method.
             </p>
             <p className="mt-3">
               We typically fulfill orders within 24 hours of submission, so please send
@@ -108,8 +107,8 @@ export default function RefundPage() {
               example, a state system outage that prevents completion, an application we
               cannot process as submitted, or a rejection caused by our error — you receive
               a{" "}
-              <strong className="text-navy">full refund of all amounts paid</strong>,
-              including the official state fees and our service fee. We will always tell you
+              <strong className="text-navy">full refund of all amounts paid</strong>.
+              We will always tell you
               why the order could not be completed.
             </p>
           </section>
@@ -118,14 +117,14 @@ export default function RefundPage() {
             <h2 className="text-xl font-bold">3. After your license is purchased</h2>
             <ul className="mt-3 list-disc space-y-1.5 pl-6">
               <li>
-                <strong className="text-navy">Official state fees are non-refundable once
+                <strong className="text-navy">Payments are non-refundable once
                 the license is purchased.</strong> State agencies do not refund issued
                 licenses to us, so we cannot return those amounts to you. Where a state does
                 allow a refund, void, or correction in a specific situation, we will pursue
                 it on your behalf and pass through whatever the state returns.
               </li>
               <li>
-                <strong className="text-navy">Our service fee is non-refundable after
+                <strong className="text-navy">Our service is non-refundable after
                 purchase</strong>, because the service — review, submission, purchase, and
                 delivery — has been performed. The exception is our own error, covered in
                 Section 4.
@@ -146,10 +145,9 @@ export default function RefundPage() {
                 additional charge, where the state permits it; and
               </li>
               <li>
-                if a correction is not possible, we will refund you in full — the service
-                fee plus the official state fees to the extent we can recover them from the
-                state, and in any event no less than every dollar you paid us that was not
-                already delivered to the state for a correct license.
+                if a correction is not possible, we will refund you in full — every dollar
+                you paid us that was not already delivered to the state for a correct
+                license, plus anything we can recover from the state.
               </li>
             </ul>
           </section>
@@ -161,7 +159,7 @@ export default function RefundPage() {
               application you submitted, contact us immediately. Where the state permits
               corrections or re-issuance, we will handle the process for you at no
               additional service charge (any fee the state itself charges for re-issuance is
-              passed through at cost). Refunds in these cases depend on the state
+              passed on to you). Refunds in these cases depend on the state
               agency&apos;s own policies, which generally do not allow refunds for
               customer-caused errors.
             </p>

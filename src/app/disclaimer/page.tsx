@@ -136,13 +136,13 @@ export default function DisclaimerPage() {
               from official state licensing portals —{" "}
               <strong className="text-navy">
                 often at a lower cost, because you pay only the state&apos;s fees without
-                our service fee
+                our assistance charge
               </strong>
               . What we provide is convenience and support: a guided, error-checked
-              application, purchase handling, delivery, and customer service. Whether that
-              convenience is worth our service fee is your choice, and we encourage you to
-              compare before ordering. Every state page on this site links to the official
-              portal it references.
+              application, purchase handling, delivery, and customer service, all included
+              in one clear total. Whether that convenience is worth it is your choice, and
+              we encourage you to compare before ordering. Every state page on this site
+              links to the official portal it references.
             </p>
           </section>
 

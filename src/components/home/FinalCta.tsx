@@ -49,7 +49,7 @@ export function FinalCta() {
             </Link>
           </div>
           <p className="mx-auto mt-8 max-w-xl text-xs leading-relaxed text-slate-300">
-            Service fee refundable until we purchase your license. AnglerPermit.com is a
+            Fully refundable until we purchase your license. AnglerPermit.com is a
             private license-assistance service and is not affiliated with, endorsed by,
             or operated by any government agency — licenses are also available directly
             from official state agencies.

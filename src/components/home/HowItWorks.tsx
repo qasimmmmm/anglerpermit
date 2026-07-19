@@ -9,13 +9,13 @@ const STEPS = [
     image: "/images/fly-casting.jpg",
     alt: "Angler casting a fly rod while wading in a river",
     title: "Tell us where you're fishing",
-    body: "Choose your state and residency, then pick from the state's current license options at official prices. Required stamps and validations are added automatically.",
+    body: "Choose your state and residency, then pick from the state's current license options. Required stamps and validations are added automatically.",
   },
   {
     image: "/images/tackle-detail.jpg",
     alt: "Close-up of an angler's hand on a spinning reel by the water",
     title: "Complete one guided form",
-    body: "Plain-English questions with inline validation that catches mistakes as you type. You see the state fee and our service fee itemized before you pay.",
+    body: "Plain-English questions with inline validation that catches mistakes as you type. You see one clear total before you pay — no hidden fees.",
   },
   {
     image: "/images/lake-morning.jpg",

@@ -1,11 +1,15 @@
 import type { StateConfig } from "@/lib/state-config";
-import { addOnsForLicense } from "@/lib/state-config";
+import { addOnsForLicense, displayPrice } from "@/lib/state-config";
 import { formatPrice } from "@/lib/format";
 import { Card } from "@/components/ui/Card";
 
 /**
- * Itemized price summary: official license fee + add-ons + our service fee,
- * always shown as SEPARATE lines (transparent-pricing requirement).
+ * Price summary: one bundled total.
+ *
+ * Every price shown here has the global markup applied via displayPrice()
+ * (see PRICE_MARKUP in src/lib/state-config.ts). HONESTY RULE: marked-up
+ * prices must never be labeled "official fee" / "state fee", and there is no
+ * separate service-fee line — our margin is inside the single total.
  */
 export function PriceSummary({
   config,
@@ -24,9 +28,9 @@ export function PriceSummary({
     (a) => a.required || (addOnIds ?? []).includes(a.id),
   );
 
-  const officialTotal =
-    (license?.price ?? 0) + selectedAddOns.reduce((sum, a) => sum + a.price, 0);
-  const total = officialTotal + config.serviceFee;
+  const licensePrice = license ? displayPrice(license.price) : 0;
+  const addOnsTotal = selectedAddOns.reduce((sum, a) => sum + displayPrice(a.price), 0);
+  const total = licensePrice + addOnsTotal;
 
   return (
     <Card className={`bg-navy-50/60 ${className}`}>
@@ -37,22 +41,22 @@ export function PriceSummary({
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex items-center justify-between gap-4">
             <dt className="text-slate-600">
-              {license ? `${license.name} (official state fee)` : "Official state license fee"}
+              License{license ? `: ${license.name}` : ""}
             </dt>
             <dd className="font-medium text-navy">
-              {license ? formatPrice(license.price) : "—"}
+              {license ? formatPrice(licensePrice) : "—"}
             </dd>
           </div>
-          {selectedAddOns.map((addOn) => (
-            <div key={addOn.id} className="flex items-center justify-between gap-4">
-              <dt className="text-slate-600">{addOn.name} (official fee)</dt>
-              <dd className="font-medium text-navy">{formatPrice(addOn.price)}</dd>
+          {selectedAddOns.length > 0 && (
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-slate-600">
+                Add-ons: {selectedAddOns.map((a) => a.name).join(", ")}
+              </dt>
+              <dd className="whitespace-nowrap font-medium text-navy">
+                {formatPrice(addOnsTotal)}
+              </dd>
             </div>
-          ))}
-          <div className="flex items-center justify-between gap-4">
-            <dt className="text-slate-600">AnglerPermit service fee</dt>
-            <dd className="font-medium text-navy">{formatPrice(config.serviceFee)}</dd>
-          </div>
+          )}
           <div className="mt-2 flex items-center justify-between gap-4 border-t border-navy-100 pt-3">
             <dt className="font-semibold text-navy">Total due today</dt>
             <dd className="text-lg font-bold text-navy">
@@ -61,9 +65,9 @@ export function PriceSummary({
           </div>
         </dl>
         <p className="mt-3 text-xs leading-relaxed text-slate-500">
-          Official fees are passed through to {config.officialAgencyName} at cost. The
-          service fee covers our application review, purchase handling, and support.
-          Licenses are also available directly from the state at the official fee only.
+          One clear total before you pay — no hidden fees. The total includes
+          the license, any add-ons, and AnglerPermit&rsquo;s application review,
+          purchase handling, and support.
         </p>
       </div>
     </Card>

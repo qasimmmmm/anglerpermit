@@ -34,7 +34,6 @@ export const config: StateConfig = {
   officialPortalName: "Go Outdoors Florida",
   officialPortalUrl: "https://gooutdoorsflorida.com/",
   lastVerified: "2026-07-18",
-  serviceFee: 29,
   requiresSSN: true,
   ssnExplainer: "Pursuant to s. 379.352, F.S. and 42 U.S.C. 666, every applicant for a Florida recreational license, permit or authorization number must provide their Social Security number. FWC collects SSNs for administration of the Title IV-D child support enforcement program; disclosure is limited by law and SSNs are exempt from Florida public-records release.",
   residencyOptions: [

@@ -97,7 +97,6 @@ export const config: StateConfig = {
   officialPortalName: "Go Outdoors South Carolina",
   officialPortalUrl: "https://gooutdoorssouthcarolina.com/",
   lastVerified: "2026-07-18",
-  serviceFee: 29,
   requiresSSN: true,
   ssnExplainer:
     "South Carolina law (S.C. Code Section 63-17-1080) and federal law (42 USCA 666(a)(13)) require disclosure of your Social Security Number or alien identification number to obtain SC hunting and fishing licenses; it is provided to the Child Support Enforcement Unit of the SC Department of Social Services. First-time purchasers must provide their full SSN. International customers may purchase with a passport instead of an SSN (nonresident fees apply).",

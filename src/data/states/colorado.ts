@@ -14,7 +14,6 @@ export const config: StateConfig = {
   officialPortalName: "CPWshop — Colorado Parks and Wildlife IPAWS",
   officialPortalUrl: "https://www.cpwshop.com",
   lastVerified: "2026-07-18",
-  serviceFee: 29,
   requiresSSN: true,
   ssnExplainer:
     "Colorado requires a Social Security number or Individual Taxpayer Identification Number (ITIN) to buy a license — for new customers age 16 and older (age 12+ for a second-rod stamp), per federal law. It is not displayed on the license; it is provided, if requested, to Child Support Enforcement authorities.",
@@ -46,7 +45,7 @@ export const config: StateConfig = {
       duration: "Annual",
       category: "freshwater",
       description:
-        "Nonresidents ages 16+ (listed as 'Nonresidents — Annual (16+)' in the official fee table). Valid March 1–March 31 of the following year (13 months).",
+        "Nonresidents ages 16+ (listed as 'Nonresidents — Annual (16+)' in the state fee schedule). Valid March 1–March 31 of the following year (13 months).",
       suggestedAddOns: ["habitat-stamp", "second-rod-stamp"],
       officialNote:
         "2026-27 fee per official 2026 Colorado Fishing Brochure fee table. CPW's fishing-licenses web page lists resident fees only; nonresident fees appear in the brochure.",
@@ -114,7 +113,7 @@ export const config: StateConfig = {
       duration: "5-Day",
       category: "freshwater",
       description:
-        "Nonresidents ages 16+ (listed as 'Nonresidents — Five-day (16+)' in the official fee table). Colorado does NOT offer a resident five-day fishing license.",
+        "Nonresidents ages 16+ (listed as 'Nonresidents — Five-day (16+)' in the state fee schedule). Colorado does NOT offer a resident five-day fishing license.",
       suggestedAddOns: ["habitat-stamp", "second-rod-stamp"],
     },
     {

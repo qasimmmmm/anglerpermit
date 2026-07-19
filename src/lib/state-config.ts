@@ -6,6 +6,43 @@ import { z } from "zod";
  * State agents: do NOT modify this file. Add your state in src/data/states/<slug>.ts.
  */
 
+/**
+ * Global price multiplier applied to all license/add-on prices — edit here.
+ *
+ * Per-state data files keep the RESEARCHED base prices verbatim (do not edit
+ * them for pricing). Every price shown to a user — license cards, add-ons,
+ * price summary, review, the payment step, and the server-side charge amount —
+ * is the base price run through displayPrice() at DISPLAY time, so the markup
+ * lives in exactly one place.
+ *
+ * Honesty rule: marked-up prices must never be labeled "official fee",
+ * "official state fee", or "state fee". The total is a single bundled price
+ * (no separate service-fee line — our margin is inside the total).
+ */
+export const PRICE_MARKUP = 3;
+
+/** Convert a researched base price to the price shown to (and charged to) the customer. */
+export function displayPrice(basePrice: number): number {
+  return basePrice * PRICE_MARKUP;
+}
+
+/**
+ * Server-authoritative order total (in USD) for a license + add-ons.
+ * ALWAYS computed from the state config — never trust a client-sent amount.
+ */
+export function computeOrderTotal(
+  config: StateConfig,
+  licenseId: string,
+  addOnIds: string[],
+): number {
+  const license = config.licenses.find((l) => l.id === licenseId);
+  const applicable = addOnsForLicense(config, licenseId || undefined);
+  const selected = applicable.filter((a) => a.required || addOnIds.includes(a.id));
+  const base =
+    (license?.price ?? 0) + selected.reduce((sum, a) => sum + a.price, 0);
+  return displayPrice(base);
+}
+
 export type FieldType =
   | "text" | "email" | "tel" | "date" | "select" | "radio" | "checkbox"
   | "ssn" | "number" | "zip" | "textarea";
@@ -75,7 +112,11 @@ export interface StateConfig {
   officialPortalName: string; // 'Michigan DNR eLicense'
   officialPortalUrl: string; // https://...
   lastVerified: string; // 'YYYY-MM-DD'
-  serviceFee: number; // placeholder, editable; default 29
+  /** @deprecated REMOVED concept: the $29 flat service fee no longer exists.
+   * Pricing is a single bundled total — displayPrice() marks up license/add-on
+   * base prices (see PRICE_MARKUP) and our margin lives inside that total.
+   * Optional only so legacy data files parse; do not set or use. */
+  serviceFee?: number;
   requiresSSN: boolean; // show masked SSN field w/ explainer
   ssnExplainer?: string; // state-law one-liner
   residencyOptions: { value: string; label: string }[]; // drives license filtering
@@ -143,6 +184,26 @@ export function addOnsForLicense(
   return config.addOns.filter(
     (a) => !a.appliesTo || (licenseId ? a.appliesTo.includes(licenseId) : true),
   );
+}
+
+/**
+ * Strip internal provenance fields (officialNote / researchNotes) before a
+ * config is serialized to the browser. These are research-only annotations
+ * and are never user-facing — omitting them keeps page payloads clean.
+ */
+export function publicConfig(config: StateConfig): StateConfig {
+  const strip = <T extends { officialNote?: string }>(obj: T): T => {
+    const clone = { ...obj };
+    delete clone.officialNote;
+    return clone;
+  };
+  return {
+    ...config,
+    researchNotes: undefined,
+    licenses: config.licenses.map(strip),
+    addOns: config.addOns.map(strip),
+    formFields: config.formFields.map(strip),
+  };
 }
 
 /** True when a conditional field should be visible given current values. */
@@ -357,18 +418,43 @@ export function buildApplicantSchema(
     }) as unknown as z.ZodType<Record<string, unknown>>;
 }
 
-/** The three legally required consents. */
+/**
+ * The single legally required consent (friction-reduced).
+ *
+ * The separate "authorize AnglerPermit to purchase on my behalf" checkbox was
+ * REMOVED: the agency authorization now lives in the Terms of Service
+ * ("Authorization to act as your agent") and in the one-line statement above
+ * the pay button ("By paying, you agree … and authorize AnglerPermit to
+ * purchase this license on your behalf."). Payment itself is the assent.
+ */
 export const consentsSchema = z.object({
-  accurate: z.literal(true, { error: "You must confirm your information is accurate" }),
-  purchaseAuthorized: z.literal(true, {
-    error: "You must authorize AnglerPermit to purchase the license on your behalf",
-  }),
-  termsAccepted: z.literal(true, {
-    error: "You must agree to the Terms of Service and Privacy Policy",
+  accurateAndTerms: z.literal(true, {
+    error: "Please confirm your information is accurate and agree to the Terms of Service and Privacy Policy",
   }),
 });
 
 export type Consents = z.infer<typeof consentsSchema>;
+
+/**
+ * Client-side tokenized payment handle (NMI Collect.js-style).
+ *
+ * PCI: the raw card number/expiry/CVV NEVER leave the customer's browser —
+ * the card data is tokenized client-side and only this token reaches our
+ * server. last4/brand are PCI-safe display metadata for the receipt/record.
+ */
+export const paymentSchema = z.object({
+  token: z
+    .string()
+    .min(1, "Your payment session expired — please re-enter your card details"),
+  last4: z
+    .string()
+    .regex(/^\d{4}$/, "Invalid card metadata")
+    .optional(),
+  brand: z.string().max(20).optional(),
+  billingZip: z.string().max(10).optional(),
+});
+
+export type TokenizedPayment = z.infer<typeof paymentSchema>;
 
 /** Full submission schema for a known state (used by the API route and the form). */
 export function buildSubmissionSchema(config: StateConfig) {
@@ -396,6 +482,7 @@ export function buildSubmissionSchema(config: StateConfig) {
       .default([]),
     data: buildApplicantSchema(config),
     consents: consentsSchema,
+    payment: paymentSchema,
   });
 }
 
@@ -423,6 +510,7 @@ export const genericSubmissionSchema = z.object({
     })
     .passthrough(),
   consents: consentsSchema,
+  payment: paymentSchema,
 });
 
 export type GenericSubmission = z.infer<typeof genericSubmissionSchema>;

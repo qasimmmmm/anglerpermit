@@ -21,7 +21,6 @@ export const config: StateConfig = {
   officialPortalName: "Go Outdoors North Carolina",
   officialPortalUrl: "https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx",
   lastVerified: "2026-07-18",
-  serviceFee: 29,
   requiresSSN: true,
   ssnExplainer: "Social Security Number is required pursuant to federal law. (Exact text from the portal's 'Additional Info Needed' step. Account creation also requires 'Last 4 of SSN'.)",
   residencyOptions: [

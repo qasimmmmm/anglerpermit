@@ -1,7 +1,7 @@
 import { ExternalLink, FileCheck2, ShieldCheck } from "lucide-react";
 import type { StateConfig } from "@/lib/state-config";
+import { publicConfig } from "@/lib/state-config";
 import { ApplicationForm } from "@/components/ApplicationForm";
-import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 
 /**
  * StatePageTemplate — the single shared component every state page uses.
@@ -44,7 +44,7 @@ export function StatePageTemplate({ config }: { config: StateConfig }) {
               </li>
               <li className="flex items-center gap-2">
                 <FileCheck2 className="h-4 w-4 text-forest-300" aria-hidden="true" />
-                Itemized state + service fees
+                One clear total before you pay
               </li>
             </ul>
           </div>
@@ -54,28 +54,27 @@ export function StatePageTemplate({ config }: { config: StateConfig }) {
       {/* Application wizard (residency -> license -> add-ons -> details -> review) */}
       <section id="application" className="scroll-mt-20 bg-slate-50 py-12 sm:py-16">
         <div className="container-site">
-          <ApplicationForm config={config} />
+          <ApplicationForm config={publicConfig(config)} />
         </div>
       </section>
 
-      {/* Source note + disclaimer */}
-      <section className="border-t border-slate-200 py-10">
+      {/* Small inline non-affiliation note (compliance) — no provenance line,
+          no "official fee" claims. The official portal link stays. */}
+      <section className="border-t border-slate-200 py-8">
         <div className="container-site max-w-3xl">
-          <p className="text-sm text-slate-500">
-            License data sourced from{" "}
+          <p className="text-xs leading-relaxed text-slate-500">
+            AnglerPermit is a private license-assistance service, not a government agency.{" "}
+            Official licensing portal:{" "}
             <a
               href={config.officialPortalUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-forest-700 underline decoration-forest-300 underline-offset-2 hover:text-forest-500"
             >
-              {config.officialPortalName} ({config.officialPortalUrl})
+              {config.officialPortalName}
               <ExternalLink className="ml-1 inline h-3.5 w-3.5" aria-hidden="true" />
-            </a>{" "}
-            &middot; Last verified {config.lastVerified}. You can also purchase directly from the
-            official {config.officialAgencyName} portal at the state&apos;s listed fees.
+            </a>
           </p>
-          <DisclaimerBanner className="mt-6" />
         </div>
       </section>
     </>

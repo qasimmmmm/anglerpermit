@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, MapPin } from "lucide-react";
 import type { StateConfig } from "@/lib/state-config";
+import { displayPrice } from "@/lib/state-config";
 import { formatPrice } from "@/lib/format";
 import { Card } from "@/components/ui/Card";
 
@@ -35,8 +36,8 @@ export function StateGrid({ states }: { states: StateConfig[] }) {
                   <h3 className="text-lg font-semibold text-navy">{state.stateName}</h3>
                 </div>
                 <p className="mt-3 flex-1 text-sm text-slate-600">
-                  {state.licenses.length} license option{state.licenses.length === 1 ? "" : "s"} · Official
-                  fee {lowestPrice > 0 ? `from ${formatPrice(lowestPrice)}` : "Free"} · Data from{" "}
+                  {state.licenses.length} license option{state.licenses.length === 1 ? "" : "s"} ·
+                  {" "}{lowestPrice > 0 ? `from ${formatPrice(displayPrice(lowestPrice))}` : "Free"} · Data from{" "}
                   {state.officialPortalName}
                 </p>
                 <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-forest-700">

@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Terms of Service",
   description:
-    "The terms governing AnglerPermit's private license-assistance service: your authorization for us to purchase on your behalf, itemized fees, refunds, and limitations of liability.",
+    "The terms governing AnglerPermit's private license-assistance service: your authorization for us to act as your agent and purchase on your behalf, pricing, refunds, and limitations of liability.",
 };
 
 const EFFECTIVE_DATE = "July 19, 2026";
@@ -13,7 +13,7 @@ const LAST_UPDATED = "July 19, 2026";
 const TOC = [
   { id: "the-service", label: "1. The service" },
   { id: "acceptance", label: "2. Acceptance of these terms" },
-  { id: "authorization", label: "3. Your authorization" },
+  { id: "authorization", label: "3. Authorization to act as your agent" },
   { id: "accuracy", label: "4. Accuracy of your information" },
   { id: "fees", label: "5. Fees and payment" },
   { id: "issuance", label: "6. License issuance and state decisions" },
@@ -106,10 +106,12 @@ export default function TermsPage() {
           </section>
 
           <section id="authorization" className="scroll-mt-28">
-            <h2 className="text-xl font-bold">3. Your authorization</h2>
+            <h2 className="text-xl font-bold">3. Authorization to act as your agent</h2>
             <p className="mt-3">
-              When you submit an application and confirm the authorization consent, you
-              appoint AnglerPermit as your agent for the limited purpose of:
+              By submitting an application and completing payment, you appoint
+              AnglerPermit as your agent for the limited purpose of submitting your
+              application and purchasing the license you selected from the applicable
+              state agency on your behalf. This agency relationship includes:
             </p>
             <ul className="mt-3 list-disc space-y-1.5 pl-6">
               <li>
@@ -117,8 +119,8 @@ export default function TermsPage() {
                 state licensing portal using the information you provided;
               </li>
               <li>
-                purchasing the license and add-ons you selected, and paying the official
-                state fees on your behalf with the funds you provide; and
+                purchasing the license and add-ons you selected on your behalf with the
+                funds you provide; and
               </li>
               <li>
                 receiving the state&apos;s confirmation and delivering it to you by email.
@@ -150,21 +152,22 @@ export default function TermsPage() {
             <h2 className="text-xl font-bold">5. Fees and payment</h2>
             <ul className="mt-3 list-disc space-y-1.5 pl-6">
               <li>
-                <strong className="text-navy">Official state fees</strong> are set by the
-                state, passed through at cost, and paid to the state on your behalf. We
-                never mark them up. States may change their fees at any time; if the fee
-                charged by the state at the time of purchase differs from the amount shown
-                when you submitted, the state&apos;s actual fee applies and we will notify
-                you of any difference.
+                <strong className="text-navy">One bundled total.</strong> The price shown
+                for your license and add-ons — and the total quoted before you pay — is a
+                single bundled price that includes our application review, purchase
+                handling, license delivery, and customer support. There are no hidden
+                fees: the total shown at checkout is the amount your card is charged.
               </li>
               <li>
-                <strong className="text-navy">Our service fee</strong> is a separate,
-                itemized line shown before you submit. It covers application review,
-                purchase handling, license delivery, and customer support.
+                <strong className="text-navy">States set their own fees,</strong> which may
+                change at any time. Our bundled price is not the state&apos;s fee and is
+                not represented as such; it is the price of our license-assistance service,
+                which includes obtaining the license on your behalf.
               </li>
               <li>
-                All prices are in US dollars. Applicable taxes, if any, are shown before you
-                submit. Payment is authorized when you place your order.
+                All prices are in US dollars. Payment is collected when you place your
+                order, and your card statement shows the descriptor &ldquo;ANGLER
+                PERMIT&rdquo;.
               </li>
             </ul>
           </section>
@@ -199,8 +202,8 @@ export default function TermsPage() {
               </Link>
               , which is incorporated into these terms. In summary: you may cancel for a
               full refund at any time before we complete the purchase on the state portal;
-              official state fees are generally non-refundable once the license has been
-              purchased, because state agencies do not refund them.
+              after purchase, refunds are limited because state agencies generally do not
+              refund issued licenses.
             </p>
           </section>
 
@@ -262,8 +265,7 @@ export default function TermsPage() {
             <p className="mt-3">
               To the fullest extent permitted by law, AnglerPermit&apos;s total liability
               arising out of or relating to the service is limited to the total amount you
-              paid us for the application at issue, including the official state fees we
-              collected for that application. We are not liable for indirect, incidental,
+              paid us for the application at issue. We are not liable for indirect, incidental,
               special, consequential, or punitive damages, including lost fishing trips,
               lost profits, state penalties arising from inaccurate information you
               provided, or acts and omissions of state agencies. Some states do not allow

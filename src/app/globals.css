@@ -26,3 +26,11 @@
     @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
   }
 }
+
+/* Focused checkout: while the application wizard is on step 2+ (after license
+   selection, through payment and the success screen), the ApplicationForm
+   toggles `wizard-active` on <body> and the global footer is hidden for a
+   distraction-free flow. display:none only — no scroll/layout side effects. */
+body.wizard-active footer[data-site-footer] {
+  display: none;
+}

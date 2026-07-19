@@ -1321,7 +1321,6 @@ export const config: StateConfig = {
   officialPortalName: "Michigan DNR eLicense",
   officialPortalUrl: "https://mdnr-elicense.com/",
   lastVerified: "2026-07-18",
-  serviceFee: 29,
   requiresSSN: false,
   ssnExplainer: "Michigan does NOT require a Social Security number to buy a fishing license. The official eLicense customer profile form (mdnr-elicense.com/Customer/Create) has no SSN field; identity is established with a driver's license/state ID, DNR Sportcard, or DNR customer number.",
   // The official portal asks a single 'Michigan resident' Yes/No declaration,

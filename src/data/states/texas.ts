@@ -27,7 +27,6 @@ export const config: StateConfig = {
   officialPortalName: "Texas License Connection (TPWD online license sales)",
   officialPortalUrl: "https://www.txfgsales.com/",
   lastVerified: "2026-07-18",
-  serviceFee: 29,
   requiresSSN: true,
   ssnExplainer: "Collection of the SSN is mandated by federal and state law (42 U.S.C.A. 666 and Texas Family Code, Section 231.302) for the purpose of child support collection enforcement; under state law it is voluntary for persons 13 years of age and younger. TPWD cannot sell a license to an applicant over 13 who refuses to provide an SSN (a passport may be used instead by out-of-country customers).",
   residencyOptions: [
@@ -438,7 +437,10 @@ export const config: StateConfig = {
     },
     {
       name: "driversLicenseState",
-      label: "Driver's License",
+      // Label disambiguated 2026-07 (QA: two identical "Driver's License" labels
+      // rendered for this field group). Official screen shows ONE "Driver's
+      // License" label above a state dropdown + number input pair.
+      label: "Driver's License State",
       type: "select",
       required: false,
       step: 2,
@@ -446,7 +448,8 @@ export const config: StateConfig = {
     },
     {
       name: "driversLicenseNumber",
-      label: "Driver's License",
+      // Label disambiguated 2026-07 (see driversLicenseState note).
+      label: "Driver's License Number",
       type: "text",
       required: false,
       autocomplete: "off",

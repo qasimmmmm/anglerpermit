@@ -77,7 +77,7 @@ export function HeroStateForm({ states }: { states: HeroStateOption[] }) {
         </button>
       </div>
       <p className="mt-2.5 text-xs leading-relaxed text-slate-500">
-        Guided form &middot; itemized fees before you pay &middot; reviewed by a real
+        Guided form &middot; one clear total before you pay &middot; reviewed by a real
         person
       </p>
     </form>

@@ -17,7 +17,7 @@ const DIY_POINTS = [
 ];
 
 const WITH_US_POINTS = [
-  "State fee + one flat service fee, itemized before you pay",
+  "One clear total before you pay — no hidden fees",
   "One plain-English guided form — we handle the state system",
   "We surface the right license options and required add-ons for you",
   "A real person reviews your application for errors, usually within 1 business day",
@@ -84,7 +84,7 @@ export function Comparison() {
               ))}
             </ul>
             <p className="mt-5 border-t border-slate-100 pt-4 text-sm font-semibold text-navy">
-              Cost: state fee + service fee, always itemized
+              Cost: one bundled total, shown before you pay
             </p>
             <Link
               href="/states"

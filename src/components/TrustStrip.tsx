@@ -13,7 +13,7 @@ const ITEMS = [
   {
     icon: Receipt,
     title: "Transparent pricing",
-    caption: "Official + service fees itemized",
+    caption: "One clear total before you pay",
   },
   {
     icon: Clock,

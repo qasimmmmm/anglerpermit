@@ -27,7 +27,8 @@ npm start
 ```
 
 The app works with **zero environment variables** — without an email provider, submissions
-are validated, masked, and logged to the server console (dev mode).
+are validated, masked, and logged to the server console, and without NMI keys the payment
+charge is simulated (dev mode).
 
 ## Environment variables
 
@@ -37,8 +38,22 @@ are validated, masked, and logged to the server console (dev mode).
 | `ADMIN_EMAIL` | No | Inbox that receives new application notifications. |
 | `EMAIL_FROM` | No | Sender identity. Default: `AnglerPermit <applications@anglerpermit.com>` |
 | `NEXT_PUBLIC_SITE_URL` | No | Canonical URL used in metadata/sitemap. Default: `https://anglerpermit.com` |
+| `NEXT_PUBLIC_NMI_TOKENIZATION_KEY` | No | NMI **public** tokenization key (Collect.js). Used by the browser to tokenize card details — raw card data never touches our server. When unset, tokenization is simulated (`tok_dev_…`). |
+| `NMI_PRIVATE_SECURITY_KEY` | No | NMI **private** security key — SERVER ONLY, never expose to the client. Authenticates the Direct Post API (`transact.php`) `type=sale` charge made before an application is saved. When unset, the charge is SIMULATED as successful (dev mode). |
+| `NMI_DESCRIPTOR` | No | Card-statement descriptor (soft descriptor) customers see on their receipt. Default: `ANGLER PERMIT`. |
 
 Copy `.env.example` to `.env.local` for local development (never commit real secrets).
+
+### Payments (NMI)
+
+Checkout uses an NMI Collect.js-style tokenization flow: the browser collects and
+tokenizes card details, and only the single-use `payment_token` is posted to
+`/api/applications`. The server computes the order total itself (license + add-ons,
+global markup applied — client amounts are never trusted), charges the token via the
+NMI Direct Post API, and stores the transaction id on the application record.
+Declines return HTTP 402 with a friendly message and nothing is saved. With no NMI
+keys configured the whole flow runs in dev mode (simulated token + simulated charge),
+so the site works with zero env.
 
 ## Deploy to Vercel (zero config)
 

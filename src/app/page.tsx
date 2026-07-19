@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ChevronDown, MapPin } from "lucide-react";
 import { getAllStateConfigs } from "@/lib/states";
+import { displayPrice } from "@/lib/state-config";
 import { FAQ_ITEMS } from "@/data/faq";
 import { formatPrice } from "@/lib/format";
 import { TrustStrip } from "@/components/TrustStrip";
@@ -45,9 +46,9 @@ export default async function HomePage() {
                 States we serve
               </h2>
               <p className="mt-2 max-w-xl text-slate-600">
-                Current license data and official fees across {states.length} states
-                and {totalLicenses} license options — our service fee always itemized
-                separately.
+                Current license data across {states.length} states
+                and {totalLicenses} license options — one clear total before you
+                pay, no hidden fees.
               </p>
             </div>
             <Link
@@ -83,9 +84,9 @@ export default async function HomePage() {
                       </div>
                       <dl className="mt-4 flex-1 space-y-1.5 text-sm text-slate-600">
                         <div className="flex items-baseline justify-between gap-3">
-                          <dt>Official fee from</dt>
+                          <dt>Licenses from</dt>
                           <dd className="font-semibold tabular-nums text-navy">
-                            {lowestPrice > 0 ? formatPrice(lowestPrice) : "Free"}
+                            {lowestPrice > 0 ? formatPrice(displayPrice(lowestPrice)) : "Free"}
                           </dd>
                         </div>
                         <div className="flex items-baseline justify-between gap-3">

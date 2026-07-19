@@ -103,7 +103,7 @@ export default function HowItWorksPage() {
                 <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-600" aria-hidden="true" />Guide you through a simple, plain-English application form.</li>
                 <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-600" aria-hidden="true" />Review your application for errors before it costs you time.</li>
                 <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-600" aria-hidden="true" />Purchase your license from the official state portal on your behalf.</li>
-                <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-600" aria-hidden="true" />Itemize official state fees and our service fee separately.</li>
+                <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-600" aria-hidden="true" />Show one clear total before you pay — no hidden fees.</li>
                 <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-forest-600" aria-hidden="true" />Email your official license as soon as the state issues it.</li>
               </ul>
             </Card>
@@ -115,7 +115,7 @@ export default function HowItWorksPage() {
               <ul className="mt-4 space-y-2.5 text-sm leading-relaxed text-slate-600">
                 <li className="flex gap-2"><X className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-400" aria-hidden="true" />We are not a government agency and are not affiliated with one.</li>
                 <li className="flex gap-2"><X className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-400" aria-hidden="true" />We never issue licenses ourselves — only the state can.</li>
-                <li className="flex gap-2"><X className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-400" aria-hidden="true" />We never mark up official state license fees.</li>
+                <li className="flex gap-2"><X className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-400" aria-hidden="true" />We never surprise you with add-on charges after checkout.</li>
                 <li className="flex gap-2"><X className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-400" aria-hidden="true" />We don&apos;t guarantee state processing times or eligibility decisions.</li>
                 <li className="flex gap-2"><X className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-400" aria-hidden="true" />We never sell your personal information.</li>
               </ul>
@@ -132,25 +132,25 @@ export default function HowItWorksPage() {
             Pricing transparency
           </h2>
           <p className="mt-4 leading-relaxed text-slate-600">
-            Every application shows a full price breakdown before you submit:
+            Every application shows the full price before you pay:
           </p>
           <ul className="mt-4 list-disc space-y-2 pl-6 leading-relaxed text-slate-600">
             <li>
-              <strong className="text-navy">Official license fee</strong> — set by the state,
-              passed through at cost. We never mark it up.
+              <strong className="text-navy">License</strong> — the license you selected.
             </li>
             <li>
-              <strong className="text-navy">Official add-ons and stamps</strong> — also set by
-              the state and passed through at cost.
+              <strong className="text-navy">Add-ons</strong> — any stamps or validations
+              you chose (required ones are added automatically).
             </li>
             <li>
-              <strong className="text-navy">AnglerPermit service fee</strong> — a flat,
-              clearly labeled fee for our review, purchase handling, and support.
+              <strong className="text-navy">Total</strong> — one bundled amount that
+              includes our application review, purchase handling, delivery, and support.
+              No hidden fees.
             </li>
           </ul>
           <p className="mt-4 leading-relaxed text-slate-600">
-            You can always purchase directly from the official state portal and pay only the
-            state&apos;s fees — every state page links to it.
+            You can always purchase directly from the official state portal instead —
+            every state page links to it.
           </p>
           <div className="mt-8">
             <DisclaimerBanner />

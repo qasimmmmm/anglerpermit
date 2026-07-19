@@ -15,9 +15,19 @@ export interface StoredApplication {
   /** Applicant data. The console adapter receives a MASKED copy only. */
   data: Record<string, unknown>;
   consents: {
-    accurate: boolean;
-    purchaseAuthorized: boolean;
-    termsAccepted: boolean;
+    accurateAndTerms: boolean;
+  };
+  /** Payment record. NEVER contains card data — gateway metadata only. */
+  payment: {
+    transactionId: string;
+    /** Charged amount in USD (server-computed, markup applied). */
+    amount: number;
+    last4?: string;
+    brand?: string;
+    /** Card-statement descriptor, e.g. "ANGLER PERMIT". */
+    descriptor: string;
+    /** True when the charge was simulated (no NMI key configured). */
+    devMode: boolean;
   };
   submittedAt: string; // ISO timestamp
 }

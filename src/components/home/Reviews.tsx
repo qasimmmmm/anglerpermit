@@ -15,7 +15,7 @@ const REVIEWS = [
   },
   {
     quote:
-      "The form told me I needed the Habitat Stamp before I would have missed it. That alone was worth the service fee.",
+      "The form told me I needed the Habitat Stamp before I would have missed it. That alone was worth using the service.",
     name: "Dana R.",
     state: "Colorado",
   },

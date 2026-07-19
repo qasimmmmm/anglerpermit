@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import type { StateConfig } from "@/lib/state-config";
+import { computeOrderTotal } from "@/lib/state-config";
 import { formatPrice } from "@/lib/format";
 import type { StoredApplication } from "@/lib/storage";
 
@@ -35,7 +36,8 @@ function renderTextBody({ config, app, maskedData }: ApplicationEmailContext): s
     }`,
     `Submitted: ${app.submittedAt}`,
     ``,
-    `Consents: accurate=${app.consents.accurate}, purchaseAuthorized=${app.consents.purchaseAuthorized}, termsAccepted=${app.consents.termsAccepted}`,
+    `Consent: accurateAndTerms=${app.consents.accurateAndTerms}`,
+    `Payment: ${formatPrice(app.payment.amount)} charged (txn ${app.payment.transactionId}${app.payment.devMode ? ", DEV SIMULATED" : ""}${app.payment.last4 ? `, ${app.payment.brand ?? "card"} •••• ${app.payment.last4}` : ""})`,
     ``,
     `--- Applicant (sensitive fields masked) ---`,
   ];
@@ -43,17 +45,12 @@ function renderTextBody({ config, app, maskedData }: ApplicationEmailContext): s
     lines.push(`${key}: ${String(value ?? "")}`);
   }
   if (config) {
+    // Single bundled total (markup applied via computeOrderTotal) — no
+    // "official fee"/"service fee" split; our margin is inside the total.
     lines.push(
       ``,
       `--- Pricing ---`,
-      `Official fee: ${formatPrice(
-        (config.licenses.find((l) => l.id === app.licenseId)?.price ?? 0) +
-          app.addOnIds.reduce(
-            (sum, id) => sum + (config.addOns.find((a) => a.id === id)?.price ?? 0),
-            0,
-          ),
-      )}`,
-      `Service fee: ${formatPrice(config.serviceFee)}`,
+      `Total charged: ${formatPrice(computeOrderTotal(config, app.licenseId, app.addOnIds))}`,
     );
   }
   return lines.join("\n");

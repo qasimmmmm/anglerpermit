@@ -16,7 +16,6 @@ export const config: StateConfig = {
   officialPortalName: "CDFW Online License Sales and Services",
   officialPortalUrl: "https://www.licenses.wildlife.ca.gov/internetsales/",
   lastVerified: "2026-07-18",
-  serviceFee: 29,
   requiresSSN: false,
   residencyOptions: [
     {

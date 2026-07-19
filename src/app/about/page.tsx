@@ -42,11 +42,11 @@ export default function AboutPage() {
             shows when it was last verified.
           </p>
           <p>
-            We believe in straightforward pricing. The official state fee is passed through
-            at cost; our service fee is shown as its own line item before you submit. If you
-            prefer to buy directly from the state, every state page links to the official
-            portal — and we genuinely encourage you to use whichever option works best for
-            you.
+            We believe in straightforward pricing: one clear total before you pay, with
+            no hidden fees — our review, purchase handling, and support are included in
+            that single total. If you prefer to buy directly from the state, every state
+            page links to the official portal — and we genuinely encourage you to use
+            whichever option works best for you.
           </p>
         </div>
       </section>
@@ -66,7 +66,7 @@ export default function AboutPage() {
               {
                 icon: Receipt,
                 title: "Transparent pricing",
-                body: "Official fees and our service fee are always separate line items. No hidden charges.",
+                body: "One clear total before you pay. No hidden charges, ever.",
               },
               {
                 icon: ShieldCheck,

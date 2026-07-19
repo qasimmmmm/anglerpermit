@@ -44,8 +44,8 @@ export function Hero({ states }: { states: HeroStateOption[] }) {
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-200">
             Answer one guided form and our team reviews it, purchases your license
-            from the state licensing portal, and emails it to you — with the state
-            fee and our service fee itemized before you pay. AnglerPermit is an
+            from the state licensing portal, and emails it to you — with one clear
+            total before you pay. AnglerPermit is an
             independent service, not affiliated with any government agency.
           </p>
 
@@ -69,7 +69,7 @@ export function Hero({ states }: { states: HeroStateOption[] }) {
             </li>
             <li className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-forest-300" aria-hidden="true" />
-              State + service fees itemized
+              No hidden fees — one clear total
             </li>
             <li className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-forest-300" aria-hidden="true" />

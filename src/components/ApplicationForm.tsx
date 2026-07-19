@@ -16,16 +16,17 @@ import {
   ArrowRight,
   Check,
   ClipboardCheck,
+  CreditCard,
   Eye,
   EyeOff,
   Lock,
   Mail,
-  ShoppingCart,
 } from "lucide-react";
-import type { FormFieldDef, StateConfig } from "@/lib/state-config";
+import type { FormFieldDef, StateConfig, TokenizedPayment } from "@/lib/state-config";
 import {
   addOnsForLicense,
   buildSubmissionSchema,
+  computeOrderTotal,
   digitsOnlyPatternCount,
   isFieldVisible,
   licensesForResidency,
@@ -39,6 +40,7 @@ import { Input, Textarea } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { LicenseSelector } from "@/components/LicenseSelector";
 import { PriceSummary } from "@/components/PriceSummary";
+import { PaymentStep } from "@/components/PaymentStep";
 
 interface WizardValues {
   stateSlug: string;
@@ -47,13 +49,13 @@ interface WizardValues {
   addOnIds: string[];
   data: Record<string, unknown>;
   consents: {
-    accurate: boolean;
-    purchaseAuthorized: boolean;
-    termsAccepted: boolean;
+    accurateAndTerms: boolean;
   };
+  /** Set only after client-side tokenization — never contains card data. */
+  payment: TokenizedPayment;
 }
 
-const STEP_TITLES = ["Choose license", "Applicant details", "Review & submit"] as const;
+const STEP_TITLES = ["Choose license", "Applicant details", "Review", "Payment"] as const;
 
 function defaultData(fields: FormFieldDef[]): Record<string, unknown> {
   const data: Record<string, unknown> = {};
@@ -430,13 +432,15 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
       licenseId: "",
       addOnIds: config.addOns.filter((a) => a.required && !a.appliesTo).map((a) => a.id),
       data: defaultData(config.formFields),
-      consents: { accurate: false, purchaseAuthorized: false, termsAccepted: false },
+      consents: { accurateAndTerms: false },
+      payment: { token: "" },
     },
   });
 
   const [step, setStep] = useState(0);
   const [reference, setReference] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const residency = watch("residency");
@@ -453,6 +457,18 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
   // Focus the step heading whenever the step changes (a11y).
   useEffect(() => {
     headingRef.current?.focus();
+  }, [step]);
+
+  // Focused checkout: once the user is past license selection (wizard step 2+,
+  // i.e. step index >= 1 — including payment and the success screen), hide the
+  // global site footer via a body class (CSS: body.wizard-active
+  // footer[data-site-footer] { display: none }). Restored on step-1 return,
+  // unmount, and route change. Purely visual display:none — no scroll or
+  // layout-side effects, and keyboard/screen-reader flow is unaffected.
+  useEffect(() => {
+    const active = step >= 1;
+    document.body.classList.toggle("wizard-active", active);
+    return () => document.body.classList.remove("wizard-active");
   }, [step]);
 
   /* ------------------------- selection handlers ------------------------- */
@@ -523,6 +539,8 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
       ok = await trigger(["residency", "licenseId"]);
     } else if (step === 1) {
       ok = await trigger(visibleFields.map((f) => `data.${f.name}` as Path<WizardValues>));
+    } else if (step === 2) {
+      ok = await trigger("consents.accurateAndTerms");
     }
     if (ok) {
       setStep((s) => s + 1);
@@ -536,10 +554,11 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
     setStep((s) => Math.max(0, s - 1));
   }
 
-  /* ------------------------- submission ------------------------- */
+  /* ------------------------- payment + submission ------------------------- */
 
-  const onSubmit = handleSubmit(async (values) => {
+  const submitApplication = handleSubmit(async (values) => {
     setSubmitError(null);
+    setPaymentError(null);
     try {
       const res = await fetch("/api/applications", {
         method: "POST",
@@ -555,19 +574,31 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
 
       if (res.ok && json.ok && json.reference) {
         setReference(json.reference);
-        setStep(3);
+        setStep(4);
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
 
+      // Payment declined (402) or a payment-specific failure: stay on the
+      // payment step with a friendly message; the card was not charged.
+      if (res.status === 402) {
+        setPaymentError(
+          json.message ?? "Your payment could not be completed. Please try a different card.",
+        );
+        setStep(3);
+        return;
+      }
+
       const serverErrors = json.errors ?? {};
-      let firstStep = 2;
+      let firstStep = 3;
       for (const [path, messages] of Object.entries(serverErrors)) {
         setError(path as Path<WizardValues>, {
           type: "server",
           message: messages[0] ?? "Invalid value",
         });
         if (path.startsWith("data.")) firstStep = Math.min(firstStep, 1);
+        if (path.startsWith("consents")) firstStep = Math.min(firstStep, 2);
+        if (path.startsWith("payment")) firstStep = 3;
         if (path === "residency" || path === "licenseId" || path === "addOnIds") firstStep = 0;
       }
       if (Object.keys(serverErrors).length > 0) {
@@ -581,9 +612,16 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
     }
   });
 
+  /** PaymentStep hands us a tokenized card (never raw card data). */
+  function handleTokenized(payment: TokenizedPayment) {
+    setValue("payment", payment, { shouldValidate: true });
+    // Tokens are single-use; submit immediately with this token.
+    void submitApplication();
+  }
+
   /* ------------------------- success screen ------------------------- */
 
-  if (step === 3 && reference) {
+  if (step === 4 && reference) {
     return (
       <Card className="mx-auto max-w-2xl">
         <div className="px-6 py-10 text-center sm:px-10">
@@ -592,7 +630,8 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
           </div>
           <h2 className="mt-5 text-2xl font-bold text-navy">Application received</h2>
           <p className="mt-2 text-slate-600">
-            Your {config.stateName} fishing license application has been submitted successfully.
+            Thank you — your {config.stateName} fishing license application and payment
+            have been received.
           </p>
           <div className="mt-6 rounded-xl border border-navy-100 bg-navy-50 px-6 py-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -609,18 +648,18 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
             {[
               {
                 icon: ClipboardCheck,
-                title: "We review your application",
-                body: "Our team checks your details for completeness and accuracy, usually within one business day.",
+                title: "Review",
+                body: "A specialist reviews your application for errors (usually within 1 business day).",
               },
               {
-                icon: ShoppingCart,
-                title: `We purchase from ${config.officialPortalName}`,
-                body: `We buy your license directly from the official ${config.officialAgencyName} portal on your behalf.`,
+                icon: CreditCard,
+                title: "Fulfillment",
+                body: "Your license is issued, and your card receipt shows \u201cANGLER PERMIT\u201d.",
               },
               {
                 icon: Mail,
-                title: "License delivered by email",
-                body: "Your official license document is emailed to you as soon as the state issues it.",
+                title: "Delivery",
+                body: "Your license and receipt are emailed to you.",
               },
             ].map((item, i) => (
               <li key={item.title} className="flex gap-4">
@@ -652,12 +691,11 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
 
   /* ------------------------- wizard ------------------------- */
 
-  const consentErrors = errors.consents as
-    | Partial<Record<"accurate" | "purchaseAuthorized" | "termsAccepted", { message?: string }>>
-    | undefined;
+  const consentError = (errors.consents as { accurateAndTerms?: { message?: string } } | undefined)
+    ?.accurateAndTerms?.message;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mx-auto max-w-3xl" aria-label={`${config.stateName} fishing license application`}>
+    <form onSubmit={submitApplication} noValidate className="mx-auto max-w-3xl" aria-label={`${config.stateName} fishing license application`}>
       {/* Progress indicator */}
       <nav aria-label="Application progress" className="mb-8">
         <p className="mb-2 text-sm font-medium text-slate-500 sm:hidden">
@@ -700,12 +738,14 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
       >
         {step === 0 && "Choose your license"}
         {step === 1 && "Tell us about the applicant"}
-        {step === 2 && "Review and submit"}
+        {step === 2 && "Review your application"}
+        {step === 3 && "Payment"}
       </h2>
       <p className="mt-1 text-sm text-slate-500">
-        {step === 0 && `Select your residency status and license. Prices shown are the official ${config.officialAgencyName} fees plus our service fee.`}
+        {step === 0 && "Select your residency status and license. One clear total before you pay — no hidden fees."}
         {step === 1 && `These fields match the official ${config.officialPortalName} application. Required fields are marked with an asterisk.`}
         {step === 2 && "Check everything carefully — we use exactly this information to purchase your license."}
+        {step === 3 && "Your card is charged once, securely. Card details never touch our servers."}
       </p>
 
       <div className="mt-6">
@@ -809,71 +849,47 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
             <Card>
               <fieldset className="px-6 py-5">
                 <legend className="text-base font-semibold text-navy">
-                  Confirm and authorize
+                  Confirm your information
                 </legend>
                 <div className="mt-4 space-y-4">
-                  {(
-                    [
-                      {
-                        name: "consents.accurate",
-                        label: "I certify that the information provided is true, complete, and accurate.",
-                      },
-                      {
-                        name: "consents.purchaseAuthorized",
-                        label: `I authorize AnglerPermit to submit this application and purchase a fishing license from ${config.officialAgencyName} on my behalf.`,
-                      },
-                      {
-                        name: "consents.termsAccepted",
-                        label: "I agree to the Terms of Service and Privacy Policy.",
-                        links: true,
-                      },
-                    ] as const
-                  ).map((consent) => (
-                    <div key={consent.name}>
-                      <Controller
-                        name={consent.name as Path<WizardValues>}
-                        control={control}
-                        render={({ field: f }) => (
-                          <label className="flex items-start gap-3 text-sm text-slate-700">
-                            <input
-                              type="checkbox"
-                              name={f.name}
-                              checked={Boolean(f.value)}
-                              onChange={(e) => f.onChange(e.target.checked)}
-                              onBlur={f.onBlur}
-                              aria-invalid={
-                                consentErrors?.[consent.name.split(".")[1] as keyof NonNullable<typeof consentErrors>]
-                                  ? true
-                                : undefined
-                              }
-                              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-forest-600 focus:ring-forest-500"
-                            />
-                            <span>
-                              {consent.label}{" "}
-                              {"links" in consent && consent.links && (
-                                <>
-                                  (
-                                  <Link href="/terms" target="_blank" className="font-medium text-forest-700 underline">
-                                    Terms
-                                  </Link>
-                                  {" & "}
-                                  <Link href="/privacy" target="_blank" className="font-medium text-forest-700 underline">
-                                    Privacy
-                                  </Link>
-                                  )
-                                </>
-                              )}
-                            </span>
-                          </label>
-                        )}
-                      />
-                      {consentErrors?.[consent.name.split(".")[1] as "accurate"]?.message && (
-                        <p role="alert" className="mt-1 pl-7 text-sm font-medium text-red-600">
-                          {consentErrors[consent.name.split(".")[1] as "accurate"]?.message}
-                        </p>
+                  {/* Single merged consent (friction-reduced). The purchase
+                      authorization moved to the Terms of Service + the
+                      statement above the pay button on the payment step. */}
+                  <div>
+                    <Controller
+                      name={"consents.accurateAndTerms" as Path<WizardValues>}
+                      control={control}
+                      render={({ field: f }) => (
+                        <label className="flex items-start gap-3 text-sm text-slate-700">
+                          <input
+                            type="checkbox"
+                            name={f.name}
+                            checked={Boolean(f.value)}
+                            onChange={(e) => f.onChange(e.target.checked)}
+                            onBlur={f.onBlur}
+                            aria-invalid={consentError ? true : undefined}
+                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-forest-600 focus:ring-forest-500"
+                          />
+                          <span>
+                            I confirm my information is accurate and I agree to the{" "}
+                            <Link href="/terms" target="_blank" className="font-medium text-forest-700 underline">
+                              Terms of Service
+                            </Link>{" "}
+                            and{" "}
+                            <Link href="/privacy" target="_blank" className="font-medium text-forest-700 underline">
+                              Privacy Policy
+                            </Link>
+                            .
+                          </span>
+                        </label>
                       )}
-                    </div>
-                  ))}
+                    />
+                    {consentError && (
+                      <p role="alert" className="mt-1 pl-7 text-sm font-medium text-red-600">
+                        {consentError}
+                      </p>
+                    )}
+                  </div>
                   {config.consentExtra && (
                     <p className="rounded-lg bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-600">
                       {config.consentExtra}
@@ -884,6 +900,17 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
             </Card>
           </div>
         )}
+
+        {/* STEP 4 — payment (tokenized; card data never reaches our server) */}
+        {step === 3 && (
+          <PaymentStep
+            total={computeOrderTotal(config, licenseId, addOnIds)}
+            stateName={config.stateName}
+            processing={isSubmitting}
+            error={paymentError}
+            onPay={handleTokenized}
+          />
+        )}
       </div>
 
       {submitError && (
@@ -893,7 +920,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
         </div>
       )}
 
-      {/* Nav buttons */}
+      {/* Nav buttons (payment step has its own Pay button inside PaymentStep) */}
       <div className="mt-8 flex items-center justify-between gap-4">
         {step > 0 ? (
           <Button variant="outline" onClick={goBack} disabled={isSubmitting}>
@@ -903,15 +930,16 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
         ) : (
           <span />
         )}
-        {step < 2 ? (
+        {step < 2 && (
           <Button variant="primary" onClick={goNext}>
             Continue
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Button>
-        ) : (
-          <Button variant="accent" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Submitting…" : "Submit application"}
-            {!isSubmitting && <Lock className="h-4 w-4" aria-hidden="true" />}
+        )}
+        {step === 2 && (
+          <Button variant="primary" onClick={goNext}>
+            Continue to payment
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
       </div>
