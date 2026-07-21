@@ -9,7 +9,7 @@ import {
 } from "@/lib/state-config";
 import { chargeSale, NMI_DESCRIPTOR } from "@/lib/nmi";
 import { storage, type StoredApplication } from "@/lib/storage";
-import { sendApplicationEmail } from "@/lib/email";
+import { sendOrderEmails } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -152,13 +152,29 @@ export async function POST(request: Request) {
     );
   }
 
-  const { delivered } = await sendApplicationEmail({ config, app, maskedData });
-  if (!delivered) {
-    // Dev-mode fallback already logged the masked summary. Masked values only —
-    // never log submission.data (contains raw SSN).
+  // Send the customer confirmation + admin notification in parallel.
+  // Email failures never fail the order — the card is already charged.
+  // rawData is passed for the (opt-in) full-SSN admin email ONLY; it is never
+  // logged and never reaches customer-facing templates.
+  const emails = await sendOrderEmails({
+    config,
+    app,
+    maskedData,
+    rawData: submission.data,
+  });
+  if (!emails.customer.delivered || !emails.admin.delivered) {
+    // Masked values only — never log submission.data (contains raw SSN).
     // eslint-disable-next-line no-console
-    console.log(`[api/applications] ${reference} received (email delivery: no provider configured)`);
+    console.log(
+      `[api/applications] ${reference} email status — customer: ${
+        emails.customer.delivered ? "sent" : emails.customer.error
+      }, admin: ${emails.admin.delivered ? "sent" : emails.admin.error}`,
+    );
   }
 
-  return NextResponse.json({ ok: true, reference });
+  return NextResponse.json({
+    ok: true,
+    reference,
+    confirmationEmailedTo: emails.customer.delivered ? emails.customer.to : null,
+  });
 }

@@ -439,6 +439,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
 
   const [step, setStep] = useState(0);
   const [reference, setReference] = useState<string | null>(null);
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -568,12 +569,14 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
       const json = (await res.json()) as {
         ok?: boolean;
         reference?: string;
+        confirmationEmailedTo?: string | null;
         message?: string;
         errors?: Record<string, string[]>;
       };
 
       if (res.ok && json.ok && json.reference) {
         setReference(json.reference);
+        setConfirmationEmail(json.confirmationEmailedTo ?? null);
         setStep(4);
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
@@ -642,6 +645,13 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
               Save this number — you will need it if you contact us about your application.
             </p>
           </div>
+          {confirmationEmail && (
+            <p className="mt-4 text-sm text-slate-600">
+              A confirmation email with your receipt is on its way to{" "}
+              <span className="font-semibold text-navy">{confirmationEmail}</span>.
+              {" "}If you don&rsquo;t see it within a few minutes, check your spam folder.
+            </p>
+          )}
 
           <h3 className="mt-8 text-left text-base font-semibold text-navy">What happens next</h3>
           <ol className="mt-4 space-y-4 text-left">
