@@ -25,10 +25,11 @@ export function Header() {
       <div className="container-site flex h-16 items-center justify-between gap-4">
         <Link
           href="/"
-          className="flex items-center"
+          aria-label="AnglerPermit — home"
+          className="flex max-w-[60vw] items-center"
           onClick={() => setOpen(false)}
         >
-          <Logo size={32} />
+          <Logo height={34} priority />
         </Link>
 
         <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">

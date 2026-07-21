@@ -14,6 +14,19 @@ export const metadata: Metadata = {
   },
   description:
     "AnglerPermit is a private license-assistance service. Fill out one simple form and our team purchases your fishing license from the official state portal on your behalf.",
+  openGraph: {
+    type: "website",
+    siteName: "AnglerPermit",
+    // Images come from the opengraph-image.png convention in this directory.
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+  other: {
+    // Microsoft tile support — config lives in /public/browserconfig.xml.
+    "msapplication-config": "/browserconfig.xml",
+    "msapplication-TileColor": "#0A2540",
+  },
 };
 
 export default function RootLayout({

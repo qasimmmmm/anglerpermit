@@ -24,13 +24,9 @@ export function Footer() {
       <div className="container-site py-12">
         <div className="grid gap-10 md:grid-cols-3">
           <div>
-            <Link href="/" className="flex items-center gap-2.5">
-              <Logo variant="mark" size={32} />
-              {/* Name is announced once via the mark's sr-only label. */}
-              <span aria-hidden="true" className="text-lg font-semibold">
-                <span className="text-white">Angler</span>
-                <span className="font-medium text-forest-300">Permit</span>
-              </span>
+            <Link href="/" aria-label="AnglerPermit — home" className="inline-flex items-center">
+              {/* White lockup on the navy footer background. */}
+              <Logo theme="white" height={34} />
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-slate-400">
               A private license-assistance service that handles the paperwork so you can

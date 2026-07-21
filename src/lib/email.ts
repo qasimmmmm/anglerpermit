@@ -56,6 +56,35 @@ function renderTextBody({ config, app, maskedData }: ApplicationEmailContext): s
   return lines.join("\n");
 }
 
+/**
+ * Minimal HTML wrapper for the admin notification: a centered brand logo
+ * header above the (HTML-escaped) plain-text summary.
+ *
+ * The logo is referenced by absolute public URL — email clients cannot load
+ * relative paths, and the image only resolves once the site is deployed.
+ * Set NEXT_PUBLIC_SITE_URL (e.g. https://anglerpermit.com) in the deployment
+ * environment; the fallback below matches the production domain.
+ */
+function renderHtmlBody(text: string): string {
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://anglerpermit.com").replace(/\/$/, "");
+  const logoUrl = `${siteUrl}/brand/logo.png`;
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return `<!DOCTYPE html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#ffffff;">
+    <div style="max-width:600px;margin:0 auto;padding:24px 16px;font-family:Arial,Helvetica,sans-serif;">
+      <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid #e2e8f0;">
+        <img src="${logoUrl}" alt="AnglerPermit" width="200" style="display:inline-block;width:200px;height:auto;border:0;" />
+      </div>
+      <pre style="margin:24px 0 0;white-space:pre-wrap;font-family:Menlo,Consolas,monospace;font-size:13px;line-height:1.5;color:#0f172a;">${escaped}</pre>
+    </div>
+  </body>
+</html>`;
+}
+
 export async function sendApplicationEmail(
   ctx: ApplicationEmailContext,
 ): Promise<{ delivered: boolean }> {
@@ -64,6 +93,7 @@ export async function sendApplicationEmail(
   const from = process.env.EMAIL_FROM ?? "AnglerPermit <applications@anglerpermit.com>";
   const subject = `New application ${ctx.app.reference} — ${ctx.config?.stateName ?? ctx.app.stateSlug}`;
   const text = renderTextBody(ctx);
+  const html = renderHtmlBody(text);
 
   if (!apiKey || !adminEmail) {
     // Dev-mode fallback: no email provider configured. Masked summary only.
@@ -79,6 +109,7 @@ export async function sendApplicationEmail(
       to: adminEmail,
       subject,
       text,
+      html,
     });
     if (error) {
       // eslint-disable-next-line no-console
