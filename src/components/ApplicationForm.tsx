@@ -443,6 +443,9 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  // Set when a charge is declined: retrying re-submits against the SAME
+  // application row server-side (no duplicate applications, one dunning trail).
+  const applicationIdRef = useRef<string | null>(null);
 
   const residency = watch("residency");
   const licenseId = watch("licenseId");
@@ -564,17 +567,22 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
       const res = await fetch("/api/applications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          ...(applicationIdRef.current ? { applicationId: applicationIdRef.current } : {}),
+        }),
       });
       const json = (await res.json()) as {
         ok?: boolean;
         reference?: string;
+        applicationId?: string | null;
         confirmationEmailedTo?: string | null;
         message?: string;
         errors?: Record<string, string[]>;
       };
 
       if (res.ok && json.ok && json.reference) {
+        applicationIdRef.current = null;
         setReference(json.reference);
         setConfirmationEmail(json.confirmationEmailedTo ?? null);
         setStep(4);
@@ -585,6 +593,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
       // Payment declined (402) or a payment-specific failure: stay on the
       // payment step with a friendly message; the card was not charged.
       if (res.status === 402) {
+        if (json.applicationId) applicationIdRef.current = json.applicationId;
         setPaymentError(
           json.message ?? "Your payment could not be completed. Please try a different card.",
         );

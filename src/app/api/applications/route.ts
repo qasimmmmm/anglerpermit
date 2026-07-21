@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { getStateConfig } from "@/lib/states";
 import {
   buildSubmissionSchema,
@@ -7,28 +8,45 @@ import {
   maskSensitiveFields,
   type TokenizedPayment,
 } from "@/lib/state-config";
-import { chargeSale, NMI_DESCRIPTOR } from "@/lib/nmi";
-import { storage, type StoredApplication } from "@/lib/storage";
+import { chargeSale, vaultEnabled, NMI_DESCRIPTOR } from "@/lib/nmi";
+import {
+  createOrReuseApplication,
+  getApplicationById,
+  hasApprovedPayment,
+  logPaymentEvent,
+  markApplicationPaid,
+  markApplicationPaymentFailed,
+  recordPayment,
+  type ApplicationRecord,
+  type StoredApplication,
+} from "@/lib/storage";
+import { dbConfigured } from "@/lib/db";
 import { sendOrderEmails } from "@/lib/email";
 
 export const runtime = "nodejs";
 
 /**
- * POST /api/applications
+ * POST /api/applications — submit + charge, atomically from the customer's
+ * point of view.
  *
- * Validates the submission server-side against a zod schema generated from the
- * submitted state's config (dynamically discovered in src/data/states/). When
- * the state file does not exist yet, a generic base schema is used so the
- * endpoint works before Phase B lands.
+ * Flow (save-first so declines can be recovered by email):
+ *   1. Validate the submission against the state's zod schema.
+ *   2. Compute the amount SERVER-SIDE from the state config — a client-sent
+ *      amount is never accepted (the client doesn't even send one).
+ *   3. Persist the application as pending_payment (MASKED data only — the
+ *      full SSN is never stored anywhere).
+ *   4. Charge the single-use payment token via NMI.
+ *   5. Approved  -> status received, payment + audit rows, emails.
+ *      Declined  -> status payment_failed (dunning clock starts), HTTP 402
+ *                   with a customer-safe message + applicationId so an
+ *                   immediate in-page retry reuses the same application.
  *
- * SSN HANDLING: raw SSNs are NEVER logged or emailed. The admin email and the
- * console storage adapter receive a masked copy (***-**-####). When a real
- * database adapter replaces consoleStorage, it must encrypt PII/SSN at rest.
+ * SSN HANDLING: raw SSNs are NEVER logged, stored, or emailed. Storage and
+ * customer emails get the masked copy; the admin email includes the full SSN
+ * only when ADMIN_EMAIL_INCLUDE_FULL_SSN=true (and even then is never stored).
  *
- * PAYMENTS: the client sends only an NMI payment_token (card data is tokenized
- * in the browser and never reaches this server). The charge amount is computed
- * SERVER-SIDE from the state config (license + add-ons, markup applied) — a
- * client-sent amount is never accepted. Declines return HTTP 402.
+ * PCI: this route accepts ONLY tokenized payments (payment.token from
+ * Collect.js). DO NOT add raw card fields here — see src/lib/nmi.ts header.
  */
 
 function generateReference(stateSlug: string): string {
@@ -45,6 +63,10 @@ function generateReference(stateSlug: string): string {
   return `AP-${state}-${timestamp}-${random}`;
 }
 
+function str(v: unknown): string | null {
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -56,10 +78,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const stateSlug =
-    body && typeof body === "object" && "stateSlug" in body
-      ? String((body as { stateSlug: unknown }).stateSlug)
-      : "";
+  const rawBody = (body ?? {}) as Record<string, unknown>;
+  const stateSlug = typeof rawBody.stateSlug === "string" ? rawBody.stateSlug : "";
+  // Retry threading: after a decline the client re-submits with the same
+  // applicationId so we reuse the row instead of creating a duplicate.
+  const retryApplicationId = str(rawBody.applicationId);
 
   const config = stateSlug ? await getStateConfig(stateSlug) : null;
   const schema = config ? buildSubmissionSchema(config) : genericSubmissionSchema;
@@ -87,13 +110,8 @@ export async function POST(request: Request) {
     payment: TokenizedPayment;
   };
 
-  const reference = generateReference(submission.stateSlug);
+  /* ------------------------- server-authoritative price ------------------------- */
 
-  /* ------------------------- payment (before saving) ------------------------- */
-
-  // Server-authoritative amount: license + add-ons from the state config with
-  // the global markup applied (computeOrderTotal). The client's amount is
-  // never trusted — the client doesn't even send one.
   const amount = config
     ? computeOrderTotal(config, submission.licenseId, submission.addOnIds)
     : 0;
@@ -104,25 +122,202 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  const amountCents = Math.round(amount * 100);
+
+  /* ------------------------- persist (masked) before charging ------------------------- */
+
+  // Mask SSNs before ANY storage/logging/email. The unmasked payload stays in
+  // `submission.data` only for the opt-in admin email and is never persisted.
+  const maskedData = maskSensitiveFields(config, submission.data);
+  const email = str(submission.data.email);
+  const firstName = str(submission.data.firstName);
+  const lastName = str(submission.data.lastName);
+  const phone = str(submission.data.phone) ?? str(submission.data.primaryPhone);
+
+  let appRecord: ApplicationRecord | null = null;
+  let reference = "";
+
+  try {
+    if (retryApplicationId) {
+      const existing = await getApplicationById(retryApplicationId);
+      if (existing && existing.stateSlug === submission.stateSlug) {
+        // Already paid (e.g. success response was lost in transit and the
+        // client retried): NEVER charge again — return the original success.
+        if (await hasApprovedPayment(existing.id)) {
+          return NextResponse.json({
+            ok: true,
+            reference: existing.reference,
+            applicationId: existing.id,
+            confirmationEmailedTo: existing.email,
+            duplicate: true,
+          });
+        }
+        // Only reuse when it's plausibly the same order and still unpaid.
+        if (
+          (existing.status === "pending_payment" || existing.status === "payment_failed") &&
+          (!existing.email || !email || existing.email.toLowerCase() === email.toLowerCase())
+        ) {
+          appRecord = existing;
+        }
+      }
+    }
+    if (!appRecord) {
+      const created = await createOrReuseApplication({
+        reference: generateReference(submission.stateSlug),
+        stateSlug: submission.stateSlug,
+        residency: submission.residency,
+        licenseId: submission.licenseId,
+        addOnIds: submission.addOnIds,
+        email,
+        firstName,
+        lastName,
+        phone,
+        formData: maskedData,
+        consents: submission.consents,
+        amountCents,
+      });
+      appRecord = created?.app ?? null;
+    }
+  } catch (err) {
+    // Persistence problems must not strand a paying customer mid-checkout:
+    // continue without a DB record (dev-mode behavior) and log loudly.
+    // eslint-disable-next-line no-console
+    console.error(
+      `[api/applications] persistence failed before charge: ${err instanceof Error ? err.message : "unknown"}`,
+    );
+  }
+
+  reference = appRecord?.reference ?? generateReference(submission.stateSlug);
+
+  // Double-submit guard: this application already has an approved charge —
+  // never charge twice. Return the original success response.
+  if (appRecord && (await hasApprovedPayment(appRecord.id).catch(() => false))) {
+    return NextResponse.json({
+      ok: true,
+      reference: appRecord.reference,
+      applicationId: appRecord.id,
+      confirmationEmailedTo: appRecord.email,
+      duplicate: true,
+    });
+  }
+
+  /* ------------------------- charge ------------------------- */
+
+  const tokenFingerprint = createHash("sha256")
+    .update(submission.payment.token)
+    .digest("hex")
+    .slice(0, 12);
+
+  await logPaymentEvent({
+    applicationId: appRecord?.id,
+    source: "checkout",
+    eventType: "charge_attempt",
+    detail: { amountCents, tokenFp: tokenFingerprint },
+  });
 
   const charge = await chargeSale({
     amount,
     paymentToken: submission.payment.token,
     orderId: reference,
     billingZip: submission.payment.billingZip,
+    customer: {
+      firstName: firstName ?? undefined,
+      lastName: lastName ?? undefined,
+      email: email ?? undefined,
+      phone: phone ?? undefined,
+    },
+    addToVault: vaultEnabled(),
   });
 
+  /* ------------------------- declined / error ------------------------- */
+
   if (!charge.ok) {
-    // 402 Payment Required — the card was declined or the gateway failed.
-    // Nothing is saved; the customer can fix their card and retry.
-    return NextResponse.json({ ok: false, message: charge.message }, { status: 402 });
+    if (appRecord) {
+      const paymentId = await recordPayment({
+        applicationId: appRecord.id,
+        kind: "sale",
+        source: "checkout",
+        transactionId: charge.transactionId,
+        amountCents,
+        status: charge.status === "declined" ? "declined" : "error",
+        declineCode: charge.declineCode,
+        declineMessage: charge.message,
+        gatewayCode: charge.gateway?.gatewayCode,
+        cardBrand: submission.payment.brand,
+        cardLast4: submission.payment.last4,
+        billingZip: submission.payment.billingZip,
+        descriptor: NMI_DESCRIPTOR,
+        rawResponse: charge.gateway?.raw,
+        idempotencyKey: `sale/${appRecord.id}/${tokenFingerprint}`,
+      }).catch(() => null);
+
+      // Only a real DECLINE starts the dunning clock — a gateway/processor
+      // error is our problem, not the customer's.
+      if (charge.status === "declined") {
+        await markApplicationPaymentFailed(appRecord.id, charge.declineCode).catch(() => {});
+      }
+      await logPaymentEvent({
+        applicationId: appRecord.id,
+        paymentId,
+        source: "checkout",
+        eventType: charge.status,
+        detail: { declineCode: charge.declineCode, gatewayCode: charge.gateway?.gatewayCode },
+      });
+    }
+
+    return NextResponse.json(
+      {
+        ok: false,
+        message: charge.message,
+        declineCode: charge.declineCode,
+        retriable: charge.retriable,
+        applicationId: appRecord?.id ?? null,
+      },
+      { status: 402 },
+    );
   }
 
-  /* ------------------------- store + notify ------------------------- */
+  /* ------------------------- approved ------------------------- */
 
-  // Mask SSNs before ANY storage/logging/email. The unmasked payload stays in
-  // `submission.data` only for the future encrypted-at-rest database adapter.
-  const maskedData = maskSensitiveFields(config, submission.data);
+  if (appRecord) {
+    const paymentId = await recordPayment({
+      applicationId: appRecord.id,
+      kind: "sale",
+      source: "checkout",
+      transactionId: charge.transactionId,
+      amountCents,
+      status: "approved",
+      cardBrand: submission.payment.brand,
+      cardLast4: submission.payment.last4,
+      billingZip: submission.payment.billingZip,
+      descriptor: NMI_DESCRIPTOR,
+      devMode: charge.devMode,
+      rawResponse: charge.gateway?.raw,
+      idempotencyKey: `sale/${appRecord.id}/${tokenFingerprint}`,
+    }).catch(() => null);
+    await markApplicationPaid(appRecord.id, {
+      customerVaultId: charge.customerVaultId,
+    }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[api/applications] markApplicationPaid failed for ${reference}: ${err instanceof Error ? err.message : "unknown"}`,
+      );
+    });
+    await logPaymentEvent({
+      applicationId: appRecord.id,
+      paymentId,
+      source: "checkout",
+      eventType: "approved",
+      detail: { transactionId: charge.transactionId, devMode: charge.devMode },
+    });
+  } else if (dbConfigured()) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[api/applications] ${reference}: charge approved but no DB record exists — follow up manually (txn ${charge.transactionId})`,
+    );
+  }
+
+  /* ------------------------- notify ------------------------- */
 
   const app: StoredApplication = {
     reference,
@@ -140,19 +335,9 @@ export async function POST(request: Request) {
       descriptor: NMI_DESCRIPTOR,
       devMode: charge.devMode,
     },
-    submittedAt: new Date().toISOString(),
+    submittedAt: appRecord?.submittedAt ?? new Date().toISOString(),
   };
 
-  try {
-    await storage.saveApplication(app);
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(
-      `[api/applications] storage failed for ${reference}: ${err instanceof Error ? err.message : "unknown"}`,
-    );
-  }
-
-  // Send the customer confirmation + admin notification in parallel.
   // Email failures never fail the order — the card is already charged.
   // rawData is passed for the (opt-in) full-SSN admin email ONLY; it is never
   // logged and never reaches customer-facing templates.
@@ -163,7 +348,6 @@ export async function POST(request: Request) {
     rawData: submission.data,
   });
   if (!emails.customer.delivered || !emails.admin.delivered) {
-    // Masked values only — never log submission.data (contains raw SSN).
     // eslint-disable-next-line no-console
     console.log(
       `[api/applications] ${reference} email status — customer: ${
@@ -175,6 +359,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     reference,
+    applicationId: appRecord?.id ?? null,
     confirmationEmailedTo: emails.customer.delivered ? emails.customer.to : null,
   });
 }
