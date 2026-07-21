@@ -349,6 +349,19 @@ export const config: StateConfig = {
         "TODO: verify — signup Step 3/6: Identification. Government-issued ID is required to purchase a license (cpw.state.co.us fishing-licenses page). Exact label not observed.",
     },
     {
+      // Added 2026-07-21 audit: CPW keys customer records to a Customer ID (CID);
+      // matching an existing profile avoids duplicate records and preserves
+      // Habitat Stamp / license-history logic on the customer's account.
+      // (https://cpw.state.co.us/thingstodo/Pages/CPWShop-Account.aspx)
+      name: "cpwCustomerId",
+      label: "CPW Customer ID (CID) — if you have bought a Colorado license before",
+      type: "text",
+      required: false,
+      helpText:
+        "Optional. Found on previous Colorado licenses or your CPWshop account. Providing it lets us match your existing CPW record instead of creating a duplicate.",
+      step: 2,
+    },
+    {
       name: "identificationState",
       label: "ID Issuing State",
       type: "select",

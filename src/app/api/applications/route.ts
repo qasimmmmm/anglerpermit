@@ -80,7 +80,40 @@ function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
 }
 
+/* Per-IP submission throttle (card-testing / abuse guard). In-memory per
+ * serverless instance — a soft limit; the retry endpoint adds a DB-backed
+ * per-application limit on top. 15 checkout attempts/hour/IP is far above
+ * any legitimate use. */
+const ipHits = new Map<string, number[]>();
+const IP_LIMIT = 15;
+const IP_WINDOW_MS = 60 * 60 * 1000;
+
+function ipThrottled(request: Request): boolean {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const now = Date.now();
+  const hits = (ipHits.get(ip) ?? []).filter((t) => now - t < IP_WINDOW_MS);
+  if (hits.length >= IP_LIMIT) return true;
+  hits.push(now);
+  ipHits.set(ip, hits);
+  if (ipHits.size > 5000) {
+    // Bounded memory: drop stale entries.
+    ipHits.forEach((v, k) => {
+      if (!v.some((t) => now - t < IP_WINDOW_MS)) ipHits.delete(k);
+    });
+  }
+  return false;
+}
+
 export async function POST(request: Request) {
+  if (ipThrottled(request)) {
+    return NextResponse.json(
+      { ok: false, message: "Too many attempts from your connection. Please wait a while and try again." },
+      { status: 429 },
+    );
+  }
   let body: unknown;
   try {
     body = await request.json();

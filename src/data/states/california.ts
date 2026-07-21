@@ -247,14 +247,10 @@ export const config: StateConfig = {
       required: false,
       description: "Required for all persons taking spiny lobster; valid for the entire lobster season. Report card holders who fail to return their card or report harvest online by April 30 are assessed a $21.60 non-return fee when purchasing the following season's card. Required even for license-exempt anglers."
     },
-    {
-      id: "abalone-report-card",
-      name: "Abalone Report Card",
-      price: 0,
-      required: false,
-      description: "Fishery is currently closed. Not available for purchase.",
-      officialNote: "Abalone fishery closed (currently N/A on the 2026 CDFW fee schedule) — https://wildlife.ca.gov/Licensing/Fishing"
-    }
+    // REMOVED FROM SALE (2026-07-21 audit): Abalone Report Card — the abalone
+    // fishery is closed and the card is not purchasable (N/A on the 2026 CDFW
+    // fee schedule — https://wildlife.ca.gov/Licensing/Fishing). Re-add only if
+    // CDFW reopens the fishery.
   ],
   formFields: [
     {

@@ -563,6 +563,18 @@ export const config: StateConfig = {
       officialNote: "Marked with a required asterisk on Create Customer.",
     },
     {
+      // Added 2026-07-21 audit: the NCWRC portal's entry point is a customer
+      // lookup, and WRC paper applications ask for "WRC Customer Number (if
+      // available)". Matching the existing record avoids duplicate profiles.
+      name: "wrcCustomerNumber",
+      label: "WRC Customer Number — if you have bought an NC license before",
+      type: "text",
+      required: false,
+      helpText:
+        "Optional. Printed on previous North Carolina licenses. Providing it lets us match your existing Wildlife Resources Commission record instead of creating a duplicate.",
+      step: 2,
+    },
+    {
       name: "gender",
       label: "Gender",
       type: "select",
