@@ -22,6 +22,10 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
   },
+  // PWA manifest (static file in /public). Icon <link> tags are injected by
+  // the App Router file conventions: app/favicon.ico, app/icon.png and
+  // app/apple-icon.png — so no explicit `icons` entry here (avoids dupes).
+  manifest: "/site.webmanifest",
   other: {
     // Microsoft tile support — config lives in /public/browserconfig.xml.
     "msapplication-config": "/browserconfig.xml",

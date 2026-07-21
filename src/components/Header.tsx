@@ -22,14 +22,16 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="container-site flex h-16 items-center justify-between gap-4">
+      <div className="container-site flex h-16 items-center justify-between gap-4 md:h-[72px]">
         <Link
           href="/"
           aria-label="AnglerPermit — home"
           className="flex max-w-[60vw] items-center"
           onClick={() => setOpen(false)}
         >
-          <Logo height={40} priority />
+          {/* 36px tall in the 64px mobile header, 48px in the 72px desktop
+              header (~62-67% of header height). */}
+          <Logo priority className="h-9 w-auto md:h-12" />
         </Link>
 
         <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">

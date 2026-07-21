@@ -8,9 +8,12 @@ import Image from "next/image";
  * - variant "mark": icon only
  * - theme "white": all-white lockup for dark surfaces (e.g. the navy footer)
  *
- * Width is derived from the asset's intrinsic aspect ratio so the artwork is
- * never stretched or squished; Tailwind's `max-width: 100%; height: auto`
- * preflight keeps it proportional on narrow screens.
+ * `width`/`height` are always the asset's INTRINSIC pixel dimensions so the
+ * browser can reserve the correct aspect-ratio box before the image loads
+ * (no CLS). The rendered size is controlled purely with Tailwind classes
+ * (e.g. `h-9 w-auto md:h-12`), which override the intrinsic size while
+ * keeping the aspect ratio. Sources are >=2x the largest rendered size
+ * (465px tall lockup vs <=48px rendered), so they stay crisp on retina.
  */
 
 export interface LogoProps {
@@ -18,11 +21,13 @@ export interface LogoProps {
   variant?: "full" | "mark";
   /** "color" for light backgrounds, "white" for dark backgrounds. */
   theme?: "color" | "white";
-  /** Rendered height in pixels. Width follows the asset aspect ratio. */
-  height?: number;
+  /**
+   * Tailwind classes controlling the rendered size, e.g. "h-9 w-auto md:h-12".
+   * Always include a height utility plus `w-auto`.
+   */
+  className?: string;
   /** Eager-load and preload — use for the above-the-fold header logo. */
   priority?: boolean;
-  className?: string;
 }
 
 // Intrinsic pixel dimensions of the supplied brand assets.
@@ -44,20 +49,18 @@ const ASSETS = {
 export function Logo({
   variant = "full",
   theme = "color",
-  height = 34,
+  className = "h-9 w-auto",
   priority = false,
-  className = "",
 }: LogoProps) {
   const asset = ASSETS[variant];
   const src = theme === "white" ? asset.white : asset.color;
-  const width = Math.round((height * asset.width) / asset.height);
 
   return (
     <Image
       src={src}
       alt="AnglerPermit"
-      width={width}
-      height={height}
+      width={asset.width}
+      height={asset.height}
       priority={priority}
       className={className}
     />
