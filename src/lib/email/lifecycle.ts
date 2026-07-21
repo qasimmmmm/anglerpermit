@@ -463,3 +463,294 @@ export async function sendPaymentDeclinedEmail(
     meta: { declineCode: input.declineCode },
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* EMAILS #5–#7 — dunning reminders (Day 2 / Day 4 / Day 7)            */
+/* ------------------------------------------------------------------ */
+
+export interface DunningEmailInput {
+  retryUrl: string;
+  /** One-click pause link — REQUIRED on reminders (#5–#7 only). */
+  pauseUrl: string;
+  /** Hold deadline — decline + 7 days. */
+  holdExpiry: Date;
+  cardBrand?: string | null;
+  cardLast4?: string | null;
+}
+
+function unsubscribeHeaders(pauseUrl: string): Record<string, string> {
+  // RFC 8058 one-click: mail clients POST to the URL without rendering it.
+  const oneClick = `${pauseUrl}${pauseUrl.includes("?") ? "&" : "?"}one_click=1`;
+  return {
+    "List-Unsubscribe": `<${oneClick}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+}
+
+function miniRecap(ctx: LifecycleCtx): string {
+  const lic = license(ctx);
+  const rows = [
+    detailRow(lic?.name ?? ctx.licenseId, esc(stateName(ctx))),
+    detailRow("Total", esc(formatPrice(ctx.amount)), { strong: true }),
+  ].join("");
+  return detailCard(rows, { heading: "Your order" });
+}
+
+/** EMAIL #5 — Payment Reminder 1 (Day 2). */
+export function buildReminder1Email(ctx: LifecycleCtx, input: DunningEmailInput): BuiltEmail {
+  const state = stateName(ctx);
+  const subject = `Your ${state} fishing license application is on hold (${ctx.reference})`;
+  const preheader = "Everything's ready on our side — completing payment takes about a minute.";
+  const card = [input.cardBrand, input.cardLast4 ? `card ending ${input.cardLast4}` : "card"]
+    .filter(Boolean)
+    .join(" ");
+  const holdDate = fmtDateET(input.holdExpiry);
+
+  const bodyHtml = `
+    <h1 style="margin:0 0 14px;font-size:23px;line-height:1.3;font-weight:700;color:#0A2540;">Your application is on hold</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#475569;">Hi ${esc(greetingName(ctx))},</p>
+    <p style="margin:0;font-size:15px;line-height:1.6;color:#475569;">
+      Quick reminder: your ${esc(state)} fishing license application is complete and saved, but we
+      can't start processing it until payment goes through. The earlier attempt with your
+      ${esc(card)} didn't succeed — this is usually a small card issue, nothing more.
+    </p>
+    ${ctaButton(input.retryUrl, `Finish your application — pay ${formatPrice(ctx.amount)}`)}
+    <p style="margin:6px 0 0;text-align:center;font-size:12px;color:#64748B;">Takes about a minute · no login needed</p>
+    ${miniRecap(ctx)}
+    <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#475569;">
+      Your application is held until <strong style="color:#0A2540;">${esc(holdDate)}</strong>.
+      Reply to this email if you'd like help or want to pay a different way.
+    </p>`;
+
+  const text = [
+    `Hi ${greetingName(ctx)},`,
+    "",
+    `Quick reminder: your ${state} fishing license application is complete and saved, but we can't start processing it until payment goes through. The earlier attempt with your ${card} didn't succeed — this is usually a small card issue, nothing more.`,
+    "",
+    `Finish your application — pay ${formatPrice(ctx.amount)}:`,
+    input.retryUrl,
+    "",
+    `YOUR ORDER`,
+    `${license(ctx)?.name ?? ctx.licenseId} — ${state}`,
+    `Total: ${formatPrice(ctx.amount)}`,
+    "",
+    `Your application is held until ${holdDate}. Reply to this email if you'd like help or want to pay a different way.`,
+    textFooter({ reference: ctx.reference, pauseUrl: input.pauseUrl }),
+  ].join("\n");
+
+  return {
+    subject,
+    html: emailShell({
+      preheader,
+      bodyHtml,
+      banner: { tone: "warning", text: "Application on hold — payment needed" },
+      footerReference: ctx.reference,
+      pauseUrl: input.pauseUrl,
+      campaign: "payment_reminder_1",
+    }),
+    text,
+  };
+}
+
+/** EMAIL #6 — Payment Reminder 2 (Day 4, value angle). */
+export function buildReminder2Email(ctx: LifecycleCtx, input: DunningEmailInput): BuiltEmail {
+  const state = stateName(ctx);
+  const subject = `Still planning to fish in ${state}? (${ctx.reference})`;
+  const preheader = "Your application expires in 3 days — finish payment in about a minute.";
+  const holdDate = fmtDateET(input.holdExpiry);
+
+  const bodyHtml = `
+    <h1 style="margin:0 0 14px;font-size:23px;line-height:1.3;font-weight:700;color:#0A2540;">Still planning to fish in ${esc(state)}?</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#475569;">Hi ${esc(greetingName(ctx))},</p>
+    <p style="margin:0;font-size:15px;line-height:1.6;color:#475569;">
+      Your ${esc(state)} fishing trip shouldn't get stuck on a card hiccup. Your application is
+      still saved — one quick payment and our team takes it from there: we review it, purchase
+      your license through ${esc(state)}'s official system, and email it straight to your inbox.
+    </p>
+    ${ctaButton(input.retryUrl, `Complete payment — ${formatPrice(ctx.amount)}`)}
+    <p style="margin:20px 0 0;font-size:14px;line-height:1.6;color:#475569;">
+      After <strong style="color:#0A2540;">${esc(holdDate)}</strong> the application expires and
+      your details are removed from our processing queue. If you hit any trouble paying, reply —
+      a real person will help you sort it out.
+    </p>`;
+
+  const text = [
+    `Hi ${greetingName(ctx)},`,
+    "",
+    `Your ${state} fishing trip shouldn't get stuck on a card hiccup. Your application is still saved — one quick payment and our team takes it from there: we review it, purchase your license through ${state}'s official system, and email it straight to your inbox.`,
+    "",
+    `Complete payment — ${formatPrice(ctx.amount)}:`,
+    input.retryUrl,
+    "",
+    `After ${holdDate} the application expires and your details are removed from our processing queue. If you hit any trouble paying, reply — a real person will help you sort it out.`,
+    textFooter({ reference: ctx.reference, pauseUrl: input.pauseUrl }),
+  ].join("\n");
+
+  return {
+    subject,
+    html: emailShell({
+      preheader,
+      bodyHtml,
+      banner: { tone: "warning", text: "3 days left on your application" },
+      footerReference: ctx.reference,
+      pauseUrl: input.pauseUrl,
+      campaign: "payment_reminder_2",
+    }),
+    text,
+  };
+}
+
+/** EMAIL #7 — Final Notice (Day 7; direct, still courteous). */
+export function buildFinalNoticeEmail(ctx: LifecycleCtx, input: DunningEmailInput): BuiltEmail {
+  const state = stateName(ctx);
+  const subject = `Last day: application ${ctx.reference} expires tomorrow`;
+  const holdDate = fmtDateET(input.holdExpiry);
+  const preheader = `Complete payment today to keep your ${state} license application — otherwise it's cancelled automatically.`;
+
+  const bodyHtml = `
+    <h1 style="margin:0 0 14px;font-size:23px;line-height:1.3;font-weight:700;color:#0A2540;">Your application expires tomorrow</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#475569;">Hi ${esc(greetingName(ctx))},</p>
+    <p style="margin:0;font-size:15px;line-height:1.6;color:#475569;">
+      This is the last reminder we'll send. Your ${esc(state)} fishing license application
+      (<span style="font-family:'SF Mono',SFMono-Regular,Consolas,Menlo,monospace;">${esc(ctx.reference)}</span>)
+      expires tomorrow, <strong style="color:#0A2540;">${esc(holdDate)}</strong>, and will be
+      cancelled automatically. You haven't been charged anything.
+    </p>
+    ${ctaButton(input.retryUrl, `Complete payment now — ${formatPrice(ctx.amount)}`)}
+    <p style="margin:20px 0 0;font-size:14px;line-height:1.6;color:#475569;">
+      <strong style="color:#0A2540;">If the card keeps declining:</strong> try a different card,
+      or call the number on the back of your card — banks often clear the charge in one short
+      call. Or just reply to this email and we'll figure it out together.
+    </p>
+    <p style="margin:12px 0 0;font-size:13px;line-height:1.6;color:#64748B;">
+      If we don't hear from you, no worries — the application simply closes and your payment
+      details are never charged.
+    </p>`;
+
+  const text = [
+    `Hi ${greetingName(ctx)},`,
+    "",
+    `This is the last reminder we'll send. Your ${state} fishing license application (${ctx.reference}) expires tomorrow, ${holdDate}, and will be cancelled automatically. You haven't been charged anything.`,
+    "",
+    `Complete payment now — ${formatPrice(ctx.amount)}:`,
+    input.retryUrl,
+    "",
+    "If the card keeps declining: try a different card, or call the number on the back of your card — banks often clear the charge in one short call. Or just reply to this email and we'll figure it out together.",
+    "",
+    "If we don't hear from you, no worries — the application simply closes and your payment details are never charged.",
+    textFooter({ reference: ctx.reference, pauseUrl: input.pauseUrl }),
+  ].join("\n");
+
+  return {
+    subject,
+    html: emailShell({
+      preheader,
+      bodyHtml,
+      banner: { tone: "error", text: "Expires tomorrow" },
+      footerReference: ctx.reference,
+      pauseUrl: input.pauseUrl,
+      campaign: "final_notice",
+    }),
+    text,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* EMAIL #8 — Application Cancelled (Day 8 auto-cancel / manual)       */
+/* ------------------------------------------------------------------ */
+
+export function buildCancelledEmail(ctx: LifecycleCtx): BuiltEmail {
+  const state = stateName(ctx);
+  const subject = `Your application ${ctx.reference} has been cancelled`;
+  const preheader = "Nothing was charged. You can restart in about 2 minutes whenever you're ready.";
+  const newAppUrl = utmLink(`/${ctx.stateSlug}`, "application_cancelled");
+
+  const bodyHtml = `
+    <h1 style="margin:0 0 14px;font-size:23px;line-height:1.3;font-weight:700;color:#0A2540;">Your application has been cancelled</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#475569;">Hi ${esc(greetingName(ctx))},</p>
+    <p style="margin:0;font-size:15px;line-height:1.6;color:#475569;">
+      As planned, we've cancelled your ${esc(state)} fishing license application because payment
+      wasn't completed. <strong style="color:#0A2540;">You were not charged</strong>, and your
+      saved payment attempt details have been discarded. Remaining application data is deleted
+      from our systems within 30 days per our
+      <a href="${utmLink("/privacy", "application_cancelled")}" style="color:#175CD3;">Privacy Policy</a>.
+    </p>
+    <p style="margin:16px 0 0;font-size:15px;line-height:1.6;color:#475569;">
+      Changed your mind? You can start a fresh application any time — it takes about 2 minutes:
+    </p>
+    ${ctaButton(newAppUrl, "Start a new application")}`;
+
+  const text = [
+    `Hi ${greetingName(ctx)},`,
+    "",
+    `As planned, we've cancelled your ${state} fishing license application because payment wasn't completed. You were NOT charged, and your saved payment attempt details have been discarded. Remaining application data is deleted from our systems within 30 days per our Privacy Policy.`,
+    "",
+    "Changed your mind? You can start a fresh application any time — it takes about 2 minutes:",
+    newAppUrl,
+    textFooter({ reference: ctx.reference }),
+  ].join("\n");
+
+  return {
+    subject,
+    html: emailShell({
+      preheader,
+      bodyHtml,
+      banner: { tone: "info", text: "Application cancelled — no charge made" },
+      footerReference: ctx.reference,
+      campaign: "application_cancelled",
+    }),
+    text,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* dunning senders (cron entry points)                                 */
+/* ------------------------------------------------------------------ */
+
+const DUNNING_BUILDERS: Record<
+  number,
+  { type: string; build: (ctx: LifecycleCtx, input: DunningEmailInput) => BuiltEmail }
+> = {
+  2: { type: "payment_reminder", build: buildReminder1Email },
+  4: { type: "payment_reminder", build: buildReminder2Email },
+  7: { type: "final_notice", build: buildFinalNoticeEmail },
+};
+
+/** Send the dunning email for a given step (2 | 4 | 7). */
+export async function sendDunningStepEmail(
+  ctx: LifecycleCtx,
+  step: 2 | 4 | 7,
+  input: DunningEmailInput,
+): Promise<SendEmailResult> {
+  const entry = DUNNING_BUILDERS[step];
+  const tpl = entry.build(ctx, input);
+  return sendEmail({
+    applicationId: ctx.applicationId,
+    type: entry.type,
+    sequenceStep: step,
+    to: ctx.email,
+    from: FROM.billing(),
+    replyTo: replyTo(),
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text,
+    headers: unsubscribeHeaders(input.pauseUrl),
+    meta: { step },
+  });
+}
+
+/** Send email #8 (cancelled). */
+export async function sendCancelledEmail(ctx: LifecycleCtx): Promise<SendEmailResult> {
+  const tpl = buildCancelledEmail(ctx);
+  return sendEmail({
+    applicationId: ctx.applicationId,
+    type: "application_cancelled",
+    to: ctx.email,
+    from: FROM.billing(),
+    replyTo: replyTo(),
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text,
+    meta: {},
+  });
+}

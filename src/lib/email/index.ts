@@ -17,9 +17,19 @@ export {
   sendApplicationReceivedEmail,
   sendPaymentReceiptEmail,
   sendPaymentDeclinedEmail,
+  sendDunningStepEmail,
+  sendCancelledEmail,
+  buildApplicationReceivedEmail,
+  buildPaymentReceiptEmail,
+  buildPaymentDeclinedEmail,
+  buildReminder1Email,
+  buildReminder2Email,
+  buildFinalNoticeEmail,
+  buildCancelledEmail,
   fmtDateET,
   fmtDateTimeET,
   type LifecycleCtx,
+  type BuiltEmail,
 } from "./lifecycle";
 
 /**

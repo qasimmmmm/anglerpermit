@@ -413,6 +413,84 @@ export async function updateApplicationStatus(
 }
 
 /* ------------------------------------------------------------------ */
+/* dunning support                                                     */
+/* ------------------------------------------------------------------ */
+
+export interface DunningCandidate extends ApplicationRecord {
+  dunningPausedAt: string | null;
+}
+
+/** All payment_failed applications with their pause state (cron input). */
+export async function listDunningCandidates(): Promise<DunningCandidate[]> {
+  if (!dbConfigured()) return [];
+  const res = await q<AppRow & { dunning_paused_at: Date | null }>(
+    `select ${APP_COLS}, dunning_paused_at from applications
+      where status = 'payment_failed' and payment_failed_at is not null
+      order by payment_failed_at`,
+  );
+  return res.rows.map((r) => ({
+    ...rowToRecord(r),
+    dunningPausedAt: r.dunning_paused_at?.toISOString() ?? null,
+  }));
+}
+
+/** Highest dunning sequence step already sent (0 if none). */
+export async function lastDunningStepSent(applicationId: string): Promise<number> {
+  if (!dbConfigured()) return 0;
+  const res = await q<{ max: number | null }>(
+    `select max(sequence_step)::int as max from email_log
+      where application_id = $1
+        and email_type in ('payment_reminder','final_notice')
+        and status in ('sending','sent')`,
+    [applicationId],
+  );
+  return res.rows[0]?.max ?? 0;
+}
+
+/** Record steps the cron intentionally skipped (so they never fire late). */
+export async function markDunningStepsSkipped(
+  applicationId: string,
+  steps: Array<{ type: string; step: number }>,
+): Promise<void> {
+  if (!dbConfigured() || steps.length === 0) return;
+  for (const s of steps) {
+    await q(
+      `insert into email_log (application_id, email_type, sequence_step, recipient, subject, status, meta)
+       values ($1,$2,$3,'','','skipped','{"reason":"superseded by later step"}')
+       on conflict (application_id, email_type, sequence_step)
+         where status in ('sending','sent') and application_id is not null
+         do nothing`,
+      [applicationId, s.type, s.step],
+    ).catch(() => {});
+  }
+}
+
+/** Card display info from the most recent declined attempt (for reminders). */
+export async function latestDeclinedCard(
+  applicationId: string,
+): Promise<{ brand: string | null; last4: string | null } | null> {
+  if (!dbConfigured()) return null;
+  const res = await q<{ card_brand: string | null; card_last4: string | null }>(
+    `select card_brand, card_last4 from payments
+      where application_id = $1 and status = 'declined'
+      order by created_at desc limit 1`,
+    [applicationId],
+  );
+  return res.rows[0] ? { brand: res.rows[0].card_brand, last4: res.rows[0].card_last4 } : null;
+}
+
+/** Set the reminders-pause flag. Returns true when a row was updated. */
+export async function pauseDunning(applicationId: string): Promise<boolean> {
+  if (!dbConfigured()) return false;
+  const res = await q(
+    `update applications set dunning_paused_at = coalesce(dunning_paused_at, now())
+      where id = $1 and status = 'payment_failed'`,
+    [applicationId],
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
+/* ------------------------------------------------------------------ */
 /* legacy adapter shim (kept so nothing else breaks if imported)       */
 /* ------------------------------------------------------------------ */
 

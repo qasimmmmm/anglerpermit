@@ -61,6 +61,14 @@ export interface DeliverResult {
  * and error containment. Never throws.
  */
 export async function deliver(args: DeliverArgs): Promise<DeliverResult> {
+  // TEST HOOK (never honored on Vercel): pretend the provider accepted the
+  // email so idempotency/sequencing can be exercised without an API key.
+  if (process.env.EMAIL_FAKE_DELIVER === "true" && !process.env.VERCEL) {
+    // eslint-disable-next-line no-console
+    console.log(`[email:fake] "${args.subject}" -> ${Array.isArray(args.to) ? args.to.join(",") : args.to}`);
+    return { delivered: true, id: `fake-${Math.random().toString(36).slice(2, 10)}` };
+  }
+
   const resend = getResend();
 
   if (!resend) {
