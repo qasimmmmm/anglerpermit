@@ -26,7 +26,7 @@ export function Footer() {
           <div>
             <Link href="/" aria-label="AnglerPermit — home" className="inline-flex items-center">
               {/* White lockup on the navy footer background. */}
-              <Logo theme="white" height={34} />
+              <Logo theme="white" height={40} />
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-slate-400">
               A private license-assistance service that handles the paperwork so you can

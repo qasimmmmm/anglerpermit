@@ -29,7 +29,7 @@ export function Header() {
           className="flex max-w-[60vw] items-center"
           onClick={() => setOpen(false)}
         >
-          <Logo height={34} priority />
+          <Logo height={40} priority />
         </Link>
 
         <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
