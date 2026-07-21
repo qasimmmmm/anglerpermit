@@ -21,7 +21,20 @@ import {
   type StoredApplication,
 } from "@/lib/storage";
 import { dbConfigured } from "@/lib/db";
-import { sendOrderEmails } from "@/lib/email";
+import {
+  opsAlert,
+  sendApplicationReceivedEmail,
+  sendEmail,
+  sendPaymentDeclinedEmail,
+  sendPaymentReceiptEmail,
+  fmtDateET,
+  type LifecycleCtx,
+  type OrderEmailContext,
+} from "@/lib/email";
+import { adminRecipients } from "@/lib/email/pipeline";
+import { adminNewOrderEmail } from "@/lib/email/templates";
+import { issueRetryToken } from "@/lib/retry-tokens";
+import { formatPrice } from "@/lib/format";
 
 export const runtime = "nodejs";
 
@@ -265,6 +278,43 @@ export async function POST(request: Request) {
       });
     }
 
+    // EMAIL #4 (+ dunning schedule) — real declines only, never transient
+    // gateway errors (spec 2.4: don't dun on errors; invite an in-page retry).
+    if (charge.status === "declined" && email) {
+      const holdExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const retry = appRecord ? await issueRetryToken(appRecord.id).catch(() => null) : null;
+      const ctx: LifecycleCtx = {
+        config,
+        applicationId: appRecord?.id ?? null,
+        reference,
+        stateSlug: submission.stateSlug,
+        firstName,
+        fullName: [firstName, lastName].filter(Boolean).join(" ") || null,
+        email,
+        residency: submission.residency,
+        licenseId: submission.licenseId,
+        addOnIds: submission.addOnIds,
+        amount,
+      };
+      await sendPaymentDeclinedEmail(ctx, {
+        declineCode: charge.declineCode,
+        retryUrl: retry?.url ?? null,
+        holdExpiry,
+      });
+      await opsAlert(
+        `Payment declined — ${reference}`,
+        [
+          `Application: ${reference} (${appRecord?.id ?? "no DB record"})`,
+          `State/license: ${submission.stateSlug} / ${submission.licenseId}`,
+          `Amount: ${formatPrice(amount)}`,
+          `Reason: ${charge.declineCode} (gateway code ${charge.gateway?.gatewayCode ?? "?"})`,
+          `Customer: ${email}`,
+          "",
+          `Email #4 sent with a secure retry link. Reminders scheduled for Day 2/4/7; auto-cancel ${fmtDateET(new Date(Date.now() + 8 * 24 * 60 * 60 * 1000))}.`,
+        ].join("\n"),
+      );
+    }
+
     return NextResponse.json(
       {
         ok: false,
@@ -317,49 +367,91 @@ export async function POST(request: Request) {
     );
   }
 
-  /* ------------------------- notify ------------------------- */
+  /* ------------------------- notify (emails #1 + #2 + ops) ------------------------- */
 
-  const app: StoredApplication = {
+  // Email failures never fail the order — the card is already charged. All
+  // sends go through the idempotent pipeline (email_log + Resend keys), so
+  // replays/double-fires can never duplicate them.
+  const lifecycleCtx: LifecycleCtx = {
+    config,
+    applicationId: appRecord?.id ?? null,
     reference,
     stateSlug: submission.stateSlug,
+    firstName,
+    fullName: [firstName, lastName].filter(Boolean).join(" ") || null,
+    email: email ?? "",
     residency: submission.residency,
     licenseId: submission.licenseId,
     addOnIds: submission.addOnIds,
-    data: maskedData,
-    consents: submission.consents,
-    payment: {
-      transactionId: charge.transactionId,
-      amount,
-      last4: submission.payment.last4,
-      brand: submission.payment.brand,
-      descriptor: NMI_DESCRIPTOR,
-      devMode: charge.devMode,
-    },
-    submittedAt: appRecord?.submittedAt ?? new Date().toISOString(),
+    amount,
   };
 
-  // Email failures never fail the order — the card is already charged.
-  // rawData is passed for the (opt-in) full-SSN admin email ONLY; it is never
-  // logged and never reaches customer-facing templates.
-  const emails = await sendOrderEmails({
-    config,
-    app,
-    maskedData,
-    rawData: submission.data,
-  });
-  if (!emails.customer.delivered || !emails.admin.delivered) {
+  let customerEmailed = false;
+  if (email) {
+    const [received, receipt] = await Promise.all([
+      sendApplicationReceivedEmail(lifecycleCtx),
+      sendPaymentReceiptEmail(lifecycleCtx, {
+        brand: submission.payment.brand,
+        last4: submission.payment.last4,
+        transactionId: charge.transactionId,
+        paidAt: new Date(),
+      }),
+    ]);
+    customerEmailed = received.status === "sent" || receipt.status === "sent";
+    if (received.status === "failed" || receipt.status === "failed") {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[api/applications] ${reference} lifecycle email failure — #1: ${received.status}, #2: ${receipt.status}`,
+      );
+    }
+  } else {
     // eslint-disable-next-line no-console
-    console.log(
-      `[api/applications] ${reference} email status — customer: ${
-        emails.customer.delivered ? "sent" : emails.customer.error
-      }, admin: ${emails.admin.delivered ? "sent" : emails.admin.error}`,
-    );
+    console.warn(`[api/applications] ${reference}: no customer email — #1/#2 skipped`);
+  }
+
+  // [AP Ops] rich admin notification with full order details (SSN masked
+  // unless ADMIN_EMAIL_INCLUDE_FULL_SSN=true; rawData never logged/stored).
+  const admins = adminRecipients();
+  if (admins.length) {
+    const app: StoredApplication = {
+      reference,
+      stateSlug: submission.stateSlug,
+      residency: submission.residency,
+      licenseId: submission.licenseId,
+      addOnIds: submission.addOnIds,
+      data: maskedData,
+      consents: submission.consents,
+      payment: {
+        transactionId: charge.transactionId,
+        amount,
+        last4: submission.payment.last4,
+        brand: submission.payment.brand,
+        descriptor: NMI_DESCRIPTOR,
+        devMode: charge.devMode,
+      },
+      submittedAt: appRecord?.submittedAt ?? new Date().toISOString(),
+    };
+    const orderCtx: OrderEmailContext = { config, app, maskedData, rawData: submission.data };
+    const adminTpl = adminNewOrderEmail(orderCtx, {
+      includeFullSSN: process.env.ADMIN_EMAIL_INCLUDE_FULL_SSN === "true",
+    });
+    await sendEmail({
+      applicationId: appRecord?.id ?? null,
+      type: "ops_paid",
+      to: admins,
+      from: process.env.EMAIL_FROM ?? "AnglerPermit <orders@anglerpermit.com>",
+      subject: `[AP Ops] ${adminTpl.subject}`,
+      html: adminTpl.html,
+      text: adminTpl.text,
+      replyTo: email ?? undefined,
+      meta: { amount, devMode: charge.devMode },
+    });
   }
 
   return NextResponse.json({
     ok: true,
     reference,
     applicationId: appRecord?.id ?? null,
-    confirmationEmailedTo: emails.customer.delivered ? emails.customer.to : null,
+    confirmationEmailedTo: customerEmailed ? email : null,
   });
 }

@@ -1,4 +1,3 @@
-import { Resend } from "resend";
 import {
   adminNewOrderEmail,
   contactAckEmail,
@@ -10,8 +9,18 @@ import {
   type LicenseDeliveryInput,
   type OrderEmailContext,
 } from "./templates";
+import { deliver, opsAlert, sendEmail } from "./pipeline";
 
 export type { ContactMessage, LicenseDeliveryInput, OrderEmailContext };
+export { deliver, opsAlert, sendEmail };
+export {
+  sendApplicationReceivedEmail,
+  sendPaymentReceiptEmail,
+  sendPaymentDeclinedEmail,
+  fmtDateET,
+  fmtDateTimeET,
+  type LifecycleCtx,
+} from "./lifecycle";
 
 /**
  * AnglerPermit transactional email — Resend integration.
@@ -62,70 +71,10 @@ function adminRecipients(): string[] {
     .filter(Boolean);
 }
 
-function getResend(): Resend | null {
-  const key = env("RESEND_API_KEY");
-  return key ? new Resend(key) : null;
-}
-
 export interface SendResult {
   delivered: boolean;
   id?: string;
   error?: string;
-}
-
-interface SendArgs {
-  from: string;
-  to: string | string[];
-  subject: string;
-  html: string;
-  text: string;
-  replyTo?: string | string[];
-  tag: string;
-  idempotencyKey?: string;
-  attachments?: Array<{ filename: string; content: Buffer | string; contentType?: string }>;
-}
-
-/** Low-level send with dev fallback + error containment. Never throws. */
-async function deliver(args: SendArgs): Promise<SendResult> {
-  const resend = getResend();
-
-  if (!resend) {
-    // Dev-mode fallback: no provider configured — log instead of sending.
-    // eslint-disable-next-line no-console
-    console.log(
-      `[email:dev] RESEND_API_KEY not set — would send "${args.subject}" to ${
-        Array.isArray(args.to) ? args.to.join(", ") : args.to
-      }\n${args.text.slice(0, 500)}`,
-    );
-    return { delivered: false, error: "RESEND_API_KEY not configured" };
-  }
-
-  try {
-    const { data, error } = await resend.emails.send(
-      {
-        from: args.from,
-        to: args.to,
-        subject: args.subject,
-        html: args.html,
-        text: args.text,
-        ...(args.replyTo ? { replyTo: args.replyTo } : {}),
-        ...(args.attachments ? { attachments: args.attachments } : {}),
-        tags: [{ name: "category", value: args.tag }],
-      },
-      args.idempotencyKey ? { idempotencyKey: args.idempotencyKey } : undefined,
-    );
-    if (error) {
-      // eslint-disable-next-line no-console
-      console.error(`[email] Resend error (${args.tag}): ${error.message}`);
-      return { delivered: false, error: error.message };
-    }
-    return { delivered: true, id: data?.id };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown error";
-    // eslint-disable-next-line no-console
-    console.error(`[email] send failed (${args.tag}): ${message}`);
-    return { delivered: false, error: message };
-  }
 }
 
 /* ------------------------------------------------------------------ */

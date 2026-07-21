@@ -32,6 +32,66 @@ export const FONT_STACK =
 export const NON_AFFILIATION_DISCLAIMER =
   "AnglerPermit.com is a privately owned license-assistance service and is not affiliated with, endorsed by, or operated by any government agency. Fishing licenses are also available directly from official state agencies, often at a lower cost.";
 
+/** Business identity shown in every footer (CAN-SPAM physical address). */
+export const BUSINESS = {
+  legalName: process.env.BUSINESS_LEGAL_NAME ?? "Angler Permit",
+  address: process.env.BUSINESS_ADDRESS ?? "5900 Balcones Dr Ste 100, Austin, TX 78731",
+  supportEmail: process.env.SUPPORT_EMAIL ?? "support@anglerpermit.com",
+  supportPhone: process.env.SUPPORT_PHONE ?? "",
+} as const;
+
+/** Status-banner tones — the 2-second scan line under the header. */
+export const TONES = {
+  info: { fg: "#175CD3", bg: "#EFF8FF", glyph: "ℹ" },
+  success: { fg: "#067647", bg: "#ECFDF3", glyph: "✓" },
+  warning: { fg: "#B54708", bg: "#FFFAEB", glyph: "!" },
+  error: { fg: "#B42318", bg: "#FEF3F2", glyph: "!" },
+} as const;
+
+export type Tone = keyof typeof TONES;
+
+/** Append transactional UTM parameters to a site link. */
+export function utmLink(pathOrUrl: string, campaign: string): string {
+  const url = pathOrUrl.startsWith("http") ? pathOrUrl : `${siteUrl()}${pathOrUrl}`;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}utm_source=transactional&utm_medium=email&utm_campaign=${encodeURIComponent(campaign)}`;
+}
+
+/**
+ * Full-width tinted status strip shown directly under the navy header.
+ * One line, glyph + short status — readable in 2 seconds.
+ */
+export function statusBanner(tone: Tone, text: string): string {
+  const t = TONES[tone];
+  return `
+    <tr><td style="background:${t.bg};padding:12px 34px;border:1px solid ${BRAND.slate200};border-top:0;border-bottom:0;">
+      <p style="margin:0;font-size:14px;font-weight:700;color:${t.fg};">
+        <span style="display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:${t.fg};color:#FFFFFF;text-align:center;font-size:12px;margin-right:8px;vertical-align:-2px;">${t.glyph}</span>${esc(text)}
+      </p>
+    </td></tr>`;
+}
+
+/**
+ * Bulletproof primary CTA button (navy, 48px tap target) with a VML
+ * fallback so Outlook on Windows renders it correctly.
+ */
+export function ctaButton(href: string, label: string): string {
+  const safeHref = esc(href);
+  const safeLabel = esc(label);
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 8px;"><tr><td align="center">
+      <!--[if mso]>
+      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${safeHref}" style="height:48px;v-text-anchor:middle;width:320px;" arcsize="17%" fillcolor="${BRAND.navy}" stroke="f">
+        <w:anchorlock/>
+        <center style="color:#FFFFFF;font-family:sans-serif;font-size:16px;font-weight:600;">${safeLabel}</center>
+      </v:roundrect>
+      <![endif]-->
+      <!--[if !mso]><!-->
+      <a href="${safeHref}" style="display:inline-block;min-width:220px;padding:14px 36px;border-radius:8px;background:${BRAND.navy};color:#FFFFFF;font-size:16px;font-weight:600;text-decoration:none;text-align:center;line-height:20px;">${safeLabel}</a>
+      <!--<![endif]-->
+    </td></tr></table>`;
+}
+
 /** Escape a value for safe interpolation into HTML. */
 export function esc(value: unknown): string {
   return String(value ?? "")
@@ -116,19 +176,45 @@ export interface ShellOptions {
   kicker?: string;
   /** Include the non-affiliation disclaimer in the footer (default true). */
   disclaimer?: boolean;
+  /** Optional status banner (tinted strip under the navy header). */
+  banner?: { tone: Tone; text: string };
+  /** Reference number repeated small in the footer. */
+  footerReference?: string;
+  /** "Pause payment reminders" link — dunning emails #5–#7 ONLY. */
+  pauseUrl?: string;
+  /** UTM campaign slug applied to footer site links. */
+  campaign?: string;
 }
 
 /**
- * Brand shell: navy header with wordmark, white content card, slate footer.
+ * Brand shell: navy header with wordmark, optional status banner, white
+ * content card, slate footer with the business address + disclosure.
  */
-export function emailShell({ preheader, bodyHtml, kicker, disclaimer = true }: ShellOptions): string {
+export function emailShell({
+  preheader,
+  bodyHtml,
+  kicker,
+  disclaimer = true,
+  banner,
+  footerReference,
+  pauseUrl,
+  campaign = "transactional",
+}: ShellOptions): string {
   const year = new Date().getFullYear();
   const kickerHtml = kicker
     ? `<p style="margin:10px 0 0;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8AADD1;">${esc(kicker)}</p>`
     : "";
+  const bannerHtml = banner ? statusBanner(banner.tone, banner.text) : "";
   const disclaimerHtml = disclaimer
-    ? `<p style="margin:14px 0 0;font-size:11px;line-height:1.6;color:${BRAND.slate500};">${esc(NON_AFFILIATION_DISCLAIMER)}</p>`
+    ? `<p style="margin:12px 0 0;font-size:11px;line-height:1.6;color:${BRAND.slate500};">${esc(NON_AFFILIATION_DISCLAIMER)}</p>`
     : "";
+  const referenceHtml = footerReference
+    ? `<p style="margin:12px 0 0;font-size:11px;color:${BRAND.slate500};">Reference: <span style="font-family:'SF Mono',SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${esc(footerReference)}</span></p>`
+    : "";
+  const pauseHtml = pauseUrl
+    ? `<p style="margin:12px 0 0;font-size:11px;color:${BRAND.slate500};"><a href="${esc(pauseUrl)}" style="color:${BRAND.slate500};text-decoration:underline;">Pause payment reminders for this application</a></p>`
+    : "";
+  const phone = BUSINESS.supportPhone ? ` or call ${esc(BUSINESS.supportPhone)}` : "";
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -138,9 +224,9 @@ export function emailShell({ preheader, bodyHtml, kicker, disclaimer = true }: S
   <meta name="supported-color-schemes" content="light">
   <title>AnglerPermit</title>
 </head>
-<body style="margin:0;padding:0;background:#EEF2F7;font-family:${FONT_STACK};-webkit-text-size-adjust:100%;">
+<body style="margin:0;padding:0;background:#F4F6F8;font-family:${FONT_STACK};-webkit-text-size-adjust:100%;">
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${esc(preheader)}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF2F7;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F6F8;">
     <tr><td align="center" style="padding:28px 14px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
@@ -149,6 +235,7 @@ export function emailShell({ preheader, bodyHtml, kicker, disclaimer = true }: S
           <p style="margin:0;font-size:20px;font-weight:600;color:${BRAND.white};">Angler<span style="color:#8ABAA5;">Permit</span></p>
           ${kickerHtml}
         </td></tr>
+        ${bannerHtml}
 
         <!-- Body card -->
         <tr><td style="background:${BRAND.white};padding:30px 34px 34px;border:1px solid ${BRAND.slate200};border-top:0;">
@@ -158,12 +245,15 @@ export function emailShell({ preheader, bodyHtml, kicker, disclaimer = true }: S
         <!-- Footer -->
         <tr><td style="background:${BRAND.slate50};border:1px solid ${BRAND.slate200};border-top:0;border-radius:0 0 14px 14px;padding:22px 34px;">
           <p style="margin:0;font-size:12px;line-height:1.6;color:${BRAND.slate600};">
-            Questions? Reply to this email or write to
-            <a href="mailto:support@anglerpermit.com" style="color:${BRAND.forest500};font-weight:600;text-decoration:none;">support@anglerpermit.com</a>
+            Questions? Just reply to this email, write to
+            <a href="mailto:${esc(BUSINESS.supportEmail)}" style="color:${BRAND.forest500};font-weight:600;text-decoration:none;">${esc(BUSINESS.supportEmail)}</a>${phone}
             — a real person reads every message.
           </p>
           ${disclaimerHtml}
-          <p style="margin:12px 0 0;font-size:11px;color:${BRAND.slate500};">© ${year} AnglerPermit.com · <a href="${siteUrl()}" style="color:${BRAND.slate500};">anglerpermit.com</a> · <a href="${siteUrl()}/privacy" style="color:${BRAND.slate500};">Privacy</a> · <a href="${siteUrl()}/refund" style="color:${BRAND.slate500};">Refund policy</a></p>
+          <p style="margin:12px 0 0;font-size:11px;line-height:1.6;color:${BRAND.slate500};">${esc(BUSINESS.legalName)} · ${esc(BUSINESS.address)}</p>
+          ${referenceHtml}
+          ${pauseHtml}
+          <p style="margin:12px 0 0;font-size:11px;color:${BRAND.slate500};">© ${year} AnglerPermit.com · <a href="${utmLink("/", campaign)}" style="color:${BRAND.slate500};">anglerpermit.com</a> · <a href="${utmLink("/terms", campaign)}" style="color:${BRAND.slate500};">Terms</a> · <a href="${utmLink("/privacy", campaign)}" style="color:${BRAND.slate500};">Privacy</a> · <a href="${utmLink("/refund", campaign)}" style="color:${BRAND.slate500};">Refund policy</a> · <a href="${utmLink("/contact", campaign)}" style="color:${BRAND.slate500};">Contact</a></p>
         </td></tr>
 
       </table>
@@ -174,13 +264,18 @@ export function emailShell({ preheader, bodyHtml, kicker, disclaimer = true }: S
 }
 
 /** Footer block appended to every plain-text alternative. */
-export function textFooter(): string {
-  return [
+export function textFooter(opts?: { reference?: string; pauseUrl?: string }): string {
+  const lines = [
     "",
     "—",
-    "Questions? Reply to this email or write to support@anglerpermit.com.",
+    `Questions? Just reply to this email or write to ${BUSINESS.supportEmail}.`,
     "",
     NON_AFFILIATION_DISCLAIMER,
-    `© ${new Date().getFullYear()} AnglerPermit.com — ${siteUrl()}`,
-  ].join("\n");
+    "",
+    `${BUSINESS.legalName} · ${BUSINESS.address}`,
+  ];
+  if (opts?.reference) lines.push(`Reference: ${opts.reference}`);
+  if (opts?.pauseUrl) lines.push("", `Pause payment reminders: ${opts.pauseUrl}`);
+  lines.push(`© ${new Date().getFullYear()} AnglerPermit.com — ${siteUrl()}`);
+  return lines.join("\n");
 }
