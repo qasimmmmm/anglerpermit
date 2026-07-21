@@ -754,3 +754,403 @@ export async function sendCancelledEmail(ctx: LifecycleCtx): Promise<SendEmailRe
     meta: {},
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* EMAIL #3 — License Delivered (the moment of delight)                */
+/* ------------------------------------------------------------------ */
+
+export interface LicenseDeliveredInput {
+  licenseNumber?: string | null;
+  validFrom?: string | null; // ISO date
+  validTo?: string | null; // ISO date
+  /** Attachment filenames (for the copy) — attachments ride on sendEmail. */
+  attachmentNames: string[];
+  /** Optional personal note from the ops team. */
+  note?: string | null;
+}
+
+function fmtDateOnly(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) ? iso : fmtDateET(d);
+}
+
+export function buildLicenseDeliveredEmail(
+  ctx: LifecycleCtx,
+  input: LicenseDeliveredInput,
+): BuiltEmail {
+  const state = stateName(ctx);
+  const lic = license(ctx);
+  const agency = ctx.config?.officialAgencyName ?? `${state}'s licensing agency`;
+  const agencyUrl = ctx.config?.officialPortalUrl ?? null;
+  const subject = `Your ${state} fishing license is ready (${ctx.reference})`;
+  const preheader = "It's attached — print it or save it to your phone before you head out.";
+
+  const cardRows = [
+    ctx.fullName ? detailRow("License holder", esc(ctx.fullName), { strong: true }) : "",
+    input.licenseNumber ? detailRow("License number", esc(input.licenseNumber), { mono: true, strong: true }) : "",
+    lic ? detailRow("Type", esc(lic.name)) : "",
+    input.validFrom || input.validTo
+      ? detailRow(
+          "Valid",
+          esc(
+            [
+              input.validFrom ? fmtDateOnly(input.validFrom) : "",
+              input.validTo ? fmtDateOnly(input.validTo) : "",
+            ]
+              .filter(Boolean)
+              .join(" – "),
+          ),
+        )
+      : "",
+    detailRow("Issued by", esc(agency)),
+    detailRow("Reference", esc(ctx.reference), { mono: true }),
+  ].join("");
+
+  const steps = stepsBlock([
+    {
+      title: "Save it",
+      body: "Download the attached PDF to your phone and keep a copy in your email.",
+    },
+    {
+      title: "Keep it with you",
+      body: `${agency} issued this license — carry a copy (printed or on your phone) whenever you're fishing, and follow any carry rules shown on the license itself.`,
+    },
+    {
+      title: "Know the local rules",
+      body: `Season dates, size and bag limits are set by ${agency}${agencyUrl ? ` — see ${agencyUrl}` : ""}.`,
+    },
+  ]);
+
+  const expiryLine = input.validTo
+    ? `<p style="margin:16px 0 0;font-size:14px;line-height:1.6;color:#475569;">Your license expires on <strong style="color:#0A2540;">${esc(fmtDateOnly(input.validTo))}</strong> — we'll send you a friendly heads-up before then.</p>`
+    : "";
+  const noteHtml = input.note
+    ? `<p style="margin:16px 0 0;font-size:14px;line-height:1.6;color:#475569;"><strong style="color:#0A2540;">A note from our team:</strong> ${esc(input.note)}</p>`
+    : "";
+
+  const bodyHtml = `
+    <h1 style="margin:0 0 14px;font-size:23px;line-height:1.3;font-weight:700;color:#0A2540;">Your license is ready 🎣</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#475569;">Hi ${esc(greetingName(ctx))},</p>
+    <p style="margin:0;font-size:15px;line-height:1.6;color:#475569;">
+      Great news — your ${esc(state)} fishing license has been issued. It's attached to this
+      email${input.attachmentNames.length > 1 ? ` as ${input.attachmentNames.length} files` : " as a PDF"}.
+    </p>
+    ${detailCard(cardRows, { heading: "Your license" })}
+    <p style="margin:20px 0 0;font-size:14px;font-weight:700;color:#0A2540;">Before you head out:</p>
+    ${steps}
+    ${expiryLine}
+    ${noteHtml}
+    <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#475569;">
+      Tight lines out there. If anything on the license looks incorrect, reply immediately and
+      we'll get it corrected with the state.
+    </p>`;
+
+  const text = [
+    `Hi ${greetingName(ctx)},`,
+    "",
+    `Great news — your ${state} fishing license has been issued. It's attached to this email (${input.attachmentNames.join(", ")}).`,
+    "",
+    "YOUR LICENSE",
+    ...(ctx.fullName ? [`License holder: ${ctx.fullName}`] : []),
+    ...(input.licenseNumber ? [`License number: ${input.licenseNumber}`] : []),
+    ...(lic ? [`Type: ${lic.name}`] : []),
+    ...(input.validFrom || input.validTo
+      ? [`Valid: ${[input.validFrom ? fmtDateOnly(input.validFrom) : "", input.validTo ? fmtDateOnly(input.validTo) : ""].filter(Boolean).join(" - ")}`]
+      : []),
+    `Issued by: ${agency}`,
+    `Reference: ${ctx.reference}`,
+    "",
+    "BEFORE YOU HEAD OUT",
+    "1. Save it — download the attached PDF to your phone and keep a copy in your email.",
+    `2. Keep it with you — carry a copy (printed or on your phone) whenever you're fishing.`,
+    `3. Know the local rules — season dates, size and bag limits are set by ${agency}${agencyUrl ? `: ${agencyUrl}` : ""}.`,
+    ...(input.validTo ? ["", `Your license expires on ${fmtDateOnly(input.validTo)} — we'll send you a friendly heads-up before then.`] : []),
+    ...(input.note ? ["", `A note from our team: ${input.note}`] : []),
+    "",
+    "Tight lines out there. If anything looks incorrect, reply immediately and we'll get it corrected with the state.",
+    textFooter({ reference: ctx.reference }),
+  ].join("\n");
+
+  return {
+    subject,
+    html: emailShell({
+      preheader,
+      bodyHtml,
+      banner: { tone: "success", text: "License issued" },
+      footerReference: ctx.reference,
+      campaign: "license_delivered",
+    }),
+    text,
+  };
+}
+
+export async function sendLicenseDeliveredEmail(
+  ctx: LifecycleCtx,
+  input: LicenseDeliveredInput,
+  attachments: Array<{ filename: string; content: Buffer; contentType?: string }>,
+): Promise<SendEmailResult> {
+  const tpl = buildLicenseDeliveredEmail(ctx, input);
+  return sendEmail({
+    applicationId: ctx.applicationId,
+    type: "license_delivered",
+    to: ctx.email,
+    from: FROM.applications(),
+    replyTo: replyTo(),
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text,
+    attachments,
+    meta: { files: input.attachmentNames.length, licenseNumber: input.licenseNumber ?? null },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* EMAIL #9 — Missing Information (ops-triggered)                      */
+/* ------------------------------------------------------------------ */
+
+export function buildMissingInfoEmail(ctx: LifecycleCtx, ask: string): BuiltEmail {
+  const state = stateName(ctx);
+  const subject = `One quick thing before we can process ${ctx.reference}`;
+  const preheader = `Your ${state} license application is almost ready — we just need one detail.`;
+
+  const bodyHtml = `
+    <h1 style="margin:0 0 14px;font-size:23px;line-height:1.3;font-weight:700;color:#0A2540;">We need one more detail</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#475569;">Hi ${esc(greetingName(ctx))},</p>
+    <p style="margin:0;font-size:15px;line-height:1.6;color:#475569;">
+      Your ${esc(state)} fishing license application is almost ready — before we can submit it,
+      we need one thing from you:
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 0;border-left:4px solid #B54708;background:#FFFAEB;border-radius:0 10px 10px 0;">
+      <tr><td style="padding:14px 18px;">
+        <p style="margin:0;font-size:15px;line-height:1.65;color:#0A2540;font-weight:500;">${esc(ask)}</p>
+      </td></tr>
+    </table>
+    <p style="margin:18px 0 0;font-size:15px;line-height:1.6;color:#475569;">
+      <strong style="color:#0A2540;">Just reply to this email</strong> with the detail above and
+      we'll pick your application right back up — your place in the queue is saved.
+    </p>
+    <p style="margin:12px 0 0;font-size:13px;line-height:1.6;color:#64748B;">
+      Please reply within 7 days to keep your application moving. Never include your full Social
+      Security number or card details in an email reply.
+    </p>`;
+
+  const text = [
+    `Hi ${greetingName(ctx)},`,
+    "",
+    `Your ${state} fishing license application is almost ready — before we can submit it, we need one thing from you:`,
+    "",
+    `>> ${ask}`,
+    "",
+    "Just reply to this email with the detail above and we'll pick your application right back up — your place in the queue is saved.",
+    "",
+    "Please reply within 7 days to keep your application moving. Never include your full Social Security number or card details in an email reply.",
+    textFooter({ reference: ctx.reference }),
+  ].join("\n");
+
+  return {
+    subject,
+    html: emailShell({
+      preheader,
+      bodyHtml,
+      banner: { tone: "warning", text: "We need one more detail" },
+      footerReference: ctx.reference,
+      campaign: "missing_info",
+    }),
+    text,
+  };
+}
+
+export async function sendMissingInfoEmail(
+  ctx: LifecycleCtx,
+  ask: string,
+  opts?: { force?: boolean },
+): Promise<SendEmailResult> {
+  const tpl = buildMissingInfoEmail(ctx, ask);
+  return sendEmail({
+    applicationId: ctx.applicationId,
+    type: "missing_info",
+    to: ctx.email,
+    from: FROM.applications(),
+    replyTo: replyTo(),
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text,
+    force: opts?.force,
+    meta: { askLength: ask.length },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* EMAIL #10 — Refund Confirmation                                     */
+/* ------------------------------------------------------------------ */
+
+export interface RefundEmailInput {
+  refundTransactionId: string;
+  refundedAt: Date;
+  cardBrand?: string | null;
+  cardLast4?: string | null;
+  /** Refunded amount in dollars (full refund when equal to ctx.amount). */
+  amount: number;
+}
+
+export function buildRefundEmail(ctx: LifecycleCtx, input: RefundEmailInput): BuiltEmail {
+  const subject = `Your refund of ${formatPrice(input.amount)} has been issued (${ctx.reference})`;
+  const preheader = "Allow 5–10 business days for it to appear on your statement.";
+  const method = [input.cardBrand, input.cardLast4 ? `ending ${input.cardLast4}` : ""]
+    .filter(Boolean)
+    .join(" ");
+
+  const rows = [
+    detailRow("Date", esc(fmtDateTimeET(input.refundedAt))),
+    detailRow("Refund amount", esc(formatPrice(input.amount)), { strong: true }),
+    method ? detailRow("Refunded to", esc(method)) : "",
+    detailRow("Refund transaction ID", esc(input.refundTransactionId), { mono: true }),
+    detailRow("Reference", esc(ctx.reference), { mono: true }),
+  ].join("");
+
+  const bodyHtml = `
+    <h1 style="margin:0 0 14px;font-size:23px;line-height:1.3;font-weight:700;color:#0A2540;">Refund issued</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#475569;">Hi ${esc(greetingName(ctx))},</p>
+    <p style="margin:0;font-size:15px;line-height:1.6;color:#475569;">
+      Your refund has been issued in full${method ? ` to your ${esc(method)}` : ""}. Depending on
+      your bank, it typically appears on your statement within
+      <strong style="color:#0A2540;">5–10 business days</strong>.
+    </p>
+    ${detailCard(rows, { heading: "Refund details" })}
+    <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#64748B;">
+      The original charge appeared on your statement as
+      <strong style="color:#0A2540;">${esc(NMI_DESCRIPTOR)}</strong>; the refund will reference
+      the same descriptor. If it hasn't arrived after 10 business days, just reply and we'll
+      chase it with the processor.
+    </p>
+    <p style="margin:12px 0 0;font-size:14px;line-height:1.6;color:#475569;">
+      We're sorry this application didn't work out — we'd love to help with a future license
+      whenever you're ready.
+    </p>`;
+
+  const text = [
+    `Hi ${greetingName(ctx)},`,
+    "",
+    `Your refund has been issued in full${method ? ` to your ${method}` : ""}. Depending on your bank, it typically appears on your statement within 5–10 business days.`,
+    "",
+    "REFUND DETAILS",
+    `Date: ${fmtDateTimeET(input.refundedAt)}`,
+    `Refund amount: ${formatPrice(input.amount)}`,
+    ...(method ? [`Refunded to: ${method}`] : []),
+    `Refund transaction ID: ${input.refundTransactionId}`,
+    `Reference: ${ctx.reference}`,
+    "",
+    `The original charge appeared as ${NMI_DESCRIPTOR}; the refund references the same descriptor. If it hasn't arrived after 10 business days, just reply and we'll chase it with the processor.`,
+    "",
+    "We're sorry this application didn't work out — we'd love to help with a future license whenever you're ready.",
+    textFooter({ reference: ctx.reference }),
+  ].join("\n");
+
+  return {
+    subject,
+    html: emailShell({
+      preheader,
+      bodyHtml,
+      banner: { tone: "success", text: "Refund issued" },
+      footerReference: ctx.reference,
+      campaign: "refund_confirmation",
+    }),
+    text,
+  };
+}
+
+export async function sendRefundEmail(
+  ctx: LifecycleCtx,
+  input: RefundEmailInput,
+): Promise<SendEmailResult> {
+  const tpl = buildRefundEmail(ctx, input);
+  return sendEmail({
+    applicationId: ctx.applicationId,
+    type: "refund_confirmation",
+    to: ctx.email,
+    from: FROM.receipts(),
+    replyTo: replyTo(),
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text,
+    meta: { refundTransactionId: input.refundTransactionId, amount: input.amount },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Renewal reminder (14 days before license expiry)                    */
+/* ------------------------------------------------------------------ */
+
+export function buildRenewalReminderEmail(
+  ctx: LifecycleCtx,
+  input: { validTo: string; optOutUrl: string },
+): BuiltEmail {
+  const state = stateName(ctx);
+  const subject = `Your ${state} fishing license expires soon (${ctx.reference})`;
+  const preheader = `It expires ${fmtDateOnly(input.validTo)} — renew in about 2 minutes so there's no gap.`;
+  const renewUrl = utmLink(`/${ctx.stateSlug}`, "renewal_reminder");
+
+  const bodyHtml = `
+    <h1 style="margin:0 0 14px;font-size:23px;line-height:1.3;font-weight:700;color:#0A2540;">Time to renew?</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#475569;">Hi ${esc(greetingName(ctx))},</p>
+    <p style="margin:0;font-size:15px;line-height:1.6;color:#475569;">
+      A friendly heads-up: your ${esc(state)} fishing license expires on
+      <strong style="color:#0A2540;">${esc(fmtDateOnly(input.validTo))}</strong>. If you're
+      planning to keep fishing, renewing takes about 2 minutes — and our team handles the rest,
+      same as last time.
+    </p>
+    ${ctaButton(renewUrl, `Renew your ${state} license`)}
+    <p style="margin:20px 0 0;font-size:13px;line-height:1.6;color:#64748B;">
+      Not planning to renew? No action needed — this is just a heads-up, and nothing is charged.
+    </p>`;
+
+  const text = [
+    `Hi ${greetingName(ctx)},`,
+    "",
+    `A friendly heads-up: your ${state} fishing license expires on ${fmtDateOnly(input.validTo)}. If you're planning to keep fishing, renewing takes about 2 minutes — and our team handles the rest, same as last time.`,
+    "",
+    `Renew your ${state} license:`,
+    renewUrl,
+    "",
+    "Not planning to renew? No action needed — this is just a heads-up, and nothing is charged.",
+    "",
+    `Stop renewal reminders: ${input.optOutUrl}`,
+    textFooter({ reference: ctx.reference }),
+  ].join("\n");
+
+  return {
+    subject,
+    html: emailShell({
+      preheader,
+      bodyHtml: `${bodyHtml}
+    <p style="margin:14px 0 0;font-size:12px;color:#64748B;"><a href="${esc(input.optOutUrl)}" style="color:#64748B;text-decoration:underline;">Stop renewal reminders</a></p>`,
+      banner: { tone: "info", text: "License renewal reminder" },
+      footerReference: ctx.reference,
+      campaign: "renewal_reminder",
+    }),
+    text,
+  };
+}
+
+export async function sendRenewalReminderEmail(
+  ctx: LifecycleCtx,
+  input: { validTo: string; optOutUrl: string },
+): Promise<SendEmailResult> {
+  const tpl = buildRenewalReminderEmail(ctx, input);
+  const oneClick = `${input.optOutUrl}${input.optOutUrl.includes("?") ? "&" : "?"}one_click=1`;
+  return sendEmail({
+    applicationId: ctx.applicationId,
+    type: "renewal_reminder",
+    to: ctx.email,
+    from: FROM.applications(),
+    replyTo: replyTo(),
+    subject: tpl.subject,
+    html: tpl.html,
+    text: tpl.text,
+    headers: {
+      "List-Unsubscribe": `<${oneClick}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+    meta: { validTo: input.validTo },
+  });
+}

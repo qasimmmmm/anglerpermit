@@ -10,13 +10,15 @@ import {
   updateApplicationStatus,
   type DunningCandidate,
 } from "@/lib/storage";
-import { dbConfigured } from "@/lib/db";
+import { dbConfigured, q } from "@/lib/db";
+import { createHmac } from "node:crypto";
 import { issueRetryToken } from "@/lib/retry-tokens";
 import {
   fmtDateET,
   opsAlert,
   sendCancelledEmail,
   sendDunningStepEmail,
+  sendRenewalReminderEmail,
   type LifecycleCtx,
 } from "@/lib/email";
 
@@ -245,6 +247,52 @@ export async function GET(request: Request) {
     }
   }
 
+  /* -------- renewal reminders (14 days before license expiry) -------- */
+  const renewals = { due: 0, sent: 0 };
+  try {
+    const dueRows = await q<{
+      id: string; reference: string; state_slug: string; email: string | null;
+      first_name: string | null; last_name: string | null; residency: string;
+      license_id: string; addon_ids: unknown; amount_cents: number;
+      license_valid_to: Date;
+    }>(
+      `select id, reference, state_slug, email, first_name, last_name, residency,
+              license_id, addon_ids, amount_cents, license_valid_to
+         from applications
+        where status = 'delivered' and renewal_opt_out_at is null and email is not null
+          and license_valid_to is not null
+          and license_valid_to between current_date and current_date + interval '14 days'`,
+    );
+    renewals.due = dueRows.rows.length;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://anglerpermit.com";
+    const secret = process.env.CRON_SECRET ?? "";
+    for (const r of dueRows.rows) {
+      const config = await getStateConfig(r.state_slug);
+      const sig = createHmac("sha256", secret).update(`renewal-optout/${r.reference}`).digest("hex").slice(0, 32);
+      const optOutUrl = `${siteUrl}/api/renewals/optout?ref=${encodeURIComponent(r.reference)}&sig=${sig}`;
+      const result = await sendRenewalReminderEmail(
+        {
+          config,
+          applicationId: r.id,
+          reference: r.reference,
+          stateSlug: r.state_slug,
+          firstName: r.first_name,
+          fullName: [r.first_name, r.last_name].filter(Boolean).join(" ") || null,
+          email: r.email as string,
+          residency: r.residency,
+          licenseId: r.license_id,
+          addOnIds: Array.isArray(r.addon_ids) ? (r.addon_ids as string[]) : [],
+          amount: r.amount_cents / 100,
+        },
+        { validTo: r.license_valid_to.toISOString().slice(0, 10), optOutUrl },
+      );
+      if (result.status === "sent") renewals.sent++;
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`[cron/dunning] renewal sweep failed: ${err instanceof Error ? err.message : "unknown"}`);
+  }
+
   const activity = summary.cancelled + Object.values(summary.sent).reduce((a, b) => a + b, 0);
   if (activity > 0 && simulateDay === null) {
     await opsAlert(
@@ -253,5 +301,5 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true, ...summary });
+  return NextResponse.json({ ok: true, ...summary, renewals });
 }

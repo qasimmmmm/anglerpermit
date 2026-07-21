@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DeliverForm } from "./deliver-form";
+import { OpsPanel } from "./ops-panel";
 
 export const metadata: Metadata = {
   title: "Deliver a license",
@@ -21,6 +22,7 @@ export default function DeliverLicensePage() {
           customer from licenses@anglerpermit.com, plus a copy to the admin inbox.
         </p>
         <DeliverForm />
+        <OpsPanel />
       </div>
     </section>
   );

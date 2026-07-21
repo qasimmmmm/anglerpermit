@@ -412,6 +412,22 @@ export async function updateApplicationStatus(
   );
 }
 
+/** Record issued-license details (admin Upload License & Send). */
+export async function setLicenseFields(
+  applicationId: string,
+  fields: { licenseNumber?: string | null; validFrom?: string | null; validTo?: string | null },
+): Promise<void> {
+  if (!dbConfigured()) return;
+  await q(
+    `update applications
+        set license_number = coalesce($2, license_number),
+            license_valid_from = coalesce($3::date, license_valid_from),
+            license_valid_to = coalesce($4::date, license_valid_to)
+      where id = $1`,
+    [applicationId, fields.licenseNumber ?? null, fields.validFrom ?? null, fields.validTo ?? null],
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* dunning support                                                     */
 /* ------------------------------------------------------------------ */
