@@ -969,15 +969,27 @@ export const config: StateConfig = {
       name: "hunterEducationNumber",
       label: "Hunter Education Number",
       type: "text",
-      required: false,
+      required: true,
       helpText:
-        "Hunter Education Certification is required for persons born after June 30, 1979 who apply for hunting privileges (Combination, Sportsman, Junior Sportsman licenses). Not required for fishing-only licenses.",
+        "Required for persons born after June 30, 1979 who buy a hunting-inclusive license (Combination, Sportsman, Junior Sportsman). Not required for fishing-only licenses, or if you were born on or before June 30, 1979.",
       autocomplete: "off",
       validation: { maxLength: 20 },
-      // TYPE-MAP: research conditional { field: "licenseCategory", equals: "combo" }
-      // dropped — `licenseCategory` is not an applicant-data field, so the rule
-      // could never fire (field permanently hidden + never validated). Kept
-      // always-visible + optional; helpText carries the hunting-only rule.
+      // Shown when a hunting-inclusive license is selected (wizard licenseId).
+      // Age exemption (born on/before 1979-06-30) is enforced in
+      // isFieldEffectivelyRequired / buildSubmissionSchema.
+      conditional: {
+        field: "licenseId",
+        oneOf: [
+          "combination-license-annual-res",
+          "combination-license-3-year-res",
+          "sportsman-license-annual-res",
+          "sportsman-license-3-year-res",
+          "junior-sportsman-license-annual-res",
+          "senior-combination-license-lifetime",
+          "disability-combination-license-3-year",
+          "lifetime-combination-license",
+        ],
+      },
       step: 2,
       officialNote:
         "Exact label from official SCDNR application 'Hunter Education Certification' section.",
@@ -986,11 +998,21 @@ export const config: StateConfig = {
       name: "hunterEducationStateOfIssue",
       label: "State of Issue",
       type: "select",
-      required: false,
-      // TYPE-MAP: research conditional { field: "licenseCategory", equals: "combo" }
-      // dropped (same reason as hunterEducationNumber). Standard 50-state + DC
-      // list per the research directive on homeState.
+      required: true,
       options: US_STATES,
+      conditional: {
+        field: "licenseId",
+        oneOf: [
+          "combination-license-annual-res",
+          "combination-license-3-year-res",
+          "sportsman-license-annual-res",
+          "sportsman-license-3-year-res",
+          "junior-sportsman-license-annual-res",
+          "senior-combination-license-lifetime",
+          "disability-combination-license-3-year",
+          "lifetime-combination-license",
+        ],
+      },
       step: 2,
       officialNote:
         "Exact label from official SCDNR application (Hunter Education Certification section). Option list TODO: verify (CAPTCHA).",
