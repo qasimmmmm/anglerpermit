@@ -67,7 +67,8 @@ export function generateTempPassword(): string {
 }
 
 function toPublic(u: AdminUserDoc): PublicAdminUser {
-  const { passwordHash: _, ...rest } = u;
+  const { passwordHash, ...rest } = u;
+  void passwordHash;
   return rest;
 }
 
