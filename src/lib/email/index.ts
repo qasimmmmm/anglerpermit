@@ -10,7 +10,7 @@ import {
   type LicenseDeliveryInput,
   type OrderEmailContext,
 } from "./templates";
-import { deliver, opsAlert, sendEmail } from "./pipeline";
+import { deliver, sendEmail } from "./pipeline";
 
 export type { ContactMessage, LicenseDeliveryInput, OrderEmailContext };
 export { deliver, opsAlert, sendEmail, adminRecipients } from "./pipeline";
