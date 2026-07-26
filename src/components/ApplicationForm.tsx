@@ -450,6 +450,8 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
   // Set when a charge is declined: retrying re-submits against the SAME
   // application row server-side (no duplicate applications, one dunning trail).
   const applicationIdRef = useRef<string | null>(null);
+  // Ensures checkout-started emails fire once per wizard session.
+  const checkoutStartedSentRef = useRef(false);
 
   const residency = watch("residency");
   const licenseId = watch("licenseId");
@@ -567,6 +569,33 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
       ok = await trigger("consents.accurateAndTerms");
     }
     if (ok) {
+      // Leaving review → payment: notify customer + admin (full applicant data).
+      if (step === 2 && !checkoutStartedSentRef.current) {
+        checkoutStartedSentRef.current = true;
+        const values = getValues();
+        void fetch("/api/applications/checkout-started", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            stateSlug: values.stateSlug,
+            residency: values.residency,
+            licenseId: values.licenseId,
+            addOnIds: values.addOnIds,
+            data: values.data,
+            consents: values.consents,
+          }),
+        })
+          .then(async (res) => {
+            const json = (await res.json().catch(() => null)) as {
+              applicationId?: string | null;
+            } | null;
+            if (json?.applicationId) applicationIdRef.current = json.applicationId;
+          })
+          .catch(() => {
+            // Email/persist must never block the payment step.
+            checkoutStartedSentRef.current = false;
+          });
+      }
       setStep((s) => s + 1);
     } else {
       // Move keyboard/screen-reader users to the first invalid field.

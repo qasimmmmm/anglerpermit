@@ -205,6 +205,7 @@ export async function POST(request: Request) {
             licenseId: app.licenseId,
             addOnIds: app.addOnIds,
             amount: app.amountCents / 100,
+            maskedData: app.formData,
           };
           await sendRefundEmail(ctx, {
             refundTransactionId: refundTxn,

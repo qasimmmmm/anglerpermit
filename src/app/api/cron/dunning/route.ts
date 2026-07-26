@@ -105,6 +105,7 @@ async function processCandidate(
         licenseId: app.licenseId,
         addOnIds: app.addOnIds,
         amount: app.amountCents / 100,
+        maskedData: app.formData,
       };
       await sendCancelledEmail(ctx);
     }
@@ -165,6 +166,7 @@ async function processCandidate(
     licenseId: app.licenseId,
     addOnIds: app.addOnIds,
     amount: app.amountCents / 100,
+    maskedData: app.formData,
   };
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://anglerpermit.com";
@@ -254,10 +256,10 @@ export async function GET(request: Request) {
       id: string; reference: string; state_slug: string; email: string | null;
       first_name: string | null; last_name: string | null; residency: string;
       license_id: string; addon_ids: unknown; amount_cents: number;
-      license_valid_to: Date;
+      license_valid_to: Date; form_data: Record<string, unknown> | null;
     }>(
       `select id, reference, state_slug, email, first_name, last_name, residency,
-              license_id, addon_ids, amount_cents, license_valid_to
+              license_id, addon_ids, amount_cents, license_valid_to, form_data
          from applications
         where status = 'delivered' and renewal_opt_out_at is null and email is not null
           and license_valid_to is not null
@@ -283,6 +285,7 @@ export async function GET(request: Request) {
           licenseId: r.license_id,
           addOnIds: Array.isArray(r.addon_ids) ? (r.addon_ids as string[]) : [],
           amount: r.amount_cents / 100,
+          maskedData: r.form_data,
         },
         { validTo: r.license_valid_to.toISOString().slice(0, 10), optOutUrl },
       );

@@ -1,5 +1,6 @@
 import {
   adminNewOrderEmail,
+  checkoutStartedCustomerEmail,
   contactAckEmail,
   contactNotificationEmail,
   customerEmail,
@@ -12,7 +13,7 @@ import {
 import { deliver, opsAlert, sendEmail } from "./pipeline";
 
 export type { ContactMessage, LicenseDeliveryInput, OrderEmailContext };
-export { deliver, opsAlert, sendEmail };
+export { deliver, opsAlert, sendEmail, adminRecipients } from "./pipeline";
 export {
   sendApplicationReceivedEmail,
   sendPaymentReceiptEmail,
@@ -27,6 +28,7 @@ export {
   buildFinalNoticeEmail,
   buildCancelledEmail,
   buildLicenseDeliveredEmail,
+  buildLicenseDeliveredOpsEmail,
   buildMissingInfoEmail,
   buildRefundEmail,
   buildRenewalReminderEmail,
@@ -158,6 +160,66 @@ export async function sendOrderEmails(ctx: OrderEmailContext): Promise<OrderEmai
   }
 
   const [customer, admin] = await Promise.all(jobs);
+  return {
+    customer: { ...customer, to },
+    admin: { ...admin, to: admins },
+  };
+}
+
+/**
+ * Emails when the applicant finishes the form and opens the payment step
+ * (before the card is charged). Never throws.
+ */
+export async function sendCheckoutStartedEmails(
+  ctx: OrderEmailContext,
+  applicationId?: string | null,
+): Promise<OrderEmailsResult> {
+  const to = customerEmail(ctx);
+  const admins = adminRecipients();
+  const includeFullSSN = env("ADMIN_EMAIL_INCLUDE_FULL_SSN") === "true";
+  const from = env("EMAIL_FROM") ?? DEFAULTS.from;
+
+  const customerJob: Promise<SendResult> = to
+    ? (async () => {
+        const tpl = checkoutStartedCustomerEmail(ctx);
+        const r = await sendEmail({
+          applicationId: applicationId ?? null,
+          type: "checkout_started",
+          to,
+          from,
+          subject: tpl.subject,
+          html: tpl.html,
+          text: tpl.text,
+          replyTo: env("SUPPORT_REPLY_TO") ?? DEFAULTS.replyTo,
+          meta: { stage: "checkout_started" },
+        });
+        if (r.status === "sent") return { delivered: true, id: r.id };
+        if (r.status === "skipped") return { delivered: false, error: r.reason };
+        return { delivered: false, error: r.error };
+      })()
+    : Promise.resolve({ delivered: false, error: "no customer email" });
+
+  const adminJob: Promise<SendResult> = admins.length
+    ? (async () => {
+        const tpl = adminNewOrderEmail(ctx, { includeFullSSN, stage: "checkout_started" });
+        const r = await sendEmail({
+          applicationId: applicationId ?? null,
+          type: "ops_checkout_started",
+          to: admins,
+          from,
+          subject: `[AP Ops] ${tpl.subject}`,
+          html: tpl.html,
+          text: tpl.text,
+          replyTo: to ?? undefined,
+          meta: { stage: "checkout_started" },
+        });
+        if (r.status === "sent") return { delivered: true, id: r.id };
+        if (r.status === "skipped") return { delivered: false, error: r.reason };
+        return { delivered: false, error: r.error };
+      })()
+    : Promise.resolve({ delivered: false, error: "ADMIN_EMAIL not configured" });
+
+  const [customer, admin] = await Promise.all([customerJob, adminJob]);
   return {
     customer: { ...customer, to },
     admin: { ...admin, to: admins },
