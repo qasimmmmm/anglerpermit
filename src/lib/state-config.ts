@@ -206,6 +206,25 @@ export function publicConfig(config: StateConfig): StateConfig {
   };
 }
 
+/** Parse MM/DD/YYYY to a UTC date, or null if invalid / empty. */
+export function parseMmDdYyyy(value: unknown): Date | null {
+  if (typeof value !== "string") return null;
+  const match = value.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  const year = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
 /** True when a conditional field should be visible given current values. */
 export function isFieldVisible(
   field: FormFieldDef,
@@ -216,10 +235,33 @@ export function isFieldVisible(
   const asString =
     typeof controlling === "string" ? controlling : String(controlling ?? "");
   if (field.conditional.equals !== undefined) {
-    return asString === field.conditional.equals;
+    if (asString !== field.conditional.equals) return false;
+  } else if (field.conditional.oneOf) {
+    if (!field.conditional.oneOf.includes(asString)) return false;
   }
-  if (field.conditional.oneOf) {
-    return field.conditional.oneOf.includes(asString);
+  return true;
+}
+
+/**
+ * Whether a visible field must be filled right now.
+ * SC hunter-ed is required for hunting licenses only when DOB is after 1979-06-30
+ * (or DOB not yet entered — fail closed so the applicant can't skip it).
+ */
+export function isFieldEffectivelyRequired(
+  config: StateConfig,
+  field: FormFieldDef,
+  values: Record<string, unknown>,
+): boolean {
+  if (!field.required) return false;
+  if (!isFieldVisible(field, values)) return false;
+  if (
+    config.slug === "south-carolina" &&
+    (field.name === "hunterEducationNumber" ||
+      field.name === "hunterEducationStateOfIssue")
+  ) {
+    const dob = parseMmDdYyyy(values.dateOfBirth);
+    // Born on or before June 30, 1979 → hunter ed not required by SCDNR.
+    if (dob && dob.getTime() <= Date.UTC(1979, 5, 30)) return false;
   }
   return true;
 }
@@ -462,28 +504,68 @@ export function buildSubmissionSchema(config: StateConfig) {
   const licenseIds = config.licenses.map((l) => l.id);
   const addOnIds = config.addOns.map((a) => a.id);
 
-  return z.object({
-    stateSlug: z.literal(config.slug),
-    residency: z
-      .string()
-      .min(1, "Select your residency status")
-      .refine((val) => residencyValues.includes(val), {
-        message: "Select a valid residency status",
-      }),
-    licenseId: z
-      .string()
-      .min(1, "Select a license")
-      .refine((val) => licenseIds.includes(val), { message: "Select a valid license" }),
-    addOnIds: z
-      .array(z.string())
-      .refine((ids) => ids.every((id) => addOnIds.includes(id)), {
-        message: "One or more add-ons are not valid for this state",
-      })
-      .default([]),
-    data: buildApplicantSchema(config),
-    consents: consentsSchema,
-    payment: paymentSchema,
-  });
+  return z
+    .object({
+      stateSlug: z.literal(config.slug),
+      residency: z
+        .string()
+        .min(1, "Select your residency status")
+        .refine((val) => residencyValues.includes(val), {
+          message: "Select a valid residency status",
+        }),
+      licenseId: z
+        .string()
+        .min(1, "Select a license")
+        .refine((val) => licenseIds.includes(val), { message: "Select a valid license" }),
+      addOnIds: z
+        .array(z.string())
+        .refine((ids) => ids.every((id) => addOnIds.includes(id)), {
+          message: "One or more add-ons are not valid for this state",
+        })
+        .default([]),
+      data: buildApplicantSchema(config),
+      consents: consentsSchema,
+      payment: paymentSchema,
+    })
+    .superRefine((submission, ctx) => {
+      // Conditional fields may key off wizard-level licenseId / residency.
+      // Re-validate them here with full context (buildApplicantSchema only sees `data`).
+      const data = submission.data as Record<string, unknown>;
+      const values: Record<string, unknown> = {
+        ...data,
+        licenseId: submission.licenseId,
+        residency: submission.residency,
+      };
+      for (const field of config.formFields) {
+        if (!field.conditional) continue;
+        if (!isFieldVisible(field, values)) continue;
+        const required = isFieldEffectivelyRequired(config, field, values);
+        const result = buildFieldSchema({ ...field, required }).safeParse(data[field.name]);
+        if (!result.success) {
+          for (const issue of result.error.issues) {
+            ctx.addIssue({
+              code: "custom",
+              path: ["data", field.name],
+              message: issue.message,
+            });
+          }
+        }
+      }
+      // Florida residents must present a Florida DL/ID (DHSMV-verified residency).
+      if (
+        config.slug === "florida" &&
+        (data.residency === "resident" || submission.residency === "resident")
+      ) {
+        const issuing = String(data.dlIssuingState ?? "");
+        if (issuing && issuing !== "FL") {
+          ctx.addIssue({
+            code: "custom",
+            path: ["data", "dlIssuingState"],
+            message: "Florida residents must use a Florida driver license or ID",
+          });
+        }
+      }
+    });
 }
 
 export type Submission = z.infer<ReturnType<typeof buildSubmissionSchema>>;

@@ -28,6 +28,7 @@ import {
   buildSubmissionSchema,
   computeOrderTotal,
   digitsOnlyPatternCount,
+  isFieldEffectivelyRequired,
   isFieldVisible,
   licensesForResidency,
   maskSSN,
@@ -162,11 +163,13 @@ function FieldControl({
   config,
   control,
   errors,
+  required,
 }: {
   def: FormFieldDef;
   config: StateConfig;
   control: ReturnType<typeof useForm<WizardValues>>["control"];
   errors: Record<string, { message?: string }>;
+  required: boolean;
 }) {
   const name = `data.${def.name}` as Path<WizardValues>;
   const error = errors[def.name]?.message;
@@ -220,7 +223,7 @@ function FieldControl({
                 onBlur={f.onBlur}
                 error={error}
                 helpText={def.helpText}
-                required={def.required}
+                required={required}
               />
             );
           }
@@ -235,7 +238,7 @@ function FieldControl({
                   onBlur={f.onBlur}
                   error={error}
                   helpText={def.helpText}
-                  required={def.required}
+                  required={required}
                   useMask={!def.validation?.pattern}
                   maxDigits={digitsOnlyPatternCount(def.validation?.pattern) ?? 9}
                   placeholder={def.placeholder}
@@ -264,7 +267,7 @@ function FieldControl({
                 onBlur={f.onBlur}
                 error={error}
                 helpText={def.helpText}
-                required={def.required}
+                required={required}
               />
             );
           case "textarea":
@@ -279,7 +282,7 @@ function FieldControl({
                 onBlur={f.onBlur}
                 error={error}
                 helpText={def.helpText}
-                required={def.required}
+                required={required}
               />
             );
           case "select": {
@@ -301,7 +304,7 @@ function FieldControl({
                   onBlur={f.onBlur}
                   error={error}
                   helpText={def.helpText}
-                  required={def.required}
+                  required={required}
                 />
               );
             }
@@ -316,7 +319,7 @@ function FieldControl({
                 onBlur={f.onBlur}
                 error={error}
                 helpText={def.helpText}
-                required={def.required}
+                required={required}
               />
             );
           }
@@ -325,7 +328,7 @@ function FieldControl({
               <fieldset aria-describedby={error ? `${f.name}-error` : undefined}>
                 <legend className="mb-1.5 block text-sm font-medium text-navy">
                   {def.label}
-                  {def.required && (
+                  {required && (
                     <span className="ml-1 text-red-600" aria-hidden="true">
                       *
                     </span>
@@ -370,7 +373,7 @@ function FieldControl({
                   />
                   <span>
                     {def.label}
-                    {def.required && (
+                    {required && (
                       <span className="ml-1 text-red-600" aria-hidden="true">
                         *
                       </span>
@@ -398,7 +401,7 @@ function FieldControl({
                 onBlur={f.onBlur}
                 error={error}
                 helpText={def.helpText}
-                required={def.required}
+                required={required}
               />
             );
         }
@@ -422,6 +425,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
     getValues,
     trigger,
     setError,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<WizardValues>({
     resolver: zodResolver(schema) as unknown as Resolver<WizardValues>,
@@ -452,10 +456,11 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
   const addOnIds = watch("addOnIds");
   const watchedData = watch("data");
 
-  // Conditional fields may reference another applicant field OR the selected
-  // license (conditional.field === "licenseId"), e.g. MI's daily-license start date.
+  // Conditional fields may reference another applicant field OR wizard-level
+  // licenseId / residency (e.g. MI daily start date, SC hunter-ed, FL DL).
+  const fieldContext = { ...watchedData, licenseId, residency };
   const visibleFields = config.formFields.filter((f) =>
-    isFieldVisible(f, { ...watchedData, licenseId }),
+    isFieldVisible(f, fieldContext),
   );
 
   // Focus the step heading whenever the step changes (a11y).
@@ -542,7 +547,22 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
     if (step === 0) {
       ok = await trigger(["residency", "licenseId"]);
     } else if (step === 1) {
-      ok = await trigger(visibleFields.map((f) => `data.${f.name}` as Path<WizardValues>));
+      // Full submission schema (with licenseId/residency context) so conditional
+      // required fields (FL resident DL, SC hunter-ed, MI daily start date) enforce.
+      for (const f of config.formFields) {
+        clearErrors(`data.${f.name}` as Path<WizardValues>);
+      }
+      const parsed = schema.safeParse(getValues());
+      if (!parsed.success) {
+        let hasDataError = false;
+        for (const issue of parsed.error.issues) {
+          if (issue.path[0] !== "data") continue;
+          hasDataError = true;
+          const path = issue.path.join(".") as Path<WizardValues>;
+          setError(path, { type: "validate", message: issue.message });
+        }
+        ok = !hasDataError;
+      }
     } else if (step === 2) {
       ok = await trigger("consents.accurateAndTerms");
     }
@@ -797,6 +817,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
                     config={config}
                     control={control}
                     errors={dataErrorsOf(errors)}
+                    required={isFieldEffectivelyRequired(config, def, fieldContext)}
                   />
                 </div>
               ))}
