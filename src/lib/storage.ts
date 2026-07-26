@@ -278,12 +278,42 @@ export async function getApplicationByReference(
   return mongoGetByReference(reference);
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /** Hard-delete an application (admin). Removes Postgres row when configured + Mongo mirror. */
 export async function deleteApplication(id: string): Promise<boolean> {
   let deleted = false;
-  if (dbConfigured()) {
-    const res = await q(`delete from applications where id = $1`, [id]);
-    deleted = (res.rowCount ?? 0) > 0;
+  // Postgres `applications.id` is UUID. Admin list IDs may be Mongo ObjectIds —
+  // never pass those into a UUID column (throws and 500s the whole delete).
+  if (dbConfigured() && UUID_RE.test(id)) {
+    try {
+      const res = await q(`delete from applications where id = $1`, [id]);
+      deleted = (res.rowCount ?? 0) > 0;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[storage] postgres delete failed for ${id}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  } else if (dbConfigured()) {
+    // Mongo-primary rows: remove any Postgres twin by matching the Mongo reference.
+    try {
+      const mongoApp = await mongoGetById(id);
+      if (mongoApp?.reference) {
+        const res = await q(`delete from applications where reference = $1`, [
+          mongoApp.reference,
+        ]);
+        deleted = (res.rowCount ?? 0) > 0;
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[storage] postgres delete-by-reference failed for ${id}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
   const mongoDeleted = await mongoDeleteApp(id).catch(() => false);
   return deleted || mongoDeleted;

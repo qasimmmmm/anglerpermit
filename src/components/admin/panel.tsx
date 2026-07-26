@@ -390,6 +390,7 @@ export function ApplicationsView() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ApplicationRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [filters, setFilters] = useState({
     q: "",
     status: "",
@@ -434,13 +435,23 @@ export function ApplicationsView() {
   async function confirmDeleteApp() {
     if (!pendingDelete) return;
     setDeleting(true);
-    const res = await fetch(`/api/admin/data?id=${encodeURIComponent(pendingDelete.id)}`, {
-      method: "DELETE",
-    });
-    const data = await res.json();
-    setDeleting(false);
-    setPendingDelete(null);
-    if (data.ok) void load();
+    setDeleteError("");
+    try {
+      const res = await fetch(`/api/admin/data?id=${encodeURIComponent(pendingDelete.id)}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setDeleteError(data.error || `Delete failed (${res.status})`);
+        return;
+      }
+      setPendingDelete(null);
+      void load();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const pages = Math.max(1, Math.ceil(total / 25));
@@ -668,7 +679,10 @@ export function ApplicationsView() {
                             className="admin-btn"
                             aria-label={`Delete ${app.reference}`}
                             title="Delete application"
-                            onClick={() => setPendingDelete(app)}
+                            onClick={() => {
+                              setDeleteError("");
+                              setPendingDelete(app);
+                            }}
                             style={{
                               padding: "0.45rem 0.65rem",
                               display: "inline-flex",
@@ -726,10 +740,14 @@ export function ApplicationsView() {
             ? `${pendingDelete.reference} (${pendingDelete.email || "no email"}) will be permanently removed from the ops list.`
             : ""
         }
+        error={deleteError}
         confirmLabel="Delete application"
         busy={deleting}
         onCancel={() => {
-          if (!deleting) setPendingDelete(null);
+          if (!deleting) {
+            setPendingDelete(null);
+            setDeleteError("");
+          }
         }}
         onConfirm={() => void confirmDeleteApp()}
       />
@@ -971,6 +989,7 @@ function ConfirmDialog(props: {
   open: boolean;
   title: string;
   body: string;
+  error?: string;
   confirmLabel?: string;
   busy?: boolean;
   onCancel: () => void;
@@ -1001,6 +1020,11 @@ function ConfirmDialog(props: {
         <p id="admin-confirm-desc" className="admin-modal-body">
           {props.body}
         </p>
+        {props.error ? (
+          <p className="admin-modal-body" style={{ color: "#b91c1c", marginTop: 8 }} role="alert">
+            {props.error}
+          </p>
+        ) : null}
         <div className="admin-modal-actions">
           <button
             type="button"
