@@ -108,11 +108,18 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ ok: false, error: "id required" }, { status: 400 });
   }
 
-  const deleted = await deleteApplication(id);
-  if (!deleted) {
-    return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+  try {
+    const deleted = await deleteApplication(id);
+    if (!deleted) {
+      return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Delete failed";
+    // eslint-disable-next-line no-console
+    console.error(`[api/admin/data] DELETE ${id}: ${message}`);
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-  return NextResponse.json({ ok: true });
 }
 
 function num(v: string | null): number | undefined {
