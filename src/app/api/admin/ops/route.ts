@@ -68,6 +68,7 @@ async function buildCtx(app: ApplicationRecord): Promise<LifecycleCtx> {
     licenseId: app.licenseId,
     addOnIds: app.addOnIds,
     amount: app.amountCents / 100,
+    maskedData: app.formData,
   };
 }
 

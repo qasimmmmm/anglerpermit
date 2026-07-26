@@ -218,6 +218,7 @@ export async function POST(request: Request) {
       licenseId: app.licenseId,
       addOnIds: app.addOnIds,
       amount,
+      maskedData: app.formData,
     };
     await Promise.all([
       sendApplicationReceivedEmail(ctx),

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
+import { getAdminSessionUser } from "@/lib/admin-auth";
 import { getStateConfig } from "@/lib/states";
 import {
   getApplicationByReference,
@@ -8,7 +9,9 @@ import {
   updateApplicationStatus,
 } from "@/lib/storage";
 import {
-  opsAlert,
+  adminRecipients,
+  buildLicenseDeliveredOpsEmail,
+  deliver,
   sendLicenseDeliveredEmail,
   sendLicenseDeliveryEmail,
   type LifecycleCtx,
@@ -19,17 +22,9 @@ export const runtime = "nodejs";
 /**
  * POST /api/admin/deliver-license  (multipart/form-data)
  *
- * Team-only endpoint behind ADMIN_PANEL_SECRET: sends the branded
- * license-delivery email (with the issued license attached) to a customer,
- * and a copy to the admin inbox. Used by the unlisted /admin/deliver page.
- *
- * Fields: secret, to, customerName, reference, stateName, note?, files (1–5)
- * Limits: PDF/PNG/JPG only, 15 MB combined (Resend caps messages at 40 MB
- * after base64 encoding).
- *
- * Returns 503 when ADMIN_PANEL_SECRET is unset (feature not enabled),
- * 401 on a wrong secret, 400 on validation problems, 502 if the provider
- * rejects the send.
+ * Auth: logged-in admin session OR ADMIN_PANEL_SECRET.
+ * License files are attached to the outbound email only — they are NOT
+ * persisted to Mongo/Postgres (only license number / validity dates are).
  */
 
 const MAX_FILES = 5;
@@ -54,10 +49,6 @@ function bad(message: string, status = 400) {
 }
 
 export async function POST(request: Request) {
-  if (!process.env.ADMIN_PANEL_SECRET) {
-    return bad("License delivery is not enabled: ADMIN_PANEL_SECRET is not configured.", 503);
-  }
-
   let form: FormData;
   try {
     form = await request.formData();
@@ -65,9 +56,11 @@ export async function POST(request: Request) {
     return bad("Expected multipart/form-data.");
   }
 
+  const sessionUser = await getAdminSessionUser();
   const secret = String(form.get("secret") ?? "");
-  if (!secretMatches(secret)) {
-    return bad("Invalid admin secret.", 401);
+  const secretOk = Boolean(process.env.ADMIN_PANEL_SECRET && secretMatches(secret));
+  if (!sessionUser && !secretOk) {
+    return bad("Unauthorized — sign in to /admin or provide ADMIN_PANEL_SECRET.", 401);
   }
 
   const to = String(form.get("to") ?? "").trim();
@@ -128,18 +121,19 @@ export async function POST(request: Request) {
       licenseId: app.licenseId,
       addOnIds: app.addOnIds,
       amount: app.amountCents / 100,
+      maskedData: app.formData,
     };
-    const sent = await sendLicenseDeliveredEmail(
-      ctx,
-      {
-        licenseNumber,
-        validFrom,
-        validTo,
-        attachmentNames: attachments.map((a) => a.filename),
-        note: note || undefined,
-      },
-      attachments,
-    );
+    const deliveryInput = {
+      licenseNumber,
+      validFrom,
+      validTo,
+      attachmentNames: attachments.map((a) => a.filename),
+      note: note || undefined,
+    };
+    const forceResend = String(form.get("force") ?? "") === "true";
+    const sent = await sendLicenseDeliveredEmail(ctx, deliveryInput, attachments, {
+      force: forceResend,
+    });
     if (sent.status === "failed") {
       return NextResponse.json(
         { ok: false, message: `The email provider rejected the send: ${sent.error}` },
@@ -151,7 +145,7 @@ export async function POST(request: Request) {
         {
           ok: false,
           message:
-            "A license-delivery email was already sent for this application (see email_log). Contact support tooling to force a resend.",
+            "A license-delivery email was already sent for this application. Re-submit with force=true to resend.",
         },
         { status: 409 },
       );
@@ -164,17 +158,26 @@ export async function POST(request: Request) {
       eventType: "license_delivered",
       detail: { files: attachments.length, licenseNumber },
     });
-    await opsAlert(
-      `License delivered — ${app.reference}`,
-      [
-        `Customer: ${to}`,
-        `Files: ${attachments.map((a) => a.filename).join(", ")}`,
-        licenseNumber ? `License number: ${licenseNumber}` : "",
-        validTo ? `Valid to: ${validTo} (renewal reminder scheduled 14 days prior)` : "",
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    );
+
+    // Branded ops copy (not the plain [AP Ops] text alert) + same PDF for the team.
+    const opsTpl = buildLicenseDeliveredOpsEmail(ctx, deliveryInput);
+    const admins = adminRecipients().filter((e) => e.toLowerCase() !== to.toLowerCase());
+    if (admins.length) {
+      await deliver({
+        from:
+          process.env.EMAIL_FROM_LICENSES ??
+          process.env.EMAIL_FROM ??
+          "AnglerPermit <licenses@anglerpermit.com>",
+        to: admins,
+        subject: `[AP Ops] ${opsTpl.subject}`,
+        html: opsTpl.html,
+        text: opsTpl.text,
+        attachments,
+        replyTo: process.env.SUPPORT_REPLY_TO ?? "support@anglerpermit.com",
+        tag: "ops-license-delivered",
+      });
+    }
+
     return NextResponse.json({ ok: true, id: sent.status === "sent" ? sent.id : undefined });
   }
 

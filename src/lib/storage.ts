@@ -1,4 +1,13 @@
 import { dbConfigured, q } from "@/lib/db";
+import {
+  mongoConfigured,
+  mongoCreateOrReuse,
+  mongoDeleteApp,
+  mongoGetById,
+  mongoGetByReference,
+  mongoSyncStatus,
+  mongoUpsertApp,
+} from "@/lib/mongo";
 
 /**
  * Application persistence — Postgres-backed (see migrations/001_init.sql),
@@ -170,15 +179,20 @@ export async function createOrReuseApplication(
   input: NewApplicationInput,
 ): Promise<{ app: ApplicationRecord; reused: boolean } | null> {
   if (!dbConfigured()) {
+    if (mongoConfigured()) {
+      const created = await mongoCreateOrReuse(input);
+      return created;
+    }
     // eslint-disable-next-line no-console
     console.log(
-      `[storage:console] application ${input.reference} (${input.stateSlug}) — DATABASE_URL unset, not persisted`,
+      `[storage:console] application ${input.reference} (${input.stateSlug}) — no DATABASE_URL / MONGODB_URI`,
     );
     return null;
   }
 
   // Reuse window: identical unpaid application from the same email in the
   // last 24h. Keeps decline->retry from spawning duplicate rows.
+  let result: { app: ApplicationRecord; reused: boolean };
   if (input.email) {
     const existing = await q<AppRow>(
       `select ${APP_COLS} from applications
@@ -208,7 +222,9 @@ export async function createOrReuseApplication(
           input.phone,
         ],
       );
-      return { app: rowToRecord(updated.rows[0]), reused: true };
+      result = { app: rowToRecord(updated.rows[0]), reused: true };
+      void mongoUpsertApp(result.app).catch(() => undefined);
+      return result;
     }
   }
 
@@ -233,7 +249,9 @@ export async function createOrReuseApplication(
       input.amountCents,
     ],
   );
-  return { app: rowToRecord(inserted.rows[0]), reused: false };
+  result = { app: rowToRecord(inserted.rows[0]), reused: false };
+  void mongoUpsertApp(result.app).catch(() => undefined);
+  return result;
 }
 
 /* ------------------------------------------------------------------ */
@@ -241,19 +259,34 @@ export async function createOrReuseApplication(
 /* ------------------------------------------------------------------ */
 
 export async function getApplicationById(id: string): Promise<ApplicationRecord | null> {
-  if (!dbConfigured()) return null;
-  const res = await q<AppRow>(`select ${APP_COLS} from applications where id = $1`, [id]);
-  return res.rows[0] ? rowToRecord(res.rows[0]) : null;
+  if (dbConfigured()) {
+    const res = await q<AppRow>(`select ${APP_COLS} from applications where id = $1`, [id]);
+    if (res.rows[0]) return rowToRecord(res.rows[0]);
+  }
+  return mongoGetById(id);
 }
 
 export async function getApplicationByReference(
   reference: string,
 ): Promise<ApplicationRecord | null> {
-  if (!dbConfigured()) return null;
-  const res = await q<AppRow>(`select ${APP_COLS} from applications where reference = $1`, [
-    reference,
-  ]);
-  return res.rows[0] ? rowToRecord(res.rows[0]) : null;
+  if (dbConfigured()) {
+    const res = await q<AppRow>(`select ${APP_COLS} from applications where reference = $1`, [
+      reference,
+    ]);
+    if (res.rows[0]) return rowToRecord(res.rows[0]);
+  }
+  return mongoGetByReference(reference);
+}
+
+/** Hard-delete an application (admin). Removes Postgres row when configured + Mongo mirror. */
+export async function deleteApplication(id: string): Promise<boolean> {
+  let deleted = false;
+  if (dbConfigured()) {
+    const res = await q(`delete from applications where id = $1`, [id]);
+    deleted = (res.rowCount ?? 0) > 0;
+  }
+  const mongoDeleted = await mongoDeleteApp(id).catch(() => false);
+  return deleted || mongoDeleted;
 }
 
 /* ------------------------------------------------------------------ */
@@ -362,15 +395,22 @@ export async function markApplicationPaid(
   applicationId: string,
   opts?: { customerVaultId?: string },
 ): Promise<void> {
-  if (!dbConfigured()) return;
-  await q(
-    `update applications
-        set status = 'received', paid_at = coalesce(paid_at, now()),
-            status_reason = null,
-            nmi_customer_vault_id = coalesce($2, nmi_customer_vault_id)
-      where id = $1 and status in ('pending_payment','payment_failed')`,
-    [applicationId, opts?.customerVaultId ?? null],
-  );
+  if (dbConfigured()) {
+    await q(
+      `update applications
+          set status = 'received', paid_at = coalesce(paid_at, now()),
+              status_reason = null,
+              nmi_customer_vault_id = coalesce($2, nmi_customer_vault_id)
+        where id = $1 and status in ('pending_payment','payment_failed')`,
+      [applicationId, opts?.customerVaultId ?? null],
+    );
+  }
+  const paidAt = new Date().toISOString();
+  await mongoSyncStatus(applicationId, "received", {
+    paidAt,
+    statusReason: null,
+    nmiCustomerVaultId: opts?.customerVaultId ?? null,
+  }).catch(() => undefined);
 }
 
 /** Mark declined: starts (or keeps) the dunning clock. */
@@ -378,15 +418,20 @@ export async function markApplicationPaymentFailed(
   applicationId: string,
   reason: string,
 ): Promise<void> {
-  if (!dbConfigured()) return;
-  await q(
-    `update applications
-        set status = 'payment_failed',
-            payment_failed_at = coalesce(payment_failed_at, now()),
-            status_reason = $2
-      where id = $1 and status in ('pending_payment','payment_failed')`,
-    [applicationId, reason],
-  );
+  if (dbConfigured()) {
+    await q(
+      `update applications
+          set status = 'payment_failed',
+              payment_failed_at = coalesce(payment_failed_at, now()),
+              status_reason = $2
+        where id = $1 and status in ('pending_payment','payment_failed')`,
+      [applicationId, reason],
+    );
+  }
+  await mongoSyncStatus(applicationId, "payment_failed", {
+    paymentFailedAt: new Date().toISOString(),
+    statusReason: reason,
+  }).catch(() => undefined);
 }
 
 export async function updateApplicationStatus(
@@ -394,22 +439,29 @@ export async function updateApplicationStatus(
   status: ApplicationStatus,
   reason?: string,
 ): Promise<void> {
-  if (!dbConfigured()) return;
-  const stampCol =
-    status === "delivered"
-      ? "delivered_at"
-      : status === "cancelled"
-        ? "cancelled_at"
-        : status === "refunded"
-          ? "refunded_at"
-          : null;
-  await q(
-    `update applications
-        set status = $2, status_reason = $3
-            ${stampCol ? `, ${stampCol} = coalesce(${stampCol}, now())` : ""}
-      where id = $1`,
-    [applicationId, status, reason ?? null],
-  );
+  if (dbConfigured()) {
+    const stampCol =
+      status === "delivered"
+        ? "delivered_at"
+        : status === "cancelled"
+          ? "cancelled_at"
+          : status === "refunded"
+            ? "refunded_at"
+            : null;
+    await q(
+      `update applications
+          set status = $2, status_reason = $3
+              ${stampCol ? `, ${stampCol} = coalesce(${stampCol}, now())` : ""}
+        where id = $1`,
+      [applicationId, status, reason ?? null],
+    );
+  }
+  const extra: Record<string, string | null> = { statusReason: reason ?? null };
+  const t = new Date().toISOString();
+  if (status === "delivered") extra.deliveredAt = t;
+  if (status === "cancelled") extra.cancelledAt = t;
+  if (status === "refunded") extra.refundedAt = t;
+  await mongoSyncStatus(applicationId, status, extra).catch(() => undefined);
 }
 
 /** Record issued-license details (admin Upload License & Send). */

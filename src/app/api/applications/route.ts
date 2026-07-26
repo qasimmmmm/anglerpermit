@@ -328,6 +328,7 @@ export async function POST(request: Request) {
         licenseId: submission.licenseId,
         addOnIds: submission.addOnIds,
         amount,
+        maskedData,
       };
       await sendPaymentDeclinedEmail(ctx, {
         declineCode: charge.declineCode,
@@ -417,6 +418,7 @@ export async function POST(request: Request) {
     licenseId: submission.licenseId,
     addOnIds: submission.addOnIds,
     amount,
+    maskedData,
   };
 
   let customerEmailed = false;

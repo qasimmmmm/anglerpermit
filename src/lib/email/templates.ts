@@ -13,6 +13,7 @@ import {
   stepsBlock,
   textFooter,
 } from "./email-layout";
+import { buildApplicantDetails } from "./applicant-details";
 
 /* ------------------------------------------------------------------ */
 /* shared helpers                                                      */
@@ -103,6 +104,7 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): {
   const addOns = addOnNames(ctx);
   const subject = `Order confirmed ${ctx.app.reference} — your ${state} fishing license application`;
 
+  const applicant = buildApplicantDetails(ctx.config, ctx.maskedData);
   const orderRows = [
     detailRow("State", esc(state)),
     detailRow("Residency", esc(residencyLabel(ctx.app.residency))),
@@ -128,6 +130,7 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): {
     ${referenceBanner(ctx.app.reference)}
     ${detailCard(orderRows, { heading: "Order summary" })}
     ${detailCard(paymentRows, { heading: "Payment receipt" })}
+    ${applicant.html}
     <h2 style="margin:26px 0 0;font-size:16px;color:${BRAND.navy};">What happens next</h2>
     ${stepsBlock([
       { title: "Review", body: "A specialist checks your application for errors — usually within 1 business day." },
@@ -163,6 +166,8 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): {
     `Transaction ID: ${ctx.app.payment.transactionId}`,
     `Statement descriptor: ${ctx.app.payment.descriptor}`,
     ``,
+    ...applicant.textLines,
+    ...(applicant.textLines.length ? [``] : []),
     `WHAT HAPPENS NEXT`,
     `1. Review — a specialist checks your application for errors (usually within 1 business day).`,
     `2. Fulfillment — we purchase your license on the official state portal.`,
@@ -181,12 +186,16 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): {
 
 export function adminNewOrderEmail(
   ctx: OrderEmailContext,
-  opts: { includeFullSSN: boolean },
+  opts: { includeFullSSN: boolean; stage?: "paid" | "checkout_started" },
 ): { subject: string; html: string; text: string } {
+  const stage = opts.stage ?? "paid";
+  const checkoutStarted = stage === "checkout_started";
   const state = stateName(ctx);
   const total = formatPrice(orderTotal(ctx));
   const addOns = addOnNames(ctx);
-  const subject = `New order ${ctx.app.reference} — ${state} — ${total}`;
+  const subject = checkoutStarted
+    ? `Checkout started ${ctx.app.reference} — ${state} — ${total}`
+    : `New order ${ctx.app.reference} — ${state} — ${total}`;
 
   // Choose data source: masked by default; raw only when explicitly enabled.
   const data =
@@ -223,25 +232,34 @@ export function adminNewOrderEmail(
     detailRow("Residency", esc(residencyLabel(ctx.app.residency))),
     detailRow("License", esc(licenseName(ctx))),
     ...(addOns.length ? [detailRow("Add-ons", esc(addOns.join(", ")))] : []),
-    detailRow("Submitted", esc(ctx.app.submittedAt), { mono: true }),
+    detailRow("Started", esc(ctx.app.submittedAt), { mono: true }),
   ].join("");
 
-  const paymentRows = [
-    detailRow("Amount charged", esc(total), { strong: true }),
-    detailRow("Card", esc(paymentSummaryValue(ctx.app))),
-    detailRow("Transaction ID", esc(ctx.app.payment.transactionId), { mono: true }),
-    ...(ctx.app.payment.devMode
-      ? [detailRow("Mode", `<span style="color:${BRAND.red600};font-weight:700;">DEV — SIMULATED CHARGE</span>`)]
-      : []),
-  ].join("");
+  const paymentRows = checkoutStarted
+    ? [
+        detailRow("Amount due", esc(total), { strong: true }),
+        detailRow("Payment status", "Pending — customer is on the payment step"),
+      ].join("")
+    : [
+        detailRow("Amount charged", esc(total), { strong: true }),
+        detailRow("Card", esc(paymentSummaryValue(ctx.app))),
+        detailRow("Transaction ID", esc(ctx.app.payment.transactionId), { mono: true }),
+        ...(ctx.app.payment.devMode
+          ? [detailRow("Mode", `<span style="color:${BRAND.red600};font-weight:700;">DEV — SIMULATED CHARGE</span>`)]
+          : []),
+      ].join("");
 
   const portal = ctx.config
     ? `<p style="margin:18px 0 0;font-size:13px;color:${BRAND.slate600};">Fulfill at: <a href="${esc(ctx.config.officialPortalUrl)}" style="color:${BRAND.forest500};font-weight:600;">${esc(ctx.config.officialPortalName)}</a></p>`
     : "";
 
   const bodyHtml = `
-    <h1 style="margin:0;font-size:20px;color:${BRAND.navy};">New application received</h1>
-    <p style="margin:10px 0 0;font-size:14px;color:${BRAND.slate600};">Reply to this email to reach the customer directly.</p>
+    <h1 style="margin:0;font-size:20px;color:${BRAND.navy};">${checkoutStarted ? "Checkout started — payment pending" : "New application received"}</h1>
+    <p style="margin:10px 0 0;font-size:14px;color:${BRAND.slate600};">${
+      checkoutStarted
+        ? "Applicant finished the form and opened payment. Reply to reach them if they abandon checkout."
+        : "Reply to this email to reach the customer directly."
+    }</p>
     ${detailCard(orderRows, { heading: "Order" })}
     ${detailCard(paymentRows, { heading: "Payment" })}
     ${detailCard(applicantRows.join(""), { heading: "Applicant details (as submitted)" })}
@@ -249,7 +267,7 @@ export function adminNewOrderEmail(
     ${portal}`;
 
   const text = [
-    `New application received`,
+    checkoutStarted ? `Checkout started — payment pending` : `New application received`,
     ``,
     `ORDER`,
     `Reference: ${ctx.app.reference}`,
@@ -257,13 +275,17 @@ export function adminNewOrderEmail(
     `Residency: ${residencyLabel(ctx.app.residency)}`,
     `License: ${licenseName(ctx)}`,
     ...(addOns.length ? [`Add-ons: ${addOns.join(", ")}`] : []),
-    `Submitted: ${ctx.app.submittedAt}`,
+    `Started: ${ctx.app.submittedAt}`,
     ``,
     `PAYMENT`,
-    `Amount charged: ${total}`,
-    `Card: ${paymentSummaryValue(ctx.app)}`,
-    `Transaction ID: ${ctx.app.payment.transactionId}`,
-    ...(ctx.app.payment.devMode ? [`Mode: DEV — SIMULATED CHARGE`] : []),
+    ...(checkoutStarted
+      ? [`Amount due: ${total}`, `Payment status: Pending — customer is on the payment step`]
+      : [
+          `Amount charged: ${total}`,
+          `Card: ${paymentSummaryValue(ctx.app)}`,
+          `Transaction ID: ${ctx.app.payment.transactionId}`,
+          ...(ctx.app.payment.devMode ? [`Mode: DEV — SIMULATED CHARGE`] : []),
+        ]),
     ``,
     `APPLICANT DETAILS (as submitted)`,
     ...applicantText,
@@ -278,9 +300,74 @@ export function adminNewOrderEmail(
     subject,
     html: emailShell({
       preheader: `${state} · ${licenseName(ctx)} · ${total}`,
-      kicker: "New order",
+      kicker: checkoutStarted ? "Checkout started" : "New order",
       bodyHtml,
       disclaimer: false,
+    }),
+    text,
+  };
+}
+
+/** Customer email when they finish the form and reach the payment step. */
+export function checkoutStartedCustomerEmail(ctx: OrderEmailContext): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const first = customerFirstName(ctx);
+  const state = stateName(ctx);
+  const total = formatPrice(orderTotal(ctx));
+  const addOns = addOnNames(ctx);
+  const subject = `Complete your ${state} license checkout (${ctx.app.reference})`;
+
+  const applicant = buildApplicantDetails(ctx.config, ctx.maskedData);
+  const orderRows = [
+    detailRow("Reference", esc(ctx.app.reference), { mono: true, strong: true }),
+    detailRow("State", esc(state)),
+    detailRow("Residency", esc(residencyLabel(ctx.app.residency))),
+    detailRow("License", esc(licenseName(ctx))),
+    ...(addOns.length ? [detailRow("Add-ons", esc(addOns.join(", ")))] : []),
+    detailRow("Amount due", esc(total), { strong: true }),
+  ].join("");
+
+  const bodyHtml = `
+    <h1 style="margin:0;font-size:22px;line-height:1.3;color:${BRAND.navy};">You're one step away${first ? `, ${esc(first)}` : ""}</h1>
+    <p style="margin:14px 0 0;font-size:14px;line-height:1.65;color:${BRAND.slate600};">
+      We've saved your <strong style="color:${BRAND.navy};">${esc(state)}</strong> application details.
+      Finish checkout to submit your order — your card is charged once, securely.
+    </p>
+    ${referenceBanner(ctx.app.reference)}
+    ${detailCard(orderRows, { heading: "Order summary" })}
+    ${applicant.html}
+    <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:${BRAND.slate600};">
+      Return to the payment step in your browser to complete your order of <strong>${esc(total)}</strong>.
+      If you closed the tab, start again from the ${esc(state)} license page — your specialist team is ready when you are.
+    </p>`;
+
+  const text = [
+    `You're one step away${first ? `, ${first}` : ""}.`,
+    ``,
+    `We've saved your ${state} application details. Finish checkout to submit your order.`,
+    ``,
+    `Reference: ${ctx.app.reference}`,
+    `State: ${state}`,
+    `Residency: ${residencyLabel(ctx.app.residency)}`,
+    `License: ${licenseName(ctx)}`,
+    ...(addOns.length ? [`Add-ons: ${addOns.join(", ")}`] : []),
+    `Amount due: ${total}`,
+    ``,
+    ...applicant.textLines,
+    ...(applicant.textLines.length ? [``] : []),
+    `Return to the payment step in your browser to complete your order.`,
+    textFooter(),
+  ].join("\n");
+
+  return {
+    subject,
+    html: emailShell({
+      preheader: `Complete payment for your ${state} license · ${total}`,
+      kicker: "Checkout",
+      bodyHtml,
     }),
     text,
   };
