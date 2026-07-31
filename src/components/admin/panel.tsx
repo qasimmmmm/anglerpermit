@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -118,8 +118,17 @@ type Stats = {
   mongoError?: string | null;
 };
 
+const PAID_ORDER_STATUSES = new Set([
+  "received",
+  "processing",
+  "missing_info",
+  "delivered",
+]);
+
 export function DashboardView() {
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
+  const [orders, setOrders] = useState<ApplicationRecord[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -127,21 +136,29 @@ export function DashboardView() {
     setLoading(true);
     setError("");
     try {
-      const r = await fetch("/api/admin/data?view=stats", { signal });
-      const d = await r.json();
+      const [statsRes, listRes] = await Promise.all([
+        fetch("/api/admin/data?view=stats", { signal }),
+        fetch("/api/admin/data?view=list&page=1&pageSize=40&sort=newest", { signal }),
+      ]);
+      const d = await statsRes.json();
+      const list = await listRes.json().catch(() => null);
       if (signal?.aborted) return;
       if (!d.ok) {
         setError(d.error || "Failed to load");
         setStats(null);
+        setOrders([]);
       } else {
         setStats(d);
         setError("");
+        const items = (list?.ok && Array.isArray(list.items) ? list.items : []) as ApplicationRecord[];
+        setOrders(items.filter((a) => PAID_ORDER_STATUSES.has(a.status)));
       }
     } catch (err) {
-      // React Strict Mode / navigation aborts in-flight fetches — ignore those.
+      // React Strict Mode / navigation aborts in-flight fetches ΓÇö ignore those.
       if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
-      setError("Could not load dashboard stats. Try refresh — if this persists, check Mongo Atlas Network Access.");
+      setError("Could not load dashboard stats. Try refresh.");
       setStats(null);
+      setOrders([]);
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
@@ -154,7 +171,7 @@ export function DashboardView() {
   }, [loadStats]);
 
   if (loading && !stats) {
-    return <p className="admin-sub">Loading dashboard…</p>;
+    return <p className="admin-sub">Loading dashboardΓÇª</p>;
   }
   if (error && !stats) {
     return (
@@ -174,13 +191,15 @@ export function DashboardView() {
     );
   }
   if (!stats) {
-    return <p className="admin-sub">Loading dashboard…</p>;
+    return <p className="admin-sub">Loading dashboardΓÇª</p>;
   }
 
   const maxBar = Math.max(1, ...stats.last14.map((d) => d.cents));
   const statusEntries = Object.entries(stats.byStatus).sort((a, b) => b[1] - a[1]);
   const stateEntries = Object.entries(stats.byState).sort((a, b) => b[1] - a[1]);
   const donutTotal = statusEntries.reduce((s, [, n]) => s + n, 0) || 1;
+  const pendingCount =
+    (stats.byStatus.pending_payment ?? 0) + (stats.byStatus.payment_failed ?? 0);
 
   let angle = 0;
   const arcs = statusEntries.map(([status, n]) => {
@@ -198,10 +217,7 @@ export function DashboardView() {
             <span className="admin-live-dot" />
             <h1 className="admin-title">Command center</h1>
           </div>
-          <p className="admin-sub">
-            Live snapshot of applications · storage:{" "}
-            <strong>{stats.backend === "mongo" ? "MongoDB Atlas" : "local memory"}</strong>
-          </p>
+          <p className="admin-sub">Live snapshot of applications and paid orders</p>
         </div>
         <button
           type="button"
@@ -228,28 +244,51 @@ export function DashboardView() {
             maxWidth: 720,
           }}
         >
-          Atlas unreachable (usually Network Access / IP allowlist). Using memory so the console
-          stays fast. In Atlas → Network Access, allow your IP or <code>0.0.0.0/0</code>, then
-          restart the dev server.
+          Database temporarily unreachable. Showing cached/fallback data if available. Refresh after
+          connectivity is restored.
         </p>
       ) : null}
 
+      <h2 className="admin-rise" style={{ margin: "1.4rem 0 0.75rem", fontSize: "1.05rem" }}>
+        Applications
+      </h2>
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
           gap: "1rem",
-          marginTop: "1.4rem",
         }}
       >
         {[
-          { label: "Applications", value: String(stats.total), delay: "admin-rise-1" },
-          { label: "Paid orders", value: String(stats.paidCount), delay: "admin-rise-2" },
-          { label: "Gross volume", value: money(stats.revenueCents), delay: "admin-rise-3" },
+          { label: "Total applications", value: String(stats.total), delay: "admin-rise-1" },
+          { label: "Awaiting payment", value: String(pendingCount), delay: "admin-rise-2" },
+        ].map((card) => (
+          <div key={card.label} className={`admin-card admin-rise ${card.delay}`} style={{ padding: "1.15rem 1.25rem" }}>
+            <div style={{ fontSize: "0.78rem", color: "var(--ap-muted)", fontWeight: 600 }}>{card.label}</div>
+            <div className="admin-stat-value" style={{ marginTop: 6 }}>
+              {card.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="admin-rise" style={{ margin: "1.6rem 0 0.75rem", fontSize: "1.05rem" }}>
+        Orders
+      </h2>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "1rem",
+        }}
+      >
+        {[
+          { label: "Paid orders", value: String(stats.paidCount), delay: "admin-rise-1" },
+          { label: "Gross volume", value: money(stats.revenueCents), delay: "admin-rise-2" },
           {
             label: "Avg ticket",
             value: money(stats.paidCount ? Math.round(stats.revenueCents / stats.paidCount) : 0),
-            delay: "admin-rise-4",
+            delay: "admin-rise-3",
           },
         ].map((card) => (
           <div key={card.label} className={`admin-card admin-rise ${card.delay}`} style={{ padding: "1.15rem 1.25rem" }}>
@@ -259,6 +298,75 @@ export function DashboardView() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="admin-card admin-rise admin-rise-2" style={{ padding: "1.25rem", marginTop: "1rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <strong>Recent paid orders</strong>
+          <Link href="/admin/applications" className="admin-btn admin-btn-secondary" style={{ padding: "0.4rem 0.75rem", fontSize: 13 }}>
+            View all
+          </Link>
+        </div>
+        {orders.length === 0 ? (
+          <p className="admin-sub" style={{ margin: 0 }}>
+            No paid orders yet.
+          </p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Reference</th>
+                  <th>Customer</th>
+                  <th>State</th>
+                  <th>Status</th>
+                  <th>Amount</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {orders.slice(0, 10).map((app) => (
+                  <tr key={app.id}>
+                    <td>
+                      <strong>{app.reference}</strong>
+                    </td>
+                    <td>
+                      {[app.firstName, app.lastName].filter(Boolean).join(" ") || "ΓÇö"}
+                      <div style={{ fontSize: 12, color: "var(--ap-muted)" }}>{app.email || ""}</div>
+                    </td>
+                    <td>{stateLabel(app.stateSlug)}</td>
+                    <td>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          padding: "2px 8px",
+                          borderRadius: 99,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: STATUS_COLOR[app.status] || "#64748b",
+                          background: "rgba(18,48,71,0.06)",
+                        }}
+                      >
+                        {labelStatus(app.status)}
+                      </span>
+                    </td>
+                    <td>{money(app.amountCents)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-primary"
+                        style={{ padding: "0.35rem 0.6rem", display: "inline-flex", gap: 4, alignItems: "center" }}
+                        onClick={() => router.push(`/admin/applications/${app.id}`)}
+                      >
+                        Open <ArrowUpRight size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div
@@ -273,7 +381,7 @@ export function DashboardView() {
         <style>{`@media (max-width:900px){.admin-charts{grid-template-columns:1fr!important}}`}</style>
         <div className="admin-card admin-rise admin-rise-2" style={{ padding: "1.25rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-            <strong>Revenue · last 14 days</strong>
+            <strong>Revenue ┬╖ last 14 days</strong>
             <span style={{ color: "var(--ap-muted)", fontSize: "0.8rem" }}>USD</span>
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 160 }}>
@@ -597,8 +705,8 @@ export function ApplicationsView() {
             >
               <option value="newest">Newest</option>
               <option value="oldest">Oldest</option>
-              <option value="amount_desc">Amount ↓</option>
-              <option value="amount_asc">Amount ↑</option>
+              <option value="amount_desc">Amount Γåô</option>
+              <option value="amount_asc">Amount Γåæ</option>
             </select>
           </label>
         </div>
@@ -623,7 +731,7 @@ export function ApplicationsView() {
               {loading ? (
                 <tr>
                   <td colSpan={8} style={{ padding: 24, color: "var(--ap-muted)" }}>
-                    Loading…
+                    LoadingΓÇª
                   </td>
                 </tr>
               ) : items.length === 0 ? (
@@ -643,7 +751,7 @@ export function ApplicationsView() {
                     </td>
                     <td>
                       <div>
-                        {[app.firstName, app.lastName].filter(Boolean).join(" ") || "—"}
+                        {[app.firstName, app.lastName].filter(Boolean).join(" ") || "ΓÇö"}
                       </div>
                       <div style={{ fontSize: 12, color: "var(--ap-muted)" }}>{app.email}</div>
                     </td>
@@ -795,7 +903,7 @@ export function ApplicationDetailView({ id }: { id: string }) {
     setMsg("Status updated");
   }
 
-  if (!app) return <p className="admin-sub">Loading application…</p>;
+  if (!app) return <p className="admin-sub">Loading applicationΓÇª</p>;
 
   return (
     <div>
@@ -804,12 +912,12 @@ export function ApplicationDetailView({ id }: { id: string }) {
         onClick={() => router.push("/admin/applications")}
         style={{ background: "none", border: 0, color: "var(--ap-sea)", fontWeight: 600, cursor: "pointer", marginBottom: 8 }}
       >
-        ← Back to applications
+        ΓåÉ Back to applications
       </button>
       <div className="admin-rise">
         <h1 className="admin-title">{app.reference}</h1>
         <p className="admin-sub">
-          {stateLabel(app.stateSlug)} · {[app.firstName, app.lastName].filter(Boolean).join(" ")} ·{" "}
+          {stateLabel(app.stateSlug)} ┬╖ {[app.firstName, app.lastName].filter(Boolean).join(" ")} ┬╖{" "}
           {app.email}
         </p>
       </div>
@@ -845,7 +953,7 @@ export function ApplicationDetailView({ id }: { id: string }) {
                 >
                   <span style={{ color: "var(--ap-muted)" }}>{k}</span>
                   <strong style={{ wordBreak: "break-word" }}>
-                    {typeof v === "object" ? JSON.stringify(v) : String(v ?? "—")}
+                    {typeof v === "object" ? JSON.stringify(v) : String(v ?? "ΓÇö")}
                   </strong>
                 </div>
               ))
@@ -871,7 +979,7 @@ export function ApplicationDetailView({ id }: { id: string }) {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--ap-muted)" }}>Phone</span>
-                <strong>{app.phone || "—"}</strong>
+                <strong>{app.phone || "ΓÇö"}</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--ap-muted)" }}>Submitted</span>
@@ -897,7 +1005,7 @@ export function ApplicationDetailView({ id }: { id: string }) {
                 onChange={(e) => setReason(e.target.value)}
               />
               <button type="button" className="admin-btn admin-btn-primary" disabled={saving} onClick={() => void saveStatus()}>
-                {saving ? "Saving…" : "Save status"}
+                {saving ? "SavingΓÇª" : "Save status"}
               </button>
               {msg ? <span style={{ fontSize: 13, color: "var(--ap-sea)" }}>{msg}</span> : null}
             </div>
@@ -968,7 +1076,7 @@ export function AdminLoginForm() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••••••"
+            placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó"
           />
         </label>
         {error ? <p style={{ color: "#b91c1c", fontSize: 13, marginTop: 10 }}>{error}</p> : null}
@@ -978,7 +1086,7 @@ export function AdminLoginForm() {
           style={{ width: "100%", marginTop: 16 }}
           disabled={loading}
         >
-          {loading ? "Signing in…" : "Sign in"}
+          {loading ? "Signing inΓÇª" : "Sign in"}
         </button>
       </form>
     </div>
@@ -1040,7 +1148,7 @@ function ConfirmDialog(props: {
             onClick={props.onConfirm}
             disabled={props.busy}
           >
-            {props.busy ? "Deleting…" : props.confirmLabel || "Delete"}
+            {props.busy ? "DeletingΓÇª" : props.confirmLabel || "Delete"}
           </button>
         </div>
       </div>
@@ -1194,7 +1302,7 @@ export function UsersView() {
             </label>
           </div>
           <button type="submit" className="admin-btn admin-btn-primary" disabled={loading} style={{ width: "fit-content" }}>
-            {loading ? "Inviting…" : "Create & email invite"}
+            {loading ? "InvitingΓÇª" : "Create & email invite"}
           </button>
           {msg ? <p style={{ margin: 0, fontSize: 13, color: "var(--ap-sea)" }}>{msg}</p> : null}
           {tempPassword ? (
