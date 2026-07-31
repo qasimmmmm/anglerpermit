@@ -1,23 +1,19 @@
 "use client";
 
 /**
- * Client-side card tokenization (NMI Collect.js-style).
+ * Client-side card tokenization (NMI Collect.js).
  *
- * The raw card number / expiry / CVV entered in the payment step are turned
- * into a single-use payment_token IN THE BROWSER. Only the token (plus
- * PCI-safe display metadata: brand, last4, billing ZIP) is ever sent to our
- * API — raw card data never touches our servers and is never logged.
+ * Collect.js does NOT accept raw card numbers from our DOM — it only tokenizes
+ * via its hosted lightbox / iframes. Calling a fictional CollectJS.tokenize()
+ * always fails once NEXT_PUBLIC_NMI_TOKENIZATION_KEY is set.
  *
- * Two modes:
- *  - CONFIGURED (NEXT_PUBLIC_NMI_TOKENIZATION_KEY set): the NMI Collect.js
- *    script is loaded and produces the payment_token against NMI's vault.
- *  - DEV MODE (key unset): the token is simulated locally with the "tok_dev_"
- *    prefix so checkout works with zero env. The server mirrors this by
- *    simulating the charge when NMI_PRIVATE_SECURITY_KEY is unset.
+ * Modes:
+ *  - CONFIGURED: load Collect.js → lightbox → payment_token
+ *  - DEV (key unset): simulate tok_dev_* so local checkout works
  */
 
 export interface CardDetails {
-  number: string; // digits only
+  number: string; // digits only — used in DEV mode only
   expMonth: string; // "MM"
   expYear: string; // "YYYY"
   cvv: string;
@@ -29,14 +25,23 @@ export interface TokenizedCard {
   brand: string;
 }
 
-/* Minimal typing for the Collect.js global (loaded on demand). */
+interface CollectJsCard {
+  number?: string;
+  bin?: string;
+  exp?: string;
+  type?: string;
+}
+
+interface CollectJsResponse {
+  token?: string;
+  tokenType?: string;
+  card?: CollectJsCard;
+}
+
 interface CollectJsGlobal {
   configure?: (opts: Record<string, unknown>) => void;
-  startPaymentRequest?: () => void;
-  tokenize?: (
-    card: Record<string, string>,
-    cb: (err: unknown, token?: string) => void,
-  ) => void;
+  startPaymentRequest?: (event?: Event) => void;
+  closePaymentRequest?: () => void;
 }
 
 declare global {
@@ -47,17 +52,51 @@ declare global {
 
 let collectJsPromise: Promise<void> | null = null;
 
+/** True when a real NMI public tokenization key is baked into the client bundle. */
+export function nmiBrowserConfigured(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_NMI_TOKENIZATION_KEY?.trim());
+}
+
 /** Inject the Collect.js script once, keyed by the public tokenization key. */
 function loadCollectJs(tokenizationKey: string): Promise<void> {
-  if (window.CollectJS) return Promise.resolve();
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("collectjs-ssr"));
+  }
+  if (window.CollectJS?.configure && window.CollectJS?.startPaymentRequest) {
+    return Promise.resolve();
+  }
   if (collectJsPromise) return collectJsPromise;
+
   collectJsPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>("script[data-nmi-collectjs]");
+    if (existing && window.CollectJS) {
+      resolve();
+      return;
+    }
+
     const script = document.createElement("script");
     script.src = "https://secure.networkmerchants.com/token/Collect.js";
     script.async = true;
+    script.dataset.nmiCollectjs = "1";
     // Public TOKENIZATION key only — safe for the browser by design.
     script.dataset.tokenizationKey = tokenizationKey;
-    script.onload = () => resolve();
+    script.onload = () => {
+      // Collect.js attaches CollectJS asynchronously after onload in some builds.
+      const start = Date.now();
+      const waitReady = () => {
+        if (window.CollectJS?.configure && window.CollectJS?.startPaymentRequest) {
+          resolve();
+          return;
+        }
+        if (Date.now() - start > 8000) {
+          collectJsPromise = null;
+          reject(new Error("collectjs-unavailable"));
+          return;
+        }
+        requestAnimationFrame(waitReady);
+      };
+      waitReady();
+    };
     script.onerror = () => {
       collectJsPromise = null;
       reject(new Error("collectjs-load-failed"));
@@ -67,33 +106,79 @@ function loadCollectJs(tokenizationKey: string): Promise<void> {
   return collectJsPromise;
 }
 
+function last4FromMasked(number?: string): string {
+  if (!number) return "";
+  const digits = number.replace(/\D/g, "");
+  return digits.slice(-4);
+}
+
+/**
+ * Open NMI's hosted lightbox and resolve with a single-use payment_token.
+ * Card data never touches our DOM or servers.
+ */
+async function tokenizeViaLightbox(): Promise<TokenizedCard> {
+  const tokenizationKey = process.env.NEXT_PUBLIC_NMI_TOKENIZATION_KEY?.trim();
+  if (!tokenizationKey) throw new Error("tokenization-key-missing");
+
+  await loadCollectJs(tokenizationKey);
+
+  return new Promise<TokenizedCard>((resolve, reject) => {
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
+
+    try {
+      window.CollectJS!.configure!({
+        variant: "lightbox",
+        callback: (response: CollectJsResponse) => {
+          const token = response?.token?.trim();
+          if (!token) {
+            finish(() => reject(new Error("tokenize-failed")));
+            return;
+          }
+          finish(() =>
+            resolve({
+              token,
+              last4: last4FromMasked(response.card?.number),
+              brand: response.card?.type ?? "",
+            }),
+          );
+        },
+        fieldsAvailableCallback: () => {
+          /* lightbox ready */
+        },
+      });
+      window.CollectJS!.startPaymentRequest!();
+    } catch (err) {
+      finish(() =>
+        reject(err instanceof Error ? err : new Error("collectjs-configure-failed")),
+      );
+    }
+  });
+}
+
+function tokenizeDev(card: CardDetails): TokenizedCard {
+  const last4 = card.number.slice(-4);
+  const random = new Uint8Array(8);
+  crypto.getRandomValues(random);
+  const suffix = Array.from(random, (b) => (b % 36).toString(36)).join("");
+  return { token: `tok_dev_${suffix}`, last4, brand: "" };
+}
+
 /**
  * Tokenize card details. Resolves with { token, last4, brand }.
  * Rejects with a user-friendly Error message (never containing card data).
+ *
+ * When NMI is configured, `card` is ignored — Collect.js lightbox collects
+ * the PAN. Pass card details only for local DEV mode (no public key).
  */
-export async function tokenizeCard(card: CardDetails): Promise<TokenizedCard> {
-  const last4 = card.number.slice(-4);
-  const tokenizationKey = process.env.NEXT_PUBLIC_NMI_TOKENIZATION_KEY;
-
-  if (tokenizationKey) {
+export async function tokenizeCard(card?: CardDetails): Promise<TokenizedCard> {
+  if (nmiBrowserConfigured()) {
     try {
-      await loadCollectJs(tokenizationKey);
-      const token = await new Promise<string>((resolve, reject) => {
-        // Collect.js tokenizes the PAN against NMI's vault from the browser;
-        // the raw number is transmitted only browser -> NMI, never to us.
-        window.CollectJS?.tokenize?.(
-          {
-            number: card.number,
-            expMonth: card.expMonth,
-            expYear: card.expYear,
-            cvv: card.cvv,
-          },
-          (err, token) => (token ? resolve(token) : reject(err ?? new Error("tokenize-failed"))),
-        );
-        // If the loaded script does not expose tokenize(), fail fast below.
-        if (!window.CollectJS?.tokenize) reject(new Error("collectjs-unavailable"));
-      });
-      return { token, last4, brand: "" };
+      return await tokenizeViaLightbox();
     } catch {
       throw new Error(
         "We couldn't securely process your card details. Please try again in a moment.",
@@ -101,11 +186,8 @@ export async function tokenizeCard(card: CardDetails): Promise<TokenizedCard> {
     }
   }
 
-  // DEV MODE: no tokenization key configured — simulate the token locally.
-  // The simulated token carries no card data; the server-side charge is also
-  // simulated when NMI_PRIVATE_SECURITY_KEY is unset.
-  const random = new Uint8Array(8);
-  crypto.getRandomValues(random);
-  const suffix = Array.from(random, (b) => (b % 36).toString(36)).join("");
-  return { token: `tok_dev_${suffix}`, last4, brand: "" };
+  if (!card?.number) {
+    throw new Error("Card details are required.");
+  }
+  return tokenizeDev(card);
 }

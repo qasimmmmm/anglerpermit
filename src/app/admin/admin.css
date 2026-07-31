@@ -271,14 +271,14 @@
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
 .admin-table th {
   text-align: left;
-  padding: 0.85rem 1rem;
+  padding: 0.65rem 0.75rem;
   color: var(--ap-muted);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   border-bottom: 1px solid var(--ap-line);
@@ -286,7 +286,7 @@
 }
 
 .admin-table td {
-  padding: 0.95rem 1rem;
+  padding: 0.65rem 0.75rem;
   border-bottom: 1px solid rgba(18, 48, 71, 0.06);
   vertical-align: middle;
 }
@@ -297,6 +297,66 @@
 
 .admin-table tbody tr:hover {
   background: rgba(43, 181, 154, 0.07);
+}
+
+/* Applications list: keep rows compact — never mid-word wrap */
+.admin-table-apps {
+  min-width: 980px;
+  table-layout: auto;
+}
+
+.admin-table-apps th,
+.admin-table-apps td {
+  white-space: nowrap;
+}
+
+.admin-table-apps .admin-copyable,
+.admin-table-apps .admin-copyable-text {
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+  max-width: none;
+}
+
+.admin-table-apps .admin-col-num {
+  width: 40px;
+  color: var(--ap-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-table-apps .admin-col-action {
+  width: 44px;
+  position: sticky;
+  right: 0;
+  background: var(--ap-card, #fff);
+  box-shadow: -6px 0 10px -8px rgba(18, 48, 71, 0.25);
+  text-align: center;
+}
+
+.admin-table-apps tbody tr:hover .admin-col-action {
+  background: #f3faf8;
+}
+
+.admin-archive-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #b45309;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.admin-archive-btn:hover {
+  background: #fff7ed;
+  border-color: #fed7aa;
 }
 
 .admin-chart-line {
@@ -404,7 +464,8 @@
 }
 
 .admin-copyable-text {
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .admin-copyable:hover {

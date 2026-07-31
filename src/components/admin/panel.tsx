@@ -313,7 +313,7 @@ export function DashboardView() {
           </p>
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table className="admin-table">
+            <table className="admin-table admin-table-apps">
               <thead>
                 <tr>
                   <th>Reference</th>
@@ -492,7 +492,6 @@ export function ApplicationsView() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ApplicationRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -517,18 +516,11 @@ export function ApplicationsView() {
         else sp.set(k, v);
       }
     });
-    const [listRes, usersRes] = await Promise.all([
-      fetch(`/api/admin/data?${sp}`),
-      fetch("/api/admin/users"),
-    ]);
+    const listRes = await fetch(`/api/admin/data?${sp}`);
     const data = await listRes.json();
     if (data.ok) {
       setItems(data.items);
       setTotal(data.total);
-    }
-    const usersData = await usersRes.json().catch(() => null);
-    if (usersData?.ok && usersData.me) {
-      setIsAdmin(usersData.me.role === "admin");
     }
     setLoading(false);
   }, [filters, page]);
@@ -711,10 +703,10 @@ export function ApplicationsView() {
 
       <div className="admin-card admin-rise admin-rise-2" style={{ marginTop: "1rem", padding: 0 }}>
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table admin-table-apps">
             <thead>
               <tr>
-                <th style={{ width: 48 }}>#</th>
+                <th className="admin-col-num">#</th>
                 <th>Reference</th>
                 <th>Customer</th>
                 <th>Email</th>
@@ -722,26 +714,26 @@ export function ApplicationsView() {
                 <th>Status</th>
                 <th>Amount</th>
                 <th>Submitted</th>
-                {isAdmin ? <th style={{ width: 52 }} /> : null}
+                <th className="admin-col-action" aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 8} style={{ padding: 24, color: "var(--ap-muted)" }}>
+                  <td colSpan={9} style={{ padding: 24, color: "var(--ap-muted)" }}>
                     Loading…
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 8} style={{ padding: 24, color: "var(--ap-muted)" }}>
+                  <td colSpan={9} style={{ padding: 24, color: "var(--ap-muted)" }}>
                     No applications match these filters.
                   </td>
                 </tr>
               ) : (
                 items.map((app, idx) => (
                   <tr key={app.id}>
-                    <td style={{ color: "var(--ap-muted)", fontVariantNumeric: "tabular-nums" }}>
+                    <td className="admin-col-num">
                       <CopyableValue
                         value={String((page - 1) * 25 + idx + 1)}
                         strong={false}
@@ -751,12 +743,12 @@ export function ApplicationsView() {
                       <CopyableValue
                         value={app.reference}
                         href={`/admin/applications/${app.id}`}
-                        style={{ letterSpacing: "-0.02em" }}
                       />
                     </td>
                     <td>
                       <CopyableValue
                         value={[app.firstName, app.lastName].filter(Boolean).join(" ")}
+                        strong={false}
                       />
                     </td>
                     <td>
@@ -777,31 +769,28 @@ export function ApplicationsView() {
                       />
                     </td>
                     <td>
-                      <CopyableValue value={money(app.amountCents)} />
+                      <CopyableValue value={money(app.amountCents)} strong={false} />
                     </td>
-                    <td style={{ whiteSpace: "nowrap" }}>
+                    <td>
                       <CopyableValue
                         value={new Date(app.submittedAt).toLocaleString()}
                         strong={false}
                       />
                     </td>
-                    {isAdmin ? (
-                      <td style={{ position: "sticky", right: 0, background: "var(--ap-card, #fff)" }}>
-                        <button
-                          type="button"
-                          className="admin-btn-icon"
-                          aria-label={`Archive ${app.reference}`}
-                          title="Archive application"
-                          onClick={() => {
-                            setDeleteError("");
-                            setPendingDelete(app);
-                          }}
-                          style={{ color: "#b45309" }}
-                        >
-                          <Archive size={16} />
-                        </button>
-                      </td>
-                    ) : null}
+                    <td className="admin-col-action">
+                      <button
+                        type="button"
+                        className="admin-archive-btn"
+                        aria-label={`Archive ${app.reference}`}
+                        title="Archive"
+                        onClick={() => {
+                          setDeleteError("");
+                          setPendingDelete(app);
+                        }}
+                      >
+                        <Archive size={15} strokeWidth={2} />
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}

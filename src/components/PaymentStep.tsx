@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CreditCard, HelpCircle, Loader2, Lock } from "lucide-react";
+import { CreditCard, HelpCircle, Loader2, Lock, ShieldCheck } from "lucide-react";
 import type { TokenizedPayment } from "@/lib/state-config";
-import { tokenizeCard } from "@/lib/payment-client";
+import { nmiBrowserConfigured, tokenizeCard } from "@/lib/payment-client";
 import {
   billingZipError,
   BRAND_LABELS,
@@ -22,19 +22,17 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 /**
- * Wizard payment step — NMI Collect.js-style tokenized checkout.
+ * Wizard payment step — NMI Collect.js tokenized checkout.
  *
- * PCI posture: the card number / expiry / CVV entered here are validated and
- * formatted locally, then tokenized IN THE BROWSER via tokenizeCard(). Only
- * the resulting single-use token (plus brand/last4 display metadata and the
- * billing ZIP) is handed to onPay -> our API. Raw card data is never sent to
- * our server, never stored in state longer than the entry session, and never
- * logged.
+ * Production (NEXT_PUBLIC_NMI_TOKENIZATION_KEY set): card PAN/expiry/CVV are
+ * collected in NMI's hosted lightbox. We only keep billing ZIP in our DOM.
+ *
+ * Dev (key unset): local card fields + tok_dev_* simulation.
  */
 
 type FieldKey = "number" | "expiry" | "cvv" | "zip";
 
-/** Small brand badge shown inside the card-number field. */
+/** Small brand badge shown inside the card-number field (dev mode). */
 function BrandBadge({ brand }: { brand: CardBrand }) {
   if (brand === "unknown") {
     return <CreditCard className="h-5 w-5 text-slate-400" aria-hidden="true" />;
@@ -74,6 +72,7 @@ export function PaymentStep({
   error: string | null;
   onPay: (payment: TokenizedPayment) => void;
 }) {
+  const liveNmi = nmiBrowserConfigured();
   const [number, setNumber] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
@@ -99,16 +98,40 @@ export function PaymentStep({
   }
 
   async function handlePay() {
-    if (busy) return; // double-submit guard
+    if (busy) return;
     setTokenizeError(null);
-    const checks: [FieldKey, boolean][] = [
-      ["number", false],
-      ["expiry", false],
-      ["cvv", false],
-      ["zip", false],
-    ];
+
+    if (liveNmi) {
+      const zipMessage = billingZipError(zip);
+      if (zipMessage) {
+        setErrors({ zip: zipMessage });
+        document.querySelector<HTMLElement>('[data-payment-fields] [aria-invalid="true"]')?.focus();
+        return;
+      }
+      setTokenizing(true);
+      try {
+        // Lightbox collects PAN/expiry/CVV; only the token returns here.
+        const tokenized = await tokenizeCard();
+        onPay({
+          token: tokenized.token,
+          last4: tokenized.last4,
+          brand: tokenized.brand
+            ? tokenized.brand.charAt(0).toUpperCase() + tokenized.brand.slice(1)
+            : "",
+          billingZip: zip.trim(),
+        });
+      } catch (err) {
+        setTokenizeError(
+          err instanceof Error ? err.message : "We couldn't process your card. Please try again.",
+        );
+      } finally {
+        setTokenizing(false);
+      }
+      return;
+    }
+
     const nextErrors: Partial<Record<FieldKey, string>> = {};
-    for (const [key] of checks) {
+    for (const key of ["number", "expiry", "cvv", "zip"] as FieldKey[]) {
       const message =
         key === "number"
           ? cardNumberError(number)
@@ -121,7 +144,6 @@ export function PaymentStep({
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
-      // Move keyboard/screen-reader users to the first invalid card field.
       document.querySelector<HTMLElement>('[data-payment-fields] [aria-invalid="true"]')?.focus();
       return;
     }
@@ -130,7 +152,6 @@ export function PaymentStep({
     const [mm, yy] = expiry.split("/");
     setTokenizing(true);
     try {
-      // Raw card data goes browser -> token vault only; never to our API.
       const tokenized = await tokenizeCard({
         number: digits,
         expMonth: mm,
@@ -164,72 +185,90 @@ export function PaymentStep({
         </div>
 
         <div data-payment-fields className="mt-5 grid gap-5 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <Input
-              label="Card number"
-              name="cardNumber"
-              type="text"
-              inputMode="numeric"
-              autoComplete="cc-number"
-              placeholder="1234 5678 9012 3456"
-              value={number}
-              onChange={(e) => setNumber(formatCardNumber(e.target.value))}
-              onBlur={() => validateField("number")}
-              error={errors.number}
-              required
-              disabled={busy}
-              rightAdornment={<BrandBadge brand={brand} />}
-            />
-          </div>
-          <Input
-            label="Expiry (MM/YY)"
-            name="cardExpiry"
-            type="text"
-            inputMode="numeric"
-            autoComplete="cc-exp"
-            placeholder="MM/YY"
-            value={expiry}
-            onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-            onBlur={() => validateField("expiry")}
-            error={errors.expiry}
-            required
-            disabled={busy}
-          />
-          <div className="relative">
-            <Input
-              label="Security code (CVV)"
-              name="cardCvv"
-              type="password"
-              inputMode="numeric"
-              autoComplete="cc-csc"
-              placeholder={brand === "amex" ? "4 digits" : "3 digits"}
-              value={cvv}
-              onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
-              onBlur={() => validateField("cvv")}
-              error={errors.cvv}
-              required
-              disabled={busy}
-              rightAdornment={
-                <span className="group relative inline-flex">
-                  <button
-                    type="button"
-                    aria-label="Where is my security code?"
-                    className="rounded p-1 text-slate-400 hover:text-navy focus-visible:text-navy"
-                  >
-                    <HelpCircle className="h-5 w-5" aria-hidden="true" />
-                  </button>
-                  <span
-                    role="tooltip"
-                    className="pointer-events-none absolute bottom-full right-0 z-10 mb-2 w-56 rounded-lg bg-navy px-3 py-2 text-xs leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                  >
-                    {brand === "amex"
-                      ? "American Express: the 4-digit code printed on the front of your card."
-                      : "The 3-digit code in the signature panel on the back of your card."}
-                  </span>
-                </span>
-              }
-            />
-          </div>
+          {liveNmi ? (
+            <div className="sm:col-span-2 rounded-xl border border-forest-200 bg-forest-50/60 px-4 py-4">
+              <div className="flex gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-forest-700" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-semibold text-navy">Secure card entry</p>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                    After you click Pay, a secure payment window opens to enter your card number,
+                    expiry, and CVV. Those details go straight to our payment processor — never to
+                    AnglerPermit.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="sm:col-span-2">
+                <Input
+                  label="Card number"
+                  name="cardNumber"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="cc-number"
+                  placeholder="1234 5678 9012 3456"
+                  value={number}
+                  onChange={(e) => setNumber(formatCardNumber(e.target.value))}
+                  onBlur={() => validateField("number")}
+                  error={errors.number}
+                  required
+                  disabled={busy}
+                  rightAdornment={<BrandBadge brand={brand} />}
+                />
+              </div>
+              <Input
+                label="Expiry (MM/YY)"
+                name="cardExpiry"
+                type="text"
+                inputMode="numeric"
+                autoComplete="cc-exp"
+                placeholder="MM/YY"
+                value={expiry}
+                onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+                onBlur={() => validateField("expiry")}
+                error={errors.expiry}
+                required
+                disabled={busy}
+              />
+              <div className="relative">
+                <Input
+                  label="Security code (CVV)"
+                  name="cardCvv"
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="cc-csc"
+                  placeholder={brand === "amex" ? "4 digits" : "3 digits"}
+                  value={cvv}
+                  onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  onBlur={() => validateField("cvv")}
+                  error={errors.cvv}
+                  required
+                  disabled={busy}
+                  rightAdornment={
+                    <span className="group relative inline-flex">
+                      <button
+                        type="button"
+                        aria-label="Where is my security code?"
+                        className="rounded p-1 text-slate-400 hover:text-navy focus-visible:text-navy"
+                      >
+                        <HelpCircle className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                      <span
+                        role="tooltip"
+                        className="pointer-events-none absolute bottom-full right-0 z-10 mb-2 w-56 rounded-lg bg-navy px-3 py-2 text-xs leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                      >
+                        {brand === "amex"
+                          ? "American Express: the 4-digit code printed on the front of your card."
+                          : "The 3-digit code in the signature panel on the back of your card."}
+                      </span>
+                    </span>
+                  }
+                />
+              </div>
+            </>
+          )}
           <div className="sm:col-span-2">
             <Input
               label="Billing ZIP code"
@@ -280,7 +319,7 @@ export function PaymentStep({
           {busy ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-              Processing payment&hellip;
+              {liveNmi ? "Opening secure payment…" : "Processing payment…"}
             </>
           ) : (
             <>

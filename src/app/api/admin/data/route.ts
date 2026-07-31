@@ -98,8 +98,9 @@ export async function DELETE(req: Request) {
   if (denied) return denied;
 
   const me = await getAdminSessionUser();
-  if (!me || me.role !== "admin") {
-    return NextResponse.json({ ok: false, error: "Only admins can archive applications." }, { status: 403 });
+  // Any signed-in ops user can soft-archive applications from the console.
+  if (!me) {
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const url = new URL(req.url);
