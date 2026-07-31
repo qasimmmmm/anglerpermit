@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { ApplicationRecord, ApplicationStatus } from "@/lib/storage";
 import type { PublicAdminUser } from "@/lib/admin-users";
+import { CopyableValue } from "@/components/admin/copyable-value";
 
 const STATES = [
   "florida",
@@ -328,11 +329,15 @@ export function DashboardView() {
                 {orders.slice(0, 10).map((app) => (
                   <tr key={app.id}>
                     <td>
-                      <strong>{app.reference}</strong>
+                      <CopyableValue value={app.reference} />
                     </td>
                     <td>
-                      {[app.firstName, app.lastName].filter(Boolean).join(" ") || "ΓÇö"}
-                      <div style={{ fontSize: 12, color: "var(--ap-muted)" }}>{app.email || ""}</div>
+                      <CopyableValue
+                        value={[app.firstName, app.lastName].filter(Boolean).join(" ")}
+                      />
+                      <div style={{ fontSize: 12, color: "var(--ap-muted)" }}>
+                        <CopyableValue value={app.email} strong={false} />
+                      </div>
                     </td>
                     <td>{stateLabel(app.stateSlug)}</td>
                     <td>
@@ -350,7 +355,9 @@ export function DashboardView() {
                         {labelStatus(app.status)}
                       </span>
                     </td>
-                    <td>{money(app.amountCents)}</td>
+                    <td>
+                      <CopyableValue value={money(app.amountCents)} />
+                    </td>
                     <td>
                       <button
                         type="button"
@@ -747,13 +754,20 @@ export function ApplicationsView() {
                       {(page - 1) * 25 + idx + 1}
                     </td>
                     <td>
-                      <strong style={{ letterSpacing: "-0.02em" }}>{app.reference}</strong>
+                      <CopyableValue
+                        value={app.reference}
+                        style={{ letterSpacing: "-0.02em" }}
+                      />
                     </td>
                     <td>
                       <div>
-                        {[app.firstName, app.lastName].filter(Boolean).join(" ") || "ΓÇö"}
+                        <CopyableValue
+                          value={[app.firstName, app.lastName].filter(Boolean).join(" ")}
+                        />
                       </div>
-                      <div style={{ fontSize: 12, color: "var(--ap-muted)" }}>{app.email}</div>
+                      <div style={{ fontSize: 12, color: "var(--ap-muted)" }}>
+                        <CopyableValue value={app.email} strong={false} />
+                      </div>
                     </td>
                     <td>{stateLabel(app.stateSlug)}</td>
                     <td>
@@ -915,10 +929,18 @@ export function ApplicationDetailView({ id }: { id: string }) {
         ΓåÉ Back to applications
       </button>
       <div className="admin-rise">
-        <h1 className="admin-title">{app.reference}</h1>
-        <p className="admin-sub">
-          {stateLabel(app.stateSlug)} ┬╖ {[app.firstName, app.lastName].filter(Boolean).join(" ")} ┬╖{" "}
-          {app.email}
+        <h1 className="admin-title" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <CopyableValue value={app.reference} />
+        </h1>
+        <p className="admin-sub" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+          <span>{stateLabel(app.stateSlug)}</span>
+          <span aria-hidden>·</span>
+          <CopyableValue
+            value={[app.firstName, app.lastName].filter(Boolean).join(" ")}
+            strong={false}
+          />
+          <span aria-hidden>·</span>
+          <CopyableValue value={app.email} strong={false} />
         </p>
       </div>
 
@@ -949,12 +971,11 @@ export function ApplicationDetailView({ id }: { id: string }) {
                     fontSize: 13,
                     paddingBottom: 8,
                     borderBottom: "1px solid rgba(18,48,71,0.06)",
+                    alignItems: "start",
                   }}
                 >
-                  <span style={{ color: "var(--ap-muted)" }}>{k}</span>
-                  <strong style={{ wordBreak: "break-word" }}>
-                    {typeof v === "object" ? JSON.stringify(v) : String(v ?? "ΓÇö")}
-                  </strong>
+                  <span style={{ color: "var(--ap-muted)", paddingTop: 4 }}>{k}</span>
+                  <CopyableValue value={typeof v === "object" ? JSON.stringify(v) : v} />
                 </div>
               ))
             )}
@@ -965,25 +986,25 @@ export function ApplicationDetailView({ id }: { id: string }) {
           <div className="admin-card admin-rise admin-rise-2" style={{ padding: "1.25rem" }}>
             <strong>Order</strong>
             <div style={{ marginTop: 12, display: "grid", gap: 8, fontSize: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <span style={{ color: "var(--ap-muted)" }}>Amount</span>
-                <strong>{money(app.amountCents)}</strong>
+                <CopyableValue value={money(app.amountCents)} />
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <span style={{ color: "var(--ap-muted)" }}>License</span>
-                <strong>{app.licenseId}</strong>
+                <CopyableValue value={app.licenseId} />
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <span style={{ color: "var(--ap-muted)" }}>Residency</span>
-                <strong>{app.residency}</strong>
+                <CopyableValue value={app.residency} />
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <span style={{ color: "var(--ap-muted)" }}>Phone</span>
-                <strong>{app.phone || "ΓÇö"}</strong>
+                <CopyableValue value={app.phone} />
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <span style={{ color: "var(--ap-muted)" }}>Submitted</span>
-                <strong>{new Date(app.submittedAt).toLocaleString()}</strong>
+                <CopyableValue value={new Date(app.submittedAt).toLocaleString()} />
               </div>
             </div>
           </div>

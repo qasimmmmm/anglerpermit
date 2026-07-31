@@ -382,3 +382,73 @@
 .admin-modal-actions .admin-btn {
   min-width: 110px;
 }
+
+/* Click-to-copy field values (ops fulfillment) */
+.admin-copyable {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 100%;
+  margin: 0;
+  padding: 2px 6px 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.35;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.admin-copyable:hover {
+  background: rgba(43, 181, 154, 0.1);
+  border-color: rgba(31, 122, 108, 0.22);
+}
+
+.admin-copyable:focus-visible {
+  outline: none;
+  border-color: rgba(31, 122, 108, 0.55);
+  box-shadow: 0 0 0 3px rgba(43, 181, 154, 0.18);
+}
+
+.admin-copyable.is-copied {
+  background: rgba(43, 181, 154, 0.14);
+  border-color: rgba(31, 122, 108, 0.35);
+  color: var(--ap-sea, #1f7a6c);
+}
+
+.admin-copyable-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  opacity: 0.35;
+  color: var(--ap-muted, #5c7380);
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.admin-copyable:hover .admin-copyable-icon,
+.admin-copyable.is-copied .admin-copyable-icon {
+  opacity: 1;
+  color: var(--ap-sea, #1f7a6c);
+}
+
+.admin-copyable-toast {
+  position: absolute;
+  top: -1.35rem;
+  right: 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--ap-ink, #123047);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+  white-space: nowrap;
+}
