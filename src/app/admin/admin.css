@@ -383,64 +383,68 @@
   min-width: 110px;
 }
 
-/* Click-to-copy field values (ops fulfillment) */
+/* Click-to-copy field values — no icons; click the text itself */
 .admin-copyable {
   position: relative;
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 6px;
+  display: inline;
   max-width: 100%;
   margin: 0;
-  padding: 2px 6px 2px 4px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
   background: transparent;
   color: inherit;
   font: inherit;
-  line-height: 1.35;
-  cursor: pointer;
-  text-align: left;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
+  line-height: inherit;
+  cursor: copy;
+  text-align: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: background 0.15s, color 0.15s;
+}
+
+.admin-copyable-text {
+  word-break: break-word;
 }
 
 .admin-copyable:hover {
-  background: rgba(43, 181, 154, 0.1);
-  border-color: rgba(31, 122, 108, 0.22);
+  background: rgba(43, 181, 154, 0.12);
 }
 
 .admin-copyable:focus-visible {
-  outline: none;
-  border-color: rgba(31, 122, 108, 0.55);
-  box-shadow: 0 0 0 3px rgba(43, 181, 154, 0.18);
+  outline: 2px solid rgba(31, 122, 108, 0.45);
+  outline-offset: 2px;
 }
 
 .admin-copyable.is-copied {
-  background: rgba(43, 181, 154, 0.14);
-  border-color: rgba(31, 122, 108, 0.35);
+  background: rgba(43, 181, 154, 0.18);
   color: var(--ap-sea, #1f7a6c);
 }
 
-.admin-copyable-icon {
-  flex-shrink: 0;
-  margin-top: 2px;
-  opacity: 0.35;
-  color: var(--ap-muted, #5c7380);
-  transition: opacity 0.15s, color 0.15s;
+.admin-copyable.admin-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  cursor: copy;
 }
 
-.admin-copyable:hover .admin-copyable-icon,
-.admin-copyable.is-copied .admin-copyable-icon {
-  opacity: 1;
+.admin-copyable-link {
+  cursor: pointer;
   color: var(--ap-sea, #1f7a6c);
+  text-decoration: none;
+}
+
+.admin-copyable-link:hover {
+  text-decoration: underline;
+  background: rgba(43, 181, 154, 0.12);
 }
 
 .admin-copyable-toast {
   position: absolute;
-  top: -1.35rem;
-  right: 0;
+  top: -1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 2px 7px;
   border-radius: 999px;
   background: var(--ap-ink, #123047);
@@ -451,4 +455,5 @@
   text-transform: uppercase;
   pointer-events: none;
   white-space: nowrap;
+  z-index: 2;
 }

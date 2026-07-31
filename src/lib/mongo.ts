@@ -13,6 +13,8 @@ import type { ApplicationRecord, ApplicationStatus, NewApplicationInput } from "
 export type MongoAppDoc = Omit<ApplicationRecord, "id"> & {
   _id: string;
   updatedAt: string;
+  /** Soft-delete timestamp — archived apps are hidden from the ops list. */
+  archivedAt?: string | null;
   paymentMeta?: {
     transactionId?: string;
     last4?: string;
@@ -338,14 +340,29 @@ export async function mongoGetByReference(reference: string): Promise<Applicatio
   return doc ? docToRecord(doc) : null;
 }
 
-export async function mongoDeleteApp(id: string): Promise<boolean> {
+/** Soft-delete: hide from ops lists without destroying the record. */
+export async function mongoArchiveApp(id: string): Promise<boolean> {
   if (!mongoConfigured()) return false;
+  const t = nowIso();
   const c = await col();
   if (c) {
-    const res = await c.deleteOne({ _id: id });
-    return res.deletedCount === 1;
+    const existing = await c.findOne({ _id: id });
+    if (!existing) return false;
+    if (existing.archivedAt) return true;
+    const res = await c.updateOne({ _id: id }, { $set: { archivedAt: t, updatedAt: t } });
+    return res.matchedCount === 1;
   }
-  return mem().apps.delete(id);
+  const prev = mem().apps.get(id);
+  if (!prev) return false;
+  if (!prev.archivedAt) {
+    mem().apps.set(id, { ...prev, archivedAt: t, updatedAt: t });
+  }
+  return true;
+}
+
+/** @deprecated Prefer mongoArchiveApp — hard delete kept for scripts only. */
+export async function mongoDeleteApp(id: string): Promise<boolean> {
+  return mongoArchiveApp(id);
 }
 
 export async function mongoPatchStatus(
@@ -449,7 +466,9 @@ export async function mongoListApps(query: AppListQuery): Promise<{
 export async function mongoStats() {
   await ensureDemoSeed();
   const c = await col();
-  const docs = c ? await c.find({}).toArray() : Array.from(mem().apps.values());
+  const docs = (
+    c ? await c.find({}).toArray() : Array.from(mem().apps.values())
+  ).filter((d) => !d.archivedAt);
 
   const byStatus: Record<string, number> = {};
   const byState: Record<string, number> = {};
@@ -494,7 +513,10 @@ function escapeRegex(s: string) {
 }
 
 function buildFilter(query: AppListQuery): Filter<MongoAppDoc> {
-  const and: Filter<MongoAppDoc>[] = [];
+  const and: Filter<MongoAppDoc>[] = [
+    // Soft-deleted rows stay in Mongo but never appear in the ops console.
+    { $or: [{ archivedAt: null }, { archivedAt: { $exists: false } }] },
+  ];
   if (query.status && STATUSES.includes(query.status as ApplicationStatus)) {
     and.push({ status: query.status as ApplicationStatus });
   }
@@ -519,6 +541,7 @@ function buildFilter(query: AppListQuery): Filter<MongoAppDoc> {
 }
 
 function matchMem(d: MongoAppDoc, query: AppListQuery): boolean {
+  if (d.archivedAt) return false;
   if (query.status && d.status !== query.status) return false;
   if (query.state && d.stateSlug !== query.state) return false;
   if (query.from && d.submittedAt < query.from) return false;

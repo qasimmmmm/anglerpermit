@@ -99,7 +99,7 @@ export async function DELETE(req: Request) {
 
   const me = await getAdminSessionUser();
   if (!me || me.role !== "admin") {
-    return NextResponse.json({ ok: false, error: "Only admins can delete applications." }, { status: 403 });
+    return NextResponse.json({ ok: false, error: "Only admins can archive applications." }, { status: 403 });
   }
 
   const url = new URL(req.url);
@@ -109,15 +109,15 @@ export async function DELETE(req: Request) {
   }
 
   try {
-    const deleted = await deleteApplication(id);
-    if (!deleted) {
+    const archived = await deleteApplication(id);
+    if (!archived) {
       return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Delete failed";
+    const message = err instanceof Error ? err.message : "Archive failed";
     // eslint-disable-next-line no-console
-    console.error(`[api/admin/data] DELETE ${id}: ${message}`);
+    console.error(`[api/admin/data] DELETE/archive ${id}: ${message}`);
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

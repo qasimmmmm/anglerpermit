@@ -281,42 +281,57 @@ export async function getApplicationByReference(
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** Hard-delete an application (admin). Removes Postgres row when configured + Mongo mirror. */
+/**
+ * Soft-delete an application for ops (admin archive).
+ * Mongo: sets archivedAt (hidden from admin lists).
+ * Postgres: marks cancelled when a matching row exists — never hard-deletes.
+ */
 export async function deleteApplication(id: string): Promise<boolean> {
-  let deleted = false;
+  let touched = false;
   // Postgres `applications.id` is UUID. Admin list IDs may be Mongo ObjectIds —
-  // never pass those into a UUID column (throws and 500s the whole delete).
+  // never pass those into a UUID column (throws and 500s the whole action).
   if (dbConfigured() && UUID_RE.test(id)) {
     try {
-      const res = await q(`delete from applications where id = $1`, [id]);
-      deleted = (res.rowCount ?? 0) > 0;
+      const res = await q(
+        `update applications
+           set status = 'cancelled',
+               cancelled_at = coalesce(cancelled_at, now()),
+               status_reason = coalesce(status_reason, 'Archived from admin console')
+         where id = $1 and status <> 'cancelled'`,
+        [id],
+      );
+      touched = (res.rowCount ?? 0) > 0;
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(
-        `[storage] postgres delete failed for ${id}:`,
+        `[storage] postgres archive failed for ${id}:`,
         err instanceof Error ? err.message : err,
       );
     }
   } else if (dbConfigured()) {
-    // Mongo-primary rows: remove any Postgres twin by matching the Mongo reference.
     try {
       const mongoApp = await mongoGetById(id);
       if (mongoApp?.reference) {
-        const res = await q(`delete from applications where reference = $1`, [
-          mongoApp.reference,
-        ]);
-        deleted = (res.rowCount ?? 0) > 0;
+        const res = await q(
+          `update applications
+             set status = 'cancelled',
+                 cancelled_at = coalesce(cancelled_at, now()),
+                 status_reason = coalesce(status_reason, 'Archived from admin console')
+           where reference = $1 and status <> 'cancelled'`,
+          [mongoApp.reference],
+        );
+        touched = (res.rowCount ?? 0) > 0;
       }
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(
-        `[storage] postgres delete-by-reference failed for ${id}:`,
+        `[storage] postgres archive-by-reference failed for ${id}:`,
         err instanceof Error ? err.message : err,
       );
     }
   }
-  const mongoDeleted = await mongoDeleteApp(id).catch(() => false);
-  return deleted || mongoDeleted;
+  const mongoArchived = await mongoDeleteApp(id).catch(() => false);
+  return touched || mongoArchived;
 }
 
 /* ------------------------------------------------------------------ */

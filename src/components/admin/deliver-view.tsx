@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { CheckCircle2, FileUp, Loader2, Send, X } from "lucide-react";
 import type { ApplicationRecord } from "@/lib/storage";
+import { CopyableValue } from "@/components/admin/copyable-value";
 
 const STATE_NAMES = [
   "California",
@@ -156,8 +157,8 @@ export function DeliverView() {
         </div>
         <h2 style={{ margin: "1rem 0 0", fontSize: "1.35rem" }}>License delivered</h2>
         <p className="admin-sub" style={{ marginTop: 8 }}>
-          Sent to <strong>{to.trim()}</strong>. Files were attached to the email only — not saved
-          in the database.
+          Sent to <CopyableValue value={to.trim()} />. Files were attached to the email only — not
+          saved in the database.
         </p>
         <button
           type="button"

@@ -9,11 +9,11 @@ import {
   LogOut,
   Search,
   Send,
-  ArrowUpRight,
   Filter,
   Users,
   RefreshCw,
   Trash2,
+  Archive,
 } from "lucide-react";
 import type { ApplicationRecord, ApplicationStatus } from "@/lib/storage";
 import type { PublicAdminUser } from "@/lib/admin-users";
@@ -127,7 +127,6 @@ const PAID_ORDER_STATUSES = new Set([
 ]);
 
 export function DashboardView() {
-  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [orders, setOrders] = useState<ApplicationRecord[]>([]);
   const [error, setError] = useState("");
@@ -267,7 +266,7 @@ export function DashboardView() {
           <div key={card.label} className={`admin-card admin-rise ${card.delay}`} style={{ padding: "1.15rem 1.25rem" }}>
             <div style={{ fontSize: "0.78rem", color: "var(--ap-muted)", fontWeight: 600 }}>{card.label}</div>
             <div className="admin-stat-value" style={{ marginTop: 6 }}>
-              {card.value}
+              <CopyableValue value={card.value} />
             </div>
           </div>
         ))}
@@ -295,7 +294,7 @@ export function DashboardView() {
           <div key={card.label} className={`admin-card admin-rise ${card.delay}`} style={{ padding: "1.15rem 1.25rem" }}>
             <div style={{ fontSize: "0.78rem", color: "var(--ap-muted)", fontWeight: 600 }}>{card.label}</div>
             <div className="admin-stat-value" style={{ marginTop: 6 }}>
-              {card.value}
+              <CopyableValue value={card.value} />
             </div>
           </div>
         ))}
@@ -319,54 +318,46 @@ export function DashboardView() {
                 <tr>
                   <th>Reference</th>
                   <th>Customer</th>
+                  <th>Email</th>
                   <th>State</th>
                   <th>Status</th>
                   <th>Amount</th>
-                  <th />
                 </tr>
               </thead>
               <tbody>
                 {orders.slice(0, 10).map((app) => (
                   <tr key={app.id}>
                     <td>
-                      <CopyableValue value={app.reference} />
+                      <CopyableValue
+                        value={app.reference}
+                        href={`/admin/applications/${app.id}`}
+                      />
                     </td>
                     <td>
                       <CopyableValue
                         value={[app.firstName, app.lastName].filter(Boolean).join(" ")}
                       />
-                      <div style={{ fontSize: 12, color: "var(--ap-muted)" }}>
-                        <CopyableValue value={app.email} strong={false} />
-                      </div>
                     </td>
-                    <td>{stateLabel(app.stateSlug)}</td>
                     <td>
-                      <span
+                      <CopyableValue value={app.email} strong={false} />
+                    </td>
+                    <td>
+                      <CopyableValue value={stateLabel(app.stateSlug)} strong={false} />
+                    </td>
+                    <td>
+                      <CopyableValue
+                        value={labelStatus(app.status)}
+                        strong={false}
+                        className="admin-pill"
                         style={{
-                          display: "inline-block",
-                          padding: "2px 8px",
-                          borderRadius: 99,
                           fontSize: 12,
-                          fontWeight: 600,
                           color: STATUS_COLOR[app.status] || "#64748b",
                           background: "rgba(18,48,71,0.06)",
                         }}
-                      >
-                        {labelStatus(app.status)}
-                      </span>
+                      />
                     </td>
                     <td>
                       <CopyableValue value={money(app.amountCents)} />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-primary"
-                        style={{ padding: "0.35rem 0.6rem", display: "inline-flex", gap: 4, alignItems: "center" }}
-                        onClick={() => router.push(`/admin/applications/${app.id}`)}
-                      >
-                        Open <ArrowUpRight size={14} />
-                      </button>
                     </td>
                   </tr>
                 ))}
@@ -449,7 +440,7 @@ export function DashboardView() {
             </svg>
             <div style={{ display: "grid", gap: 6, flex: 1 }}>
               {statusEntries.slice(0, 6).map(([status, n]) => (
-                <div key={status} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <div key={status} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, gap: 8 }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span
                       style={{
@@ -459,9 +450,9 @@ export function DashboardView() {
                         background: STATUS_COLOR[status] || "#64748b",
                       }}
                     />
-                    {labelStatus(status)}
+                    <CopyableValue value={labelStatus(status)} strong={false} />
                   </span>
-                  <strong>{n}</strong>
+                  <CopyableValue value={String(n)} />
                 </div>
               ))}
             </div>
@@ -474,9 +465,9 @@ export function DashboardView() {
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
           {stateEntries.map(([slug, n]) => (
             <div key={slug}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-                <span>{stateLabel(slug)}</span>
-                <strong>{n}</strong>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4, gap: 8 }}>
+                <CopyableValue value={stateLabel(slug)} strong={false} />
+                <CopyableValue value={String(n)} />
               </div>
               <div style={{ height: 8, borderRadius: 99, background: "rgba(18,48,71,0.08)", overflow: "hidden" }}>
                 <div
@@ -497,7 +488,6 @@ export function DashboardView() {
 }
 
 export function ApplicationsView() {
-  const router = useRouter();
   const [items, setItems] = useState<ApplicationRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -557,7 +547,7 @@ export function ApplicationsView() {
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || !data.ok) {
-        setDeleteError(data.error || `Delete failed (${res.status})`);
+        setDeleteError(data.error || `Archive failed (${res.status})`);
         return;
       }
       setPendingDelete(null);
@@ -727,23 +717,24 @@ export function ApplicationsView() {
                 <th style={{ width: 48 }}>#</th>
                 <th>Reference</th>
                 <th>Customer</th>
+                <th>Email</th>
                 <th>State</th>
                 <th>Status</th>
                 <th>Amount</th>
                 <th>Submitted</th>
-                <th></th>
+                {isAdmin ? <th style={{ width: 52 }} /> : null}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: 24, color: "var(--ap-muted)" }}>
-                    LoadingΓÇª
+                  <td colSpan={isAdmin ? 9 : 8} style={{ padding: 24, color: "var(--ap-muted)" }}>
+                    Loading…
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: 24, color: "var(--ap-muted)" }}>
+                  <td colSpan={isAdmin ? 9 : 8} style={{ padding: 24, color: "var(--ap-muted)" }}>
                     No applications match these filters.
                   </td>
                 </tr>
@@ -751,76 +742,66 @@ export function ApplicationsView() {
                 items.map((app, idx) => (
                   <tr key={app.id}>
                     <td style={{ color: "var(--ap-muted)", fontVariantNumeric: "tabular-nums" }}>
-                      {(page - 1) * 25 + idx + 1}
+                      <CopyableValue
+                        value={String((page - 1) * 25 + idx + 1)}
+                        strong={false}
+                      />
                     </td>
                     <td>
                       <CopyableValue
                         value={app.reference}
+                        href={`/admin/applications/${app.id}`}
                         style={{ letterSpacing: "-0.02em" }}
                       />
                     </td>
                     <td>
-                      <div>
-                        <CopyableValue
-                          value={[app.firstName, app.lastName].filter(Boolean).join(" ")}
-                        />
-                      </div>
-                      <div style={{ fontSize: 12, color: "var(--ap-muted)" }}>
-                        <CopyableValue value={app.email} strong={false} />
-                      </div>
+                      <CopyableValue
+                        value={[app.firstName, app.lastName].filter(Boolean).join(" ")}
+                      />
                     </td>
-                    <td>{stateLabel(app.stateSlug)}</td>
                     <td>
-                      <span
+                      <CopyableValue value={app.email} strong={false} />
+                    </td>
+                    <td>
+                      <CopyableValue value={stateLabel(app.stateSlug)} strong={false} />
+                    </td>
+                    <td>
+                      <CopyableValue
+                        value={labelStatus(app.status)}
+                        strong={false}
                         className="admin-pill"
                         style={{
                           background: `${STATUS_COLOR[app.status] || "#64748b"}22`,
                           color: STATUS_COLOR[app.status] || "#64748b",
                         }}
-                      >
-                        {labelStatus(app.status)}
-                      </span>
+                      />
                     </td>
-                    <td>{money(app.amountCents)}</td>
+                    <td>
+                      <CopyableValue value={money(app.amountCents)} />
+                    </td>
                     <td style={{ whiteSpace: "nowrap" }}>
-                      {new Date(app.submittedAt).toLocaleString()}
+                      <CopyableValue
+                        value={new Date(app.submittedAt).toLocaleString()}
+                        strong={false}
+                      />
                     </td>
-                    <td style={{ position: "sticky", right: 0, background: "var(--ap-card, #fff)" }}>
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+                    {isAdmin ? (
+                      <td style={{ position: "sticky", right: 0, background: "var(--ap-card, #fff)" }}>
                         <button
                           type="button"
-                          className="admin-btn admin-btn-primary"
-                          style={{ padding: "0.45rem 0.7rem", display: "inline-flex", gap: 4, alignItems: "center" }}
-                          onClick={() => router.push(`/admin/applications/${app.id}`)}
+                          className="admin-btn-icon"
+                          aria-label={`Archive ${app.reference}`}
+                          title="Archive application"
+                          onClick={() => {
+                            setDeleteError("");
+                            setPendingDelete(app);
+                          }}
+                          style={{ color: "#b45309" }}
                         >
-                          Open <ArrowUpRight size={14} />
+                          <Archive size={16} />
                         </button>
-                        {isAdmin ? (
-                          <button
-                            type="button"
-                            className="admin-btn"
-                            aria-label={`Delete ${app.reference}`}
-                            title="Delete application"
-                            onClick={() => {
-                              setDeleteError("");
-                              setPendingDelete(app);
-                            }}
-                            style={{
-                              padding: "0.45rem 0.65rem",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 4,
-                              background: "#fef2f2",
-                              color: "#b91c1c",
-                              border: "1px solid #fecaca",
-                            }}
-                          >
-                            <Trash2 size={14} />
-                            Delete
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
+                      </td>
+                    ) : null}
                   </tr>
                 ))
               )}
@@ -856,14 +837,14 @@ export function ApplicationsView() {
 
       <ConfirmDialog
         open={!!pendingDelete}
-        title="Delete this application?"
+        title="Archive this application?"
         body={
           pendingDelete
-            ? `${pendingDelete.reference} (${pendingDelete.email || "no email"}) will be permanently removed from the ops list.`
+            ? `${pendingDelete.reference} (${pendingDelete.email || "no email"}) will be hidden from the ops list. This is a soft delete — the record is kept.`
             : ""
         }
         error={deleteError}
-        confirmLabel="Delete application"
+        confirmLabel="Archive"
         busy={deleting}
         onCancel={() => {
           if (!deleting) {
@@ -933,7 +914,7 @@ export function ApplicationDetailView({ id }: { id: string }) {
           <CopyableValue value={app.reference} />
         </h1>
         <p className="admin-sub" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
-          <span>{stateLabel(app.stateSlug)}</span>
+          <CopyableValue value={stateLabel(app.stateSlug)} strong={false} />
           <span aria-hidden>·</span>
           <CopyableValue
             value={[app.firstName, app.lastName].filter(Boolean).join(" ")}
@@ -941,6 +922,8 @@ export function ApplicationDetailView({ id }: { id: string }) {
           />
           <span aria-hidden>·</span>
           <CopyableValue value={app.email} strong={false} />
+          <span aria-hidden>·</span>
+          <CopyableValue value={labelStatus(app.status)} strong={false} />
         </p>
       </div>
 
@@ -974,7 +957,11 @@ export function ApplicationDetailView({ id }: { id: string }) {
                     alignItems: "start",
                   }}
                 >
-                  <span style={{ color: "var(--ap-muted)", paddingTop: 4 }}>{k}</span>
+                  <CopyableValue
+                    value={k}
+                    strong={false}
+                    style={{ color: "var(--ap-muted)", paddingTop: 4 }}
+                  />
                   <CopyableValue value={typeof v === "object" ? JSON.stringify(v) : v} />
                 </div>
               ))
@@ -989,6 +976,14 @@ export function ApplicationDetailView({ id }: { id: string }) {
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <span style={{ color: "var(--ap-muted)" }}>Amount</span>
                 <CopyableValue value={money(app.amountCents)} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <span style={{ color: "var(--ap-muted)" }}>State</span>
+                <CopyableValue value={stateLabel(app.stateSlug)} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                <span style={{ color: "var(--ap-muted)" }}>Status</span>
+                <CopyableValue value={labelStatus(app.status)} />
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <span style={{ color: "var(--ap-muted)" }}>License</span>
@@ -1169,7 +1164,7 @@ function ConfirmDialog(props: {
             onClick={props.onConfirm}
             disabled={props.busy}
           >
-            {props.busy ? "DeletingΓÇª" : props.confirmLabel || "Delete"}
+            {props.busy ? "Working…" : props.confirmLabel || "Confirm"}
           </button>
         </div>
       </div>
@@ -1328,7 +1323,8 @@ export function UsersView() {
           {msg ? <p style={{ margin: 0, fontSize: 13, color: "var(--ap-sea)" }}>{msg}</p> : null}
           {tempPassword ? (
             <p style={{ margin: 0, fontSize: 13 }}>
-              Temporary password: <code style={{ fontWeight: 700 }}>{tempPassword}</code>
+              Temporary password:{" "}
+              <CopyableValue value={tempPassword} style={{ fontFamily: "ui-monospace, monospace" }} />
             </p>
           ) : null}
         </form>
@@ -1359,15 +1355,21 @@ export function UsersView() {
                 return (
                   <tr key={u._id}>
                     <td style={{ color: "var(--ap-muted)", fontVariantNumeric: "tabular-nums" }}>
-                      {idx + 1}
+                      <CopyableValue value={String(idx + 1)} strong={false} />
                     </td>
                     <td>
-                      <strong>{u.name}</strong>
+                      <CopyableValue value={u.name} />
                     </td>
-                    <td>{u.email}</td>
-                    <td>{u.role}</td>
                     <td>
-                      <span
+                      <CopyableValue value={u.email} strong={false} />
+                    </td>
+                    <td>
+                      <CopyableValue value={u.role} strong={false} />
+                    </td>
+                    <td>
+                      <CopyableValue
+                        value={u.status}
+                        strong={false}
                         className="admin-pill"
                         style={{
                           background:
@@ -1383,11 +1385,14 @@ export function UsersView() {
                                 ? "#b45309"
                                 : "#64748b",
                         }}
-                      >
-                        {u.status}
-                      </span>
+                      />
                     </td>
-                    <td>{new Date(u.createdAt).toLocaleString()}</td>
+                    <td>
+                      <CopyableValue
+                        value={new Date(u.createdAt).toLocaleString()}
+                        strong={false}
+                      />
+                    </td>
                     {me?.role === "admin" ? (
                       <td>
                         {canDelete ? (

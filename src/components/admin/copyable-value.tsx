@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 async function writeClipboard(text: string): Promise<boolean> {
@@ -47,10 +47,15 @@ type Props = {
   style?: React.CSSProperties;
   /** Stronger weight for primary values */
   strong?: boolean;
+  /**
+   * When set, click navigates instead of copying (used for application reference → detail).
+   */
+  href?: string;
 };
 
 /**
- * Click any admin text value to copy it. Shows a brief "Copied" cue.
+ * Click any admin text value to copy it — no icon, click the text itself.
+ * Pass `href` to open a page instead (reference → application detail).
  */
 export function CopyableValue({
   value,
@@ -58,6 +63,7 @@ export function CopyableValue({
   className,
   style,
   strong = true,
+  href,
 }: Props) {
   const text = toCopyText(value);
   const emptyValue = !text.trim();
@@ -76,7 +82,7 @@ export function CopyableValue({
     if (!ok) return;
     setCopied(true);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setCopied(false), 1400);
+    timer.current = setTimeout(() => setCopied(false), 1200);
   }, [emptyValue, text]);
 
   if (emptyValue) {
@@ -87,24 +93,33 @@ export function CopyableValue({
     );
   }
 
+  const sharedClass = `admin-copyable${copied ? " is-copied" : ""}${className ? ` ${className}` : ""}`;
+  const sharedStyle: React.CSSProperties = { fontWeight: strong ? 650 : 500, ...style };
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={`${sharedClass} admin-copyable-link`}
+        title="Open application"
+        aria-label={`Open ${text}`}
+        style={sharedStyle}
+      >
+        <span className="admin-copyable-text">{text}</span>
+      </Link>
+    );
+  }
+
   return (
     <button
       type="button"
-      className={`admin-copyable${copied ? " is-copied" : ""}${className ? ` ${className}` : ""}`}
+      className={sharedClass}
       onClick={() => void onCopy()}
       title={copied ? "Copied" : "Click to copy"}
       aria-label={copied ? "Copied" : `Copy ${text}`}
-      style={style}
+      style={sharedStyle}
     >
-      <span
-        className="admin-copyable-text"
-        style={{ fontWeight: strong ? 650 : 500, wordBreak: "break-word", textAlign: "left" }}
-      >
-        {text}
-      </span>
-      <span className="admin-copyable-icon" aria-hidden>
-        {copied ? <Check size={13} strokeWidth={2.5} /> : <Copy size={13} strokeWidth={2.25} />}
-      </span>
+      <span className="admin-copyable-text">{text}</span>
       {copied ? <span className="admin-copyable-toast">Copied</span> : null}
     </button>
   );
