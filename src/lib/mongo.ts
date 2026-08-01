@@ -35,6 +35,8 @@ declare global {
   var __anglerMongoConnect: Promise<MongoClient | null> | undefined;
   // eslint-disable-next-line no-var
   var __anglerMongoError: string | undefined;
+  // eslint-disable-next-line no-var
+  var __anglerMongoSeedChecked: boolean | undefined;
 }
 
 const STATUSES: ApplicationStatus[] = [
@@ -446,13 +448,16 @@ export async function mongoListApps(query: AppListQuery): Promise<{
           : query.sort === "amount_asc"
             ? { amountCents: 1 }
             : { submittedAt: -1 };
-    const total = await c.countDocuments(filter);
-    const docs = await c
-      .find(filter)
-      .sort(sortSpec)
-      .skip((page - 1) * pageSize)
-      .limit(pageSize)
-      .toArray();
+    // Count + page fetch in parallel (was sequential — felt slow on Atlas).
+    const [total, docs] = await Promise.all([
+      c.countDocuments(filter),
+      c
+        .find(filter)
+        .sort(sortSpec)
+        .skip((page - 1) * pageSize)
+        .limit(pageSize)
+        .toArray(),
+    ]);
     return { items: docs.map(docToRecord), total, page, pageSize };
   }
 
@@ -515,7 +520,8 @@ function escapeRegex(s: string) {
 function buildFilter(query: AppListQuery): Filter<MongoAppDoc> {
   const and: Filter<MongoAppDoc>[] = [
     // Soft-deleted rows stay in Mongo but never appear in the ops console.
-    { $or: [{ archivedAt: null }, { archivedAt: { $exists: false } }] },
+    // `{ archivedAt: null }` matches both null and missing fields in MongoDB.
+    { archivedAt: null },
   ];
   if (query.status && STATUSES.includes(query.status as ApplicationStatus)) {
     and.push({ status: query.status as ApplicationStatus });
@@ -523,8 +529,12 @@ function buildFilter(query: AppListQuery): Filter<MongoAppDoc> {
   if (query.state) and.push({ stateSlug: query.state });
   if (query.from) and.push({ submittedAt: { $gte: query.from } });
   if (query.to) and.push({ submittedAt: { $lte: `${query.to}T23:59:59.999Z` } });
-  if (query.minAmount != null) and.push({ amountCents: { $gte: query.minAmount } });
-  if (query.maxAmount != null) and.push({ amountCents: { $lte: query.maxAmount } });
+  if (query.minAmount != null && Number.isFinite(query.minAmount)) {
+    and.push({ amountCents: { $gte: query.minAmount } });
+  }
+  if (query.maxAmount != null && Number.isFinite(query.maxAmount)) {
+    and.push({ amountCents: { $lte: query.maxAmount } });
+  }
   if (query.q?.trim()) {
     const q = query.q.trim();
     and.push({
@@ -537,7 +547,7 @@ function buildFilter(query: AppListQuery): Filter<MongoAppDoc> {
       ],
     });
   }
-  return and.length ? { $and: and } : {};
+  return { $and: and };
 }
 
 function matchMem(d: MongoAppDoc, query: AppListQuery): boolean {
@@ -573,9 +583,14 @@ function sortMem(rows: MongoAppDoc[], sort?: AppListQuery["sort"]) {
 /** Demo rows so the console looks alive before real checkouts land. */
 async function ensureDemoSeed() {
   if (process.env.ADMIN_SEED_DEMO === "false") return;
+  // Skip the count round-trip after the first check in this process.
+  if (globalThis.__anglerMongoSeedChecked) return;
   const c = await col();
   const count = c ? await c.countDocuments() : mem().apps.size;
-  if (count > 0) return;
+  if (count > 0) {
+    globalThis.__anglerMongoSeedChecked = true;
+    return;
+  }
 
   const states = [
     "florida",
@@ -655,4 +670,5 @@ async function ensureDemoSeed() {
     if (c) await c.insertOne(doc);
     else mem().apps.set(id, doc);
   }
+  globalThis.__anglerMongoSeedChecked = true;
 }

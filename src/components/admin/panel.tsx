@@ -492,6 +492,7 @@ export function ApplicationsView() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [pendingDelete, setPendingDelete] = useState<ApplicationRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -505,28 +506,60 @@ export function ApplicationsView() {
     maxAmount: "",
     sort: "newest",
   });
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const sp = new URLSearchParams({ view: "list", page: String(page), pageSize: "25", sort: filters.sort });
-    Object.entries(filters).forEach(([k, v]) => {
-      if (k === "sort") return;
-      if (v) {
-        if (k === "minAmount" || k === "maxAmount") sp.set(k, String(Math.round(Number(v) * 100)));
-        else sp.set(k, v);
-      }
-    });
-    const listRes = await fetch(`/api/admin/data?${sp}`);
-    const data = await listRes.json();
-    if (data.ok) {
-      setItems(data.items);
-      setTotal(data.total);
-    }
-    setLoading(false);
-  }, [filters, page]);
+  // Debounce text/amount filters so each keystroke doesn't hit Mongo.
+  const [appliedFilters, setAppliedFilters] = useState(filters);
 
   useEffect(() => {
-    void load();
+    const t = window.setTimeout(() => setAppliedFilters(filters), 300);
+    return () => window.clearTimeout(t);
+  }, [filters]);
+
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setLoadError("");
+      const sp = new URLSearchParams({
+        view: "list",
+        page: String(page),
+        pageSize: "25",
+        sort: appliedFilters.sort,
+      });
+      Object.entries(appliedFilters).forEach(([k, v]) => {
+        if (k === "sort") return;
+        const trimmed = v.trim();
+        if (!trimmed) return;
+        if (k === "minAmount" || k === "maxAmount") {
+          const n = Number(trimmed);
+          if (!Number.isFinite(n)) return;
+          sp.set(k, String(Math.round(n * 100)));
+          return;
+        }
+        sp.set(k, trimmed);
+      });
+      try {
+        const listRes = await fetch(`/api/admin/data?${sp}`, { signal });
+        const data = await listRes.json();
+        if (signal?.aborted) return;
+        if (!data.ok) {
+          setLoadError(data.error || "Failed to load applications");
+          return;
+        }
+        setItems(Array.isArray(data.items) ? data.items : []);
+        setTotal(typeof data.total === "number" ? data.total : 0);
+      } catch (err) {
+        if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
+        setLoadError("Could not load applications. Try refresh.");
+      } finally {
+        if (!signal?.aborted) setLoading(false);
+      }
+    },
+    [appliedFilters, page],
+  );
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    void load(ctrl.signal);
+    return () => ctrl.abort();
   }, [load]);
 
   async function confirmDeleteApp() {
@@ -571,6 +604,11 @@ export function ApplicationsView() {
           <RefreshCw size={16} className={loading ? "admin-spin" : undefined} />
         </button>
       </div>
+      {loadError ? (
+        <p style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }} role="alert">
+          {loadError}
+        </p>
+      ) : null}
 
       <div className="admin-card admin-rise admin-rise-1" style={{ padding: "1rem", marginTop: "1.2rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, color: "var(--ap-muted)", fontSize: 13, fontWeight: 600 }}>
@@ -702,7 +740,10 @@ export function ApplicationsView() {
       </div>
 
       <div className="admin-card admin-rise admin-rise-2" style={{ marginTop: "1rem", padding: 0 }}>
-        <div className="admin-table-wrap">
+        <div
+          className="admin-table-wrap"
+          style={{ opacity: loading && items.length > 0 ? 0.65 : 1, transition: "opacity 0.15s" }}
+        >
           <table className="admin-table admin-table-apps">
             <thead>
               <tr>
@@ -718,13 +759,13 @@ export function ApplicationsView() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading && items.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ padding: 24, color: "var(--ap-muted)" }}>
                     Loading…
                   </td>
                 </tr>
-              ) : items.length === 0 ? (
+              ) : !loading && items.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ padding: 24, color: "var(--ap-muted)" }}>
                     No applications match these filters.

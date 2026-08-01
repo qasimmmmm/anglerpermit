@@ -11,6 +11,8 @@
   font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
   color: var(--ap-ink);
   min-height: 100vh;
+  max-width: 100vw;
+  overflow-x: hidden;
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(43, 181, 154, 0.22), transparent 55%),
     radial-gradient(900px 500px at 90% 0%, rgba(18, 48, 71, 0.18), transparent 50%),
@@ -74,20 +76,23 @@
   border-radius: 1.25rem;
   backdrop-filter: blur(12px);
   box-shadow: 0 10px 30px rgba(11, 31, 42, 0.06);
-  transition:
-    transform 0.25s ease,
-    box-shadow 0.25s ease;
+  max-width: 100%;
+  min-width: 0;
+  transition: box-shadow 0.25s ease;
 }
 
 .admin-card:hover {
-  transform: translateY(-2px);
   box-shadow: 0 16px 36px rgba(11, 31, 42, 0.1);
 }
 
 .admin-shell {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  /* minmax(0,1fr) lets the main pane shrink so wide tables don't expand the page */
+  grid-template-columns: 240px minmax(0, 1fr);
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 @media (max-width: 900px) {
@@ -146,7 +151,15 @@
 }
 
 .admin-main {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   padding: 1.5rem clamp(1rem, 2vw, 2rem) 2.5rem;
+}
+
+.admin-main > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .admin-title {
@@ -263,13 +276,20 @@
   animation: admin-spin-kf 0.8s linear infinite;
 }
 
+/* Horizontal scroll stays on the table scroller — never the page/card. */
 .admin-table-wrap {
-  overflow: auto;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
   border-radius: 1.1rem;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .admin-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: 0.82rem;
 }
@@ -303,6 +323,11 @@
 .admin-table-apps {
   min-width: 980px;
   table-layout: auto;
+}
+
+/* Card that hosts a scrollable table: keep page width; table scrolls inside */
+.admin-card:has(> .admin-table-wrap) {
+  overflow: hidden;
 }
 
 .admin-table-apps th,
