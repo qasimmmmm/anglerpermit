@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CreditCard, HelpCircle, Loader2, Lock, ShieldCheck } from "lucide-react";
+import { CheckCircle2, CreditCard, HelpCircle, Loader2, Lock, ShieldCheck } from "lucide-react";
 import type { TokenizedPayment } from "@/lib/state-config";
 import { nmiBrowserConfigured, tokenizeCard } from "@/lib/payment-client";
 import {
@@ -174,32 +174,50 @@ export function PaymentStep({
   }
 
   return (
-    <Card>
-      <div className="px-6 py-6 sm:px-8">
-        <div className="flex items-center justify-between gap-4">
-          <h3 className="text-base font-semibold text-navy">Payment details</h3>
-          <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-            <Lock className="h-3.5 w-3.5 text-forest-600" aria-hidden="true" />
-            256-bit SSL &middot; card details never touch our servers
-          </span>
+    <Card className="overflow-hidden rounded-[22px] border-slate-200 bg-white shadow-[0_18px_60px_-24px_rgba(15,23,42,0.45)]">
+      <div className="bg-gradient-to-r from-navy to-[#17305f] px-6 py-4 text-white sm:px-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/70">
+              Secure checkout
+            </p>
+            <h3 className="mt-1 text-lg font-semibold text-white">Payment details</h3>
+          </div>
+          <div className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/90 backdrop-blur">
+            <Lock className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
+            256-bit SSL protected
+          </div>
         </div>
+      </div>
 
-        <div data-payment-fields className="mt-5 grid gap-5 sm:grid-cols-2">
-          {liveNmi ? (
-            <div className="sm:col-span-2 rounded-xl border border-forest-200 bg-forest-50/60 px-4 py-4">
-              <div className="flex gap-3">
-                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-forest-700" aria-hidden="true" />
-                <div>
-                  <p className="text-sm font-semibold text-navy">Secure card entry</p>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                    After you click Pay, a secure payment window opens to enter your card number,
-                    expiry, and CVV. Those details go straight to our payment processor — never to
-                    AnglerPermit.
-                  </p>
+      <div className="px-6 py-6 sm:px-8">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="sm:col-span-2 rounded-2xl border border-forest-200 bg-gradient-to-br from-forest-50 via-white to-sky-50 px-4 py-4">
+            <div className="flex gap-3">
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-forest-100">
+                <ShieldCheck className="h-5 w-5 text-forest-700" aria-hidden="true" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-navy">Secure card entry</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  After you click Pay, a secure payment window opens to collect your card details.
+                  Those details go straight to our payment processor and never touch AnglerPermit.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-forest-600" aria-hidden="true" />
+                    Hosted by our processor
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-forest-600" aria-hidden="true" />
+                    One-time tokenized payment
+                  </span>
                 </div>
               </div>
             </div>
-          ) : (
+          </div>
+
+          {liveNmi ? null : (
             <>
               <div className="sm:col-span-2">
                 <Input
@@ -290,7 +308,7 @@ export function PaymentStep({
         {(tokenizeError || error) && (
           <div
             role="alert"
-            className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+            className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
           >
             {tokenizeError ?? error}
           </div>
@@ -311,7 +329,7 @@ export function PaymentStep({
         <Button
           variant="accent"
           size="lg"
-          className="mt-4 w-full min-h-[44px]"
+          className="mt-5 w-full min-h-[48px] rounded-xl bg-gradient-to-r from-forest-600 to-forest-500 text-base shadow-[0_12px_30px_-12px_rgba(22,163,74,0.7)] hover:from-forest-500 hover:to-forest-400"
           onClick={handlePay}
           disabled={busy}
           aria-live="polite"

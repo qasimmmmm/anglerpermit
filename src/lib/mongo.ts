@@ -36,8 +36,20 @@ declare global {
   // eslint-disable-next-line no-var
   var __anglerMongoError: string | undefined;
   // eslint-disable-next-line no-var
+  var __anglerMongoErrorAt: number | undefined;
+  // eslint-disable-next-line no-var
   var __anglerMongoSeedChecked: boolean | undefined;
 }
+
+/** How many connect attempts per request (transient Atlas blips). */
+const CONNECT_ATTEMPTS = 3;
+/** Delay between connect attempts (ms): 400, 800, … */
+const CONNECT_RETRY_BASE_MS = 400;
+/**
+ * After a hard failure, skip reconnect for this long so admin/list don't hang
+ * every request — then allow a fresh retry automatically.
+ */
+const CONNECT_ERROR_COOLDOWN_MS = 15_000;
 
 const STATUSES: ApplicationStatus[] = [
   "pending_payment",
@@ -81,42 +93,66 @@ function mem(): MemStore {
   return globalThis.__anglerMongoMem;
 }
 
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 async function getClient(): Promise<MongoClient | null> {
   if (uriMode() !== "mongo") return null;
   if (globalThis.__anglerMongoClient) return globalThis.__anglerMongoClient;
-  // Don't keep retrying a dead Atlas link on every request (causes white-screen hangs).
-  if (globalThis.__anglerMongoError) return null;
+
+  // Brief cooldown after a hard fail — then auto-retry (don't lock out forever).
+  if (globalThis.__anglerMongoError && globalThis.__anglerMongoErrorAt) {
+    const age = Date.now() - globalThis.__anglerMongoErrorAt;
+    if (age < CONNECT_ERROR_COOLDOWN_MS) return null;
+    globalThis.__anglerMongoError = undefined;
+    globalThis.__anglerMongoErrorAt = undefined;
+  }
 
   if (!globalThis.__anglerMongoConnect) {
     const uri = process.env.MONGODB_URI!.trim();
     globalThis.__anglerMongoConnect = (async () => {
-      try {
-        const client = new MongoClient(uri, {
-          maxPoolSize: 5,
-          // Fail fast — Atlas IP blocks otherwise hang for minutes.
-          serverSelectionTimeoutMS: 4_000,
-          connectTimeoutMS: 4_000,
-          socketTimeoutMS: 8_000,
-        });
-        await client.connect();
-        await client.db("admin").command({ ping: 1 });
-        globalThis.__anglerMongoClient = client;
-        globalThis.__anglerMongoError = undefined;
-        // eslint-disable-next-line no-console
-        console.log("[mongo] connected to Atlas");
-        return client;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "unknown";
-        globalThis.__anglerMongoError = msg;
-        // eslint-disable-next-line no-console
-        console.error(
-          `[mongo] connect failed within 4s — falling back to memory. Fix Atlas Network Access (allow your IP or 0.0.0.0/0). ${msg}`,
-        );
-        return null;
-      } finally {
-        globalThis.__anglerMongoConnect = undefined;
+      let lastMsg = "unknown";
+      for (let attempt = 1; attempt <= CONNECT_ATTEMPTS; attempt++) {
+        try {
+          const client = new MongoClient(uri, {
+            maxPoolSize: 5,
+            // Fail fast per attempt — Atlas IP blocks otherwise hang for minutes.
+            serverSelectionTimeoutMS: 4_000,
+            connectTimeoutMS: 4_000,
+            socketTimeoutMS: 8_000,
+          });
+          await client.connect();
+          await client.db("admin").command({ ping: 1 });
+          globalThis.__anglerMongoClient = client;
+          globalThis.__anglerMongoError = undefined;
+          globalThis.__anglerMongoErrorAt = undefined;
+          // eslint-disable-next-line no-console
+          console.log(
+            `[mongo] connected to Atlas${attempt > 1 ? ` (attempt ${attempt}/${CONNECT_ATTEMPTS})` : ""}`,
+          );
+          return client;
+        } catch (err) {
+          lastMsg = err instanceof Error ? err.message : "unknown";
+          // eslint-disable-next-line no-console
+          console.error(
+            `[mongo] connect attempt ${attempt}/${CONNECT_ATTEMPTS} failed: ${lastMsg}`,
+          );
+          if (attempt < CONNECT_ATTEMPTS) {
+            await sleep(CONNECT_RETRY_BASE_MS * attempt);
+          }
+        }
       }
-    })();
+      globalThis.__anglerMongoError = lastMsg;
+      globalThis.__anglerMongoErrorAt = Date.now();
+      // eslint-disable-next-line no-console
+      console.error(
+        `[mongo] connect failed after ${CONNECT_ATTEMPTS} attempts — will retry after ${CONNECT_ERROR_COOLDOWN_MS / 1000}s. Fix Atlas Network Access if this persists. ${lastMsg}`,
+      );
+      return null;
+    })().finally(() => {
+      globalThis.__anglerMongoConnect = undefined;
+    });
   }
 
   return globalThis.__anglerMongoConnect;
@@ -131,6 +167,7 @@ export async function getMongoDb(): Promise<Db | null> {
 /** Clear a cached Atlas failure so the next call retries (e.g. after IP allowlist). */
 export function resetMongoConnectionCache() {
   globalThis.__anglerMongoError = undefined;
+  globalThis.__anglerMongoErrorAt = undefined;
   globalThis.__anglerMongoConnect = undefined;
 }
 
@@ -141,6 +178,23 @@ async function getDb(): Promise<Db | null> {
 async function col(): Promise<Collection<MongoAppDoc> | null> {
   const db = await getDb();
   return db ? db.collection<MongoAppDoc>("applications") : null;
+}
+
+/**
+ * Collection for durable writes when MONGODB_URI points at Atlas.
+ * Throws instead of silently writing to in-process memory — that fallback
+ * caused NMI-approved charges to vanish after the serverless instance exited.
+ */
+async function durableCol(): Promise<Collection<MongoAppDoc> | null> {
+  const c = await col();
+  if (c) return c;
+  if (uriMode() === "mongo") {
+    throw new Error(
+      globalThis.__anglerMongoError ||
+        "MongoDB Atlas unavailable — refusing memory fallback for durable writes",
+    );
+  }
+  return null;
 }
 
 function nowIso() {
@@ -236,7 +290,7 @@ export async function mongoUpsertApp(
     ...(paymentMeta ? { paymentMeta } : {}),
   };
 
-  const c = await col();
+  const c = await durableCol();
   if (c) {
     const { _id, ...rest } = doc;
     await c.updateOne({ _id }, { $set: rest, $setOnInsert: { _id } }, { upsert: true });
@@ -250,7 +304,7 @@ export async function mongoCreateOrReuse(
   input: NewApplicationInput,
 ): Promise<{ app: ApplicationRecord; reused: boolean }> {
   const since = Date.now() - 24 * 3600 * 1000;
-  const c = await col();
+  const c = await durableCol();
 
   if (input.email) {
     const reuseFilter = {
@@ -404,7 +458,7 @@ export async function mongoSyncStatus(
   extra: Partial<MongoAppDoc> = {},
 ): Promise<void> {
   if (!mongoConfigured()) return;
-  const c = await col();
+  const c = await durableCol();
   const $set = { status, updatedAt: nowIso(), ...extra };
   if (c) {
     await c.updateOne({ _id: id }, { $set });
@@ -469,11 +523,17 @@ export async function mongoListApps(query: AppListQuery): Promise<{
 }
 
 export async function mongoStats() {
-  await ensureDemoSeed();
+  // Demo seed only for intentional memory/dev — never delay Atlas admin loads.
+  if (uriMode() !== "mongo") await ensureDemoSeed();
   const c = await col();
   const docs = (
-    c ? await c.find({}).toArray() : Array.from(mem().apps.values())
-  ).filter((d) => !d.archivedAt);
+    c ? await c.find({ archivedAt: null }, { projection: {
+      status: 1,
+      stateSlug: 1,
+      amountCents: 1,
+      submittedAt: 1,
+    }}).toArray() : Array.from(mem().apps.values()).filter((d) => !d.archivedAt)
+  );
 
   const byStatus: Record<string, number> = {};
   const byState: Record<string, number> = {};
@@ -484,11 +544,11 @@ export async function mongoStats() {
   for (const d of docs) {
     byStatus[d.status] = (byStatus[d.status] ?? 0) + 1;
     byState[d.stateSlug] = (byState[d.stateSlug] ?? 0) + 1;
-    const day = d.submittedAt.slice(0, 10);
+    const day = (d.submittedAt ?? "").slice(0, 10);
     if (["received", "processing", "missing_info", "delivered"].includes(d.status)) {
       revenueCents += d.amountCents;
       paidCount += 1;
-      revenueByDay[day] = (revenueByDay[day] ?? 0) + d.amountCents;
+      if (day) revenueByDay[day] = (revenueByDay[day] ?? 0) + d.amountCents;
     }
   }
 

@@ -68,7 +68,9 @@ function loadCollectJs(tokenizationKey: string): Promise<void> {
   if (collectJsPromise) return collectJsPromise;
 
   collectJsPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>("script[data-nmi-collectjs]");
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[src="https://secure.networkmerchants.com/token/Collect.js"]',
+    );
     if (existing && window.CollectJS) {
       resolve();
       return;
@@ -77,9 +79,9 @@ function loadCollectJs(tokenizationKey: string): Promise<void> {
     const script = document.createElement("script");
     script.src = "https://secure.networkmerchants.com/token/Collect.js";
     script.async = true;
-    script.dataset.nmiCollectjs = "1";
-    // Public TOKENIZATION key only — safe for the browser by design.
-    script.dataset.tokenizationKey = tokenizationKey;
+    // Public tokenization key only — safe for the browser by design.
+    // Use the exact data attribute shape NMI expects for its loader.
+    script.setAttribute("data-tokenization-key", tokenizationKey);
     script.onload = () => {
       // Collect.js attaches CollectJS asynchronously after onload in some builds.
       const start = Date.now();
@@ -132,11 +134,10 @@ async function tokenizeViaLightbox(): Promise<TokenizedCard> {
 
     try {
       window.CollectJS!.configure!({
-        variant: "lightbox",
         callback: (response: CollectJsResponse) => {
           const token = response?.token?.trim();
           if (!token) {
-            finish(() => reject(new Error("tokenize-failed")));
+            finish(() => reject(new Error("collectjs-token-empty")));
             return;
           }
           finish(() =>
@@ -146,9 +147,6 @@ async function tokenizeViaLightbox(): Promise<TokenizedCard> {
               brand: response.card?.type ?? "",
             }),
           );
-        },
-        fieldsAvailableCallback: () => {
-          /* lightbox ready */
         },
       });
       window.CollectJS!.startPaymentRequest!();
@@ -179,10 +177,14 @@ export async function tokenizeCard(card?: CardDetails): Promise<TokenizedCard> {
   if (nmiBrowserConfigured()) {
     try {
       return await tokenizeViaLightbox();
-    } catch {
-      throw new Error(
-        "We couldn't securely process your card details. Please try again in a moment.",
-      );
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "unknown";
+      console.error(`[payment-client] Collect.js tokenization failed: ${detail}`);
+      const safeMessage =
+        process.env.NODE_ENV !== "production"
+          ? `We couldn't securely process your card details. Please try again in a moment. (${detail})`
+          : "We couldn't securely process your card details. Please try again in a moment.";
+      throw new Error(safeMessage);
     }
   }
 

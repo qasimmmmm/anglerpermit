@@ -119,7 +119,9 @@ type Stats = {
   mongoError?: string | null;
 };
 
-const PAID_ORDER_STATUSES = new Set([
+const DASHBOARD_ORDER_STATUSES = new Set([
+  "pending_payment",
+  "payment_failed",
   "received",
   "processing",
   "missing_info",
@@ -151,7 +153,7 @@ export function DashboardView() {
         setStats(d);
         setError("");
         const items = (list?.ok && Array.isArray(list.items) ? list.items : []) as ApplicationRecord[];
-        setOrders(items.filter((a) => PAID_ORDER_STATUSES.has(a.status)));
+        setOrders(items.filter((a) => DASHBOARD_ORDER_STATUSES.has(a.status)));
       }
     } catch (err) {
       // React Strict Mode / navigation aborts in-flight fetches ΓÇö ignore those.

@@ -22,6 +22,11 @@ import {
 } from "@/lib/storage";
 import { dbConfigured } from "@/lib/db";
 import {
+  mongoConfigured,
+  mongoUpsertApp,
+  resetMongoConnectionCache,
+} from "@/lib/mongo";
+import {
   opsAlert,
   sendApplicationReceivedEmail,
   sendEmail,
@@ -363,6 +368,34 @@ export async function POST(request: Request) {
 
   /* ------------------------- approved ------------------------- */
 
+  // If pre-charge persist failed (e.g. Atlas blip → old memory fallback), the
+  // card is already charged. Retry a durable write before we leave this request.
+  if (!appRecord && (dbConfigured() || mongoConfigured())) {
+    resetMongoConnectionCache();
+    try {
+      const created = await createOrReuseApplication({
+        reference,
+        stateSlug: submission.stateSlug,
+        residency: submission.residency,
+        licenseId: submission.licenseId,
+        addOnIds: submission.addOnIds,
+        email,
+        firstName,
+        lastName,
+        phone,
+        formData: maskedData,
+        consents: submission.consents,
+        amountCents,
+      });
+      appRecord = created?.app ?? null;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[api/applications] post-charge persist retry failed for ${reference}: ${err instanceof Error ? err.message : "unknown"}`,
+      );
+    }
+  }
+
   if (appRecord) {
     const paymentId = await recordPayment({
       applicationId: appRecord.id,
@@ -387,6 +420,30 @@ export async function POST(request: Request) {
         `[api/applications] markApplicationPaid failed for ${reference}: ${err instanceof Error ? err.message : "unknown"}`,
       );
     });
+    // Force a full Mongo upsert with payment meta so admin always shows the
+    // paid order even when Postgres is absent / payment rows aren't mirrored.
+    const paidAt = new Date().toISOString();
+    await mongoUpsertApp(
+      {
+        ...appRecord,
+        status: "received",
+        paidAt,
+        statusReason: null,
+        nmiCustomerVaultId: charge.customerVaultId ?? appRecord.nmiCustomerVaultId,
+      },
+      {
+        transactionId: charge.transactionId,
+        last4: submission.payment.last4,
+        brand: submission.payment.brand,
+        descriptor: NMI_DESCRIPTOR,
+        devMode: charge.devMode,
+      },
+    ).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[api/applications] mongoUpsertApp after pay failed for ${reference}: ${err instanceof Error ? err.message : "unknown"}`,
+      );
+    });
     await logPaymentEvent({
       applicationId: appRecord.id,
       paymentId,
@@ -394,11 +451,20 @@ export async function POST(request: Request) {
       eventType: "approved",
       detail: { transactionId: charge.transactionId, devMode: charge.devMode },
     });
-  } else if (dbConfigured()) {
+  } else {
     // eslint-disable-next-line no-console
     console.error(
       `[api/applications] ${reference}: charge approved but no DB record exists — follow up manually (txn ${charge.transactionId})`,
     );
+    await opsAlert(
+      `CHARGE WITHOUT DB RECORD — ${reference}`,
+      [
+        `NMI approved txn ${charge.transactionId} for ${formatPrice(amount)} but no application row was saved.`,
+        `Customer: ${email ?? "(no email)"}`,
+        `State/license: ${submission.stateSlug} / ${submission.licenseId}`,
+        `Create the order manually in admin from this merchant transaction.`,
+      ].join("\n"),
+    ).catch(() => undefined);
   }
 
   /* ------------------------- notify (emails #1 + #2 + ops) ------------------------- */

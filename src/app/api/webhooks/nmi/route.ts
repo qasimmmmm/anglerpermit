@@ -3,6 +3,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { getStateConfig } from "@/lib/states";
 import { dbConfigured, q } from "@/lib/db";
 import {
+  mongoConfigured,
+  mongoGetByReference,
+  mongoUpsertApp,
+} from "@/lib/mongo";
+import {
   getApplicationById,
   logPaymentEvent,
   markApplicationPaid,
@@ -116,7 +121,11 @@ export async function POST(request: Request) {
     console.warn(`[webhooks/nmi] INVALID signature for event ${eventId ?? "?"} (${eventType})`);
     return NextResponse.json({ ok: false, error: "invalid signature" }, { status: 401 });
   }
-  if (!dbConfigured()) return NextResponse.json({ ok: true, processed: false });
+  // Postgres OR Mongo — previously Mongo-only stacks returned early and never
+  // reconciled missed sync approvals (exactly the $9-charged / no-admin-row bug).
+  if (!dbConfigured() && !mongoConfigured()) {
+    return NextResponse.json({ ok: true, processed: false });
+  }
 
   const transactionId = dig(payload, ["transaction_id", "transactionid"]);
   const orderId = dig(payload, ["order_id", "orderid"]);
@@ -127,40 +136,59 @@ export async function POST(request: Request) {
     if (/sale\.success|transaction\.sale\.success/i.test(eventType) && (transactionId || orderId)) {
       // Reconciliation: a charge our synchronous path missed (e.g. function
       // timeout after NMI approved). Find the application and mark it paid.
-      const row = transactionId
-        ? await q<{ application_id: string }>(
-            `select application_id from payments where transaction_id = $1 limit 1`,
-            [transactionId],
-          )
-        : { rows: [] as Array<{ application_id: string }> };
-      let appId = row.rows[0]?.application_id ?? null;
-      if (!appId && orderId) {
-        const byRef = await q<{ id: string; status: string }>(
-          `select id, status from applications where reference = $1 limit 1`,
-          [orderId],
-        );
-        const app = byRef.rows[0];
+      let appId: string | null = null;
+
+      if (dbConfigured()) {
+        const row = transactionId
+          ? await q<{ application_id: string }>(
+              `select application_id from payments where transaction_id = $1 limit 1`,
+              [transactionId],
+            )
+          : { rows: [] as Array<{ application_id: string }> };
+        appId = row.rows[0]?.application_id ?? null;
+        if (!appId && orderId) {
+          const byRef = await q<{ id: string; status: string }>(
+            `select id, status from applications where reference = $1 limit 1`,
+            [orderId],
+          );
+          const app = byRef.rows[0];
+          if (app && ["pending_payment", "payment_failed"].includes(app.status)) {
+            appId = app.id;
+            const amountStr = dig(payload, ["amount"]);
+            await recordPayment({
+              applicationId: app.id,
+              kind: "sale",
+              source: "webhook",
+              transactionId,
+              amountCents: amountStr ? Math.round(Number(amountStr) * 100) : 0,
+              status: "approved",
+              idempotencyKey: transactionId ? `webhook-sale/${transactionId}` : undefined,
+            });
+            await markApplicationPaid(app.id);
+            await opsAlert(
+              `Webhook reconciled a missed payment — ${orderId}`,
+              `NMI reported an approved sale (txn ${transactionId ?? "?"}) that the synchronous path hadn't recorded. Application marked paid — confirm emails went out.`,
+            );
+          }
+        }
+      } else if (mongoConfigured() && orderId) {
+        const app = await mongoGetByReference(orderId);
         if (app && ["pending_payment", "payment_failed"].includes(app.status)) {
-          // The sync path never recorded this approval — record + mark paid.
           appId = app.id;
-          const amountStr = dig(payload, ["amount"]);
-          await recordPayment({
-            applicationId: app.id,
-            kind: "sale",
-            source: "webhook",
-            transactionId,
-            amountCents: amountStr ? Math.round(Number(amountStr) * 100) : 0,
-            status: "approved",
-            idempotencyKey: transactionId ? `webhook-sale/${transactionId}` : undefined,
-          });
+          const paidAt = new Date().toISOString();
           await markApplicationPaid(app.id);
+          await mongoUpsertApp(
+            { ...app, status: "received", paidAt, statusReason: null },
+            { transactionId: transactionId },
+          );
           await opsAlert(
-            `Webhook reconciled a missed payment — ${orderId}`,
-            `NMI reported an approved sale (txn ${transactionId ?? "?"}) that the synchronous path hadn't recorded. Application marked paid — confirm emails went out.`,
+            `Webhook reconciled a missed payment (Mongo) — ${orderId}`,
+            `NMI reported an approved sale (txn ${transactionId ?? "?"}) that the synchronous path hadn't recorded. Application marked paid in Mongo.`,
           );
         }
       }
-      if (appId) {
+
+      if (appId && dbConfigured()) {
         await logPaymentEvent({
           applicationId: appId,
           source: "webhook",
@@ -169,7 +197,11 @@ export async function POST(request: Request) {
         });
       }
       processed = true;
-    } else if (/refund\.success|void\.success/i.test(eventType) && transactionId) {
+    } else if (
+      dbConfigured() &&
+      /refund\.success|void\.success/i.test(eventType) &&
+      transactionId
+    ) {
       // Refund issued (from the NMI portal or elsewhere) — reflect it and
       // send #10 (idempotent; a same-day admin-panel refund won't double-send).
       const orig = await q<{ application_id: string; amount_cents: number; card_brand: string | null; card_last4: string | null }>(
@@ -223,7 +255,7 @@ export async function POST(request: Request) {
         });
       }
       processed = true;
-    } else if (/sale\.failure/i.test(eventType)) {
+    } else if (dbConfigured() && /sale\.failure/i.test(eventType)) {
       // The synchronous decline path already handles customer comms; just audit.
       if (transactionId) {
         const row = await q<{ application_id: string }>(
