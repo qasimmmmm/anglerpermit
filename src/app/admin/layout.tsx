@@ -1,12 +1,23 @@
 import type { Metadata } from "next";
+import { Source_Sans_3 } from "next/font/google";
 import "./admin.css";
+
+const adminFont = Source_Sans_3({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-admin-face",
+});
 
 export const metadata: Metadata = {
   title: "Admin · AnglerPermit",
   robots: { index: false, follow: false },
 };
 
-/** System fonts only — avoids Google Fonts blocking first paint. */
 export default function AdminRootLayout({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontFamily: "ui-sans-serif, system-ui, Segoe UI, sans-serif" }}>{children}</div>;
+  return (
+    <div className={adminFont.variable} style={{ fontFamily: "var(--font-admin-face), ui-sans-serif, system-ui, sans-serif" }}>
+      {children}
+    </div>
+  );
 }

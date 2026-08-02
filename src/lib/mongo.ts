@@ -39,6 +39,8 @@ declare global {
   var __anglerMongoErrorAt: number | undefined;
   // eslint-disable-next-line no-var
   var __anglerMongoSeedChecked: boolean | undefined;
+  // eslint-disable-next-line no-var
+  var __anglerMongoIndexesReady: boolean | undefined;
 }
 
 /** How many connect attempts per request (transient Atlas blips). */
@@ -433,7 +435,7 @@ export async function mongoPatchStatus(
     updatedAt: nowIso(),
   };
   const t = nowIso();
-  if (status === "received" || status === "processing") patch.paidAt = t;
+  // Do not invent paidAt on manual flips — only stamp lifecycle timestamps.
   if (status === "payment_failed") patch.paymentFailedAt = t;
   if (status === "delivered") patch.deliveredAt = t;
   if (status === "cancelled") patch.cancelledAt = t;
@@ -522,19 +524,124 @@ export async function mongoListApps(query: AppListQuery): Promise<{
   return { items: slice.map(docToRecord), total, page, pageSize };
 }
 
+const PAID_STATUSES: ApplicationStatus[] = [
+  "received",
+  "processing",
+  "missing_info",
+  "delivered",
+];
+
+function emptyLast14() {
+  return Array.from({ length: 14 }, (_, i) => {
+    const dt = new Date();
+    dt.setHours(12, 0, 0, 0);
+    dt.setDate(dt.getDate() - (13 - i));
+    const key = dt.toISOString().slice(0, 10);
+    return { date: key, cents: 0, label: key.slice(5) };
+  });
+}
+
+/** Ensure list/stats queries stay indexed. Idempotent; runs once per process. */
+export async function ensureMongoIndexes(): Promise<void> {
+  if (globalThis.__anglerMongoIndexesReady) return;
+  const c = await col();
+  if (!c) return;
+  try {
+    await Promise.all([
+      c.createIndex({ archivedAt: 1, submittedAt: -1 }),
+      c.createIndex({ archivedAt: 1, status: 1, submittedAt: -1 }),
+      c.createIndex({ reference: 1 }, { unique: true, sparse: true }),
+      c.createIndex({ email: 1 }),
+    ]);
+    globalThis.__anglerMongoIndexesReady = true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[mongo] index ensure failed", err instanceof Error ? err.message : err);
+  }
+}
+
 export async function mongoStats() {
   // Demo seed only for intentional memory/dev — never delay Atlas admin loads.
   if (uriMode() !== "mongo") await ensureDemoSeed();
   const c = await col();
-  const docs = (
-    c ? await c.find({ archivedAt: null }, { projection: {
-      status: 1,
-      stateSlug: 1,
-      amountCents: 1,
-      submittedAt: 1,
-    }}).toArray() : Array.from(mem().apps.values()).filter((d) => !d.archivedAt)
-  );
+  await ensureMongoIndexes().catch(() => undefined);
 
+  if (c) {
+    const since = new Date();
+    since.setHours(12, 0, 0, 0);
+    since.setDate(since.getDate() - 13);
+    const sinceIso = since.toISOString().slice(0, 10);
+
+    const [total, byStatusRows, byStateRows, paidAgg, dayAgg] = await Promise.all([
+      c.countDocuments({ archivedAt: null }),
+      c
+        .aggregate<{ _id: string; n: number }>([
+          { $match: { archivedAt: null } },
+          { $group: { _id: "$status", n: { $sum: 1 } } },
+        ])
+        .toArray(),
+      c
+        .aggregate<{ _id: string; n: number }>([
+          { $match: { archivedAt: null } },
+          { $group: { _id: "$stateSlug", n: { $sum: 1 } } },
+        ])
+        .toArray(),
+      c
+        .aggregate<{ paidCount: number; revenueCents: number }>([
+          { $match: { archivedAt: null, status: { $in: PAID_STATUSES } } },
+          {
+            $group: {
+              _id: null,
+              paidCount: { $sum: 1 },
+              revenueCents: { $sum: "$amountCents" },
+            },
+          },
+        ])
+        .toArray(),
+      c
+        .aggregate<{ _id: string; cents: number }>([
+          {
+            $match: {
+              archivedAt: null,
+              status: { $in: PAID_STATUSES },
+              submittedAt: { $gte: sinceIso },
+            },
+          },
+          {
+            $group: {
+              _id: { $substrBytes: ["$submittedAt", 0, 10] },
+              cents: { $sum: "$amountCents" },
+            },
+          },
+        ])
+        .toArray(),
+    ]);
+
+    const byStatus: Record<string, number> = {};
+    for (const row of byStatusRows) if (row._id) byStatus[row._id] = row.n;
+    const byState: Record<string, number> = {};
+    for (const row of byStateRows) if (row._id) byState[row._id] = row.n;
+    const paid = paidAgg[0] ?? { paidCount: 0, revenueCents: 0 };
+    const revenueByDay = Object.fromEntries(dayAgg.map((d) => [d._id, d.cents]));
+    const last14 = emptyLast14().map((d) => ({
+      ...d,
+      cents: revenueByDay[d.date] ?? 0,
+    }));
+
+    return {
+      total,
+      paidCount: paid.paidCount,
+      revenueCents: paid.revenueCents,
+      byStatus,
+      byState,
+      last14,
+      statuses: STATUSES,
+      backend: mongoBackendLabel(),
+      mongoError: mongoLastError() ?? null,
+    };
+  }
+
+  const docs = Array.from(mem().apps.values()).filter((d) => !d.archivedAt);
   const byStatus: Record<string, number> = {};
   const byState: Record<string, number> = {};
   const revenueByDay: Record<string, number> = {};
@@ -545,20 +652,17 @@ export async function mongoStats() {
     byStatus[d.status] = (byStatus[d.status] ?? 0) + 1;
     byState[d.stateSlug] = (byState[d.stateSlug] ?? 0) + 1;
     const day = (d.submittedAt ?? "").slice(0, 10);
-    if (["received", "processing", "missing_info", "delivered"].includes(d.status)) {
+    if (PAID_STATUSES.includes(d.status)) {
       revenueCents += d.amountCents;
       paidCount += 1;
       if (day) revenueByDay[day] = (revenueByDay[day] ?? 0) + d.amountCents;
     }
   }
 
-  const last14 = Array.from({ length: 14 }, (_, i) => {
-    const dt = new Date();
-    dt.setHours(12, 0, 0, 0);
-    dt.setDate(dt.getDate() - (13 - i));
-    const key = dt.toISOString().slice(0, 10);
-    return { date: key, cents: revenueByDay[key] ?? 0, label: key.slice(5) };
-  });
+  const last14 = emptyLast14().map((d) => ({
+    ...d,
+    cents: revenueByDay[d.date] ?? 0,
+  }));
 
   return {
     total: docs.length,
@@ -571,6 +675,65 @@ export async function mongoStats() {
     backend: mongoBackendLabel(),
     mongoError: mongoLastError() ?? null,
   };
+}
+
+/** Recent paid/lifecycle orders for the dashboard table (not pending/failed). */
+export async function mongoRecentPaid(limit = 10): Promise<ApplicationRecord[]> {
+  if (uriMode() !== "mongo") await ensureDemoSeed();
+  const pageSize = Math.min(25, Math.max(1, limit));
+  const c = await col();
+  if (c) {
+    const docs = await c
+      .find({ archivedAt: null, status: { $in: PAID_STATUSES } })
+      .sort({ submittedAt: -1 })
+      .limit(pageSize)
+      .toArray();
+    return docs.map(docToRecord);
+  }
+  return Array.from(mem().apps.values())
+    .filter((d) => !d.archivedAt && PAID_STATUSES.includes(d.status))
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+    .slice(0, pageSize)
+    .map(docToRecord);
+}
+
+export type DashboardBundle = Awaited<ReturnType<typeof mongoStats>> & {
+  orders: ApplicationRecord[];
+};
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __anglerDashCache: { at: number; data: DashboardBundle } | undefined;
+}
+
+const DASH_CACHE_MS = 4_000;
+
+/** One round-trip bundle for the ops dashboard (stats + recent paid). */
+export async function mongoDashboardBundle(opts?: {
+  limit?: number;
+  bypassCache?: boolean;
+}): Promise<DashboardBundle> {
+  const limit = opts?.limit ?? 10;
+  if (!opts?.bypassCache && globalThis.__anglerDashCache) {
+    const age = Date.now() - globalThis.__anglerDashCache.at;
+    if (age < DASH_CACHE_MS) return globalThis.__anglerDashCache.data;
+  }
+
+  const [stats, orders] = await Promise.all([mongoStats(), mongoRecentPaid(limit)]);
+  const data: DashboardBundle = { ...stats, orders };
+  globalThis.__anglerDashCache = { at: Date.now(), data };
+  return data;
+}
+
+/** Warm Mongo so the next admin page does not pay cold-connect cost. */
+export async function warmMongo(): Promise<void> {
+  if (uriMode() !== "mongo") return;
+  await col();
+  await ensureMongoIndexes().catch(() => undefined);
+}
+
+export function invalidateDashCache() {
+  globalThis.__anglerDashCache = undefined;
 }
 
 function escapeRegex(s: string) {
@@ -642,6 +805,8 @@ function sortMem(rows: MongoAppDoc[], sort?: AppListQuery["sort"]) {
 
 /** Demo rows so the console looks alive before real checkouts land. */
 async function ensureDemoSeed() {
+  // Opt-in only in production; local/dev may seed empty stores unless explicitly disabled.
+  if (process.env.NODE_ENV === "production" && process.env.ADMIN_SEED_DEMO !== "true") return;
   if (process.env.ADMIN_SEED_DEMO === "false") return;
   // Skip the count round-trip after the first check in this process.
   if (globalThis.__anglerMongoSeedChecked) return;

@@ -2,13 +2,21 @@ import { NextResponse } from "next/server";
 import { getAdminSessionUser, isAdminAuthenticated } from "@/lib/admin-auth";
 import {
   mongoConfigured,
+  invalidateDashCache,
+  mongoDashboardBundle,
   mongoGetById,
   mongoGetByReference,
   mongoListApps,
   mongoPatchStatus,
+  mongoRecentPaid,
   mongoStats,
 } from "@/lib/mongo";
-import { deleteApplication, type ApplicationStatus } from "@/lib/storage";
+import {
+  deleteApplication,
+  updateApplicationStatus,
+  type ApplicationStatus,
+} from "@/lib/storage";
+import { dbConfigured } from "@/lib/db";
 
 async function guard() {
   if (!(await isAdminAuthenticated())) {
@@ -33,6 +41,22 @@ export async function GET(req: Request) {
   try {
     if (view === "stats") {
       return NextResponse.json({ ok: true, ...(await mongoStats()) });
+    }
+
+    if (view === "dashboard") {
+      const limit = Number(url.searchParams.get("limit") ?? 10);
+      const bypass = url.searchParams.get("fresh") === "1";
+      const bundle = await mongoDashboardBundle({
+        limit: Number.isFinite(limit) ? limit : 10,
+        bypassCache: bypass,
+      });
+      return NextResponse.json({ ok: true, ...bundle });
+    }
+
+    if (view === "recentPaid") {
+      const limit = Number(url.searchParams.get("limit") ?? 10);
+      const items = await mongoRecentPaid(Number.isFinite(limit) ? limit : 10);
+      return NextResponse.json({ ok: true, items });
     }
 
     if (view === "one") {
@@ -88,9 +112,23 @@ export async function PATCH(req: Request) {
   if (!body.id || !body.status) {
     return NextResponse.json({ ok: false, error: "id and status required" }, { status: 400 });
   }
-  const app = await mongoPatchStatus(body.id, body.status, body.reason);
-  if (!app) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
-  return NextResponse.json({ ok: true, app });
+
+  try {
+    // Prefer shared lifecycle writer so Postgres + Mongo stay aligned when DB is configured.
+    if (dbConfigured()) {
+      await updateApplicationStatus(body.id, body.status, body.reason);
+      invalidateDashCache();
+      const app = await mongoGetById(body.id);
+      if (app) return NextResponse.json({ ok: true, app });
+    }
+    const app = await mongoPatchStatus(body.id, body.status, body.reason);
+    if (!app) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+    invalidateDashCache();
+    return NextResponse.json({ ok: true, app });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Status update failed";
+    return NextResponse.json({ ok: false, error: message }, { status: 503 });
+  }
 }
 
 export async function DELETE(req: Request) {
@@ -98,7 +136,6 @@ export async function DELETE(req: Request) {
   if (denied) return denied;
 
   const me = await getAdminSessionUser();
-  // Any signed-in ops user can soft-archive applications from the console.
   if (!me) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -114,12 +151,13 @@ export async function DELETE(req: Request) {
     if (!archived) {
       return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
     }
+    invalidateDashCache();
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Archive failed";
     // eslint-disable-next-line no-console
-    console.error(`[api/admin/data] DELETE/archive ${id}: ${message}`);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    console.error(`[api/admin/data] archive ${message}`);
+    return NextResponse.json({ ok: false, error: message }, { status: 503 });
   }
 }
 

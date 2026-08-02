@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle2, FileUp, Loader2, Send, X } from "lucide-react";
 import type { ApplicationRecord } from "@/lib/storage";
 import { CopyableValue } from "@/components/admin/copyable-value";
@@ -36,6 +37,7 @@ function formatBytes(n: number) {
 }
 
 export function DeliverView() {
+  const searchParams = useSearchParams();
   const [to, setTo] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [reference, setReference] = useState("");
@@ -51,6 +53,7 @@ export function DeliverView() {
   const [dragOver, setDragOver] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [prefilled, setPrefilled] = useState(false);
 
   const totalBytes = useMemo(() => files.reduce((s, f) => s + f.size, 0), [files]);
 
@@ -72,8 +75,8 @@ export function DeliverView() {
     });
   }, []);
 
-  async function lookupReference() {
-    const ref = reference.trim();
+  const lookupReference = useCallback(async (refOverride?: string) => {
+    const ref = (refOverride ?? reference).trim();
     if (ref.length < 4) return;
     setLookingUp(true);
     setLookupMsg("");
@@ -87,6 +90,7 @@ export function DeliverView() {
         return;
       }
       const app = data.app as ApplicationRecord;
+      setReference(app.reference);
       setTo(app.email || "");
       setCustomerName([app.firstName, app.lastName].filter(Boolean).join(" ") || "");
       setStateName(STATE_LABEL[app.stateSlug] || app.stateSlug);
@@ -98,7 +102,15 @@ export function DeliverView() {
     } finally {
       setLookingUp(false);
     }
-  }
+  }, [reference]);
+
+  useEffect(() => {
+    const q = searchParams.get("reference")?.trim();
+    if (!q || prefilled) return;
+    setReference(q);
+    setPrefilled(true);
+    void lookupReference(q);
+  }, [searchParams, prefilled, lookupReference]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -157,8 +169,8 @@ export function DeliverView() {
         </div>
         <h2 style={{ margin: "1rem 0 0", fontSize: "1.35rem" }}>License delivered</h2>
         <p className="admin-sub" style={{ marginTop: 8 }}>
-          Sent to <CopyableValue value={to.trim()} />. Files were attached to the email only — not
-          saved in the database.
+          Sent to <CopyableValue value={to.trim()} />. License files were emailed as attachments
+          and are not retained in storage.
         </p>
         <button
           type="button"
@@ -183,12 +195,14 @@ export function DeliverView() {
 
   return (
     <div>
-      <div className="admin-rise">
-        <h1 className="admin-title">Deliver a license</h1>
-        <p className="admin-sub">
-          Upload the issued license, email it to the customer, and mark the application delivered.
-          PDFs/images are attached to the email only — they are not stored in Mongo or Postgres.
-        </p>
+      <div className="admin-page-head admin-rise">
+        <div>
+          <h1 className="admin-title">Deliver license</h1>
+          <p className="admin-sub">
+            Upload the issued license, email it to the customer, and mark the order delivered.
+            Files are emailed as attachments only — not retained in storage.
+          </p>
+        </div>
       </div>
 
       <form
@@ -377,7 +391,7 @@ export function DeliverView() {
               </label>
             </p>
             <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--ap-muted)" }}>
-              Up to {MAX_FILES} files · 15 MB combined · emailed as attachments (not stored in DB)
+              Up to {MAX_FILES} files · 15 MB combined · emailed as attachments only
             </p>
           </div>
 

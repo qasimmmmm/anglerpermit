@@ -5,6 +5,21 @@ import { mongoConfigured } from "@/lib/mongo";
 
 const COOKIE = "ap_admin_session";
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const SESSION_CACHE_MS = 30_000;
+
+type CacheEntry = { user: PublicAdminUser; cachedAt: number };
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __anglerAdminSessionCache: Map<string, CacheEntry> | undefined;
+}
+
+function sessionCache() {
+  if (!globalThis.__anglerAdminSessionCache) {
+    globalThis.__anglerAdminSessionCache = new Map();
+  }
+  return globalThis.__anglerAdminSessionCache;
+}
 
 /** Used only to sign session cookies (not the login password). */
 function sessionSecret() {
@@ -63,8 +78,19 @@ export async function getAdminSessionUser(): Promise<PublicAdminUser | null> {
   const jar = await cookies();
   const parsed = parseAdminSessionToken(jar.get(COOKIE)?.value);
   if (!parsed) return null;
+
+  const cached = sessionCache().get(parsed.userId);
+  if (cached && Date.now() - cached.cachedAt < SESSION_CACHE_MS) {
+    if (cached.user.status === "disabled") return null;
+    return cached.user;
+  }
+
   const user = await getAdminUserById(parsed.userId);
-  if (!user || user.status === "disabled") return null;
+  if (!user || user.status === "disabled") {
+    sessionCache().delete(parsed.userId);
+    return null;
+  }
+  sessionCache().set(parsed.userId, { user, cachedAt: Date.now() });
   return user;
 }
 
