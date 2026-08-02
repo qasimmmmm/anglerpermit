@@ -41,7 +41,7 @@ export const config: StateConfig = {
     {
       id: "inland-fishing-10-day-resident",
       name: "Inland Fishing 10-Day (Resident)",
-      price: 12,
+      price: 13.3166666667,
       residency: "resident",
       duration: "10-Day",
       category: "freshwater",
@@ -51,7 +51,7 @@ export const config: StateConfig = {
     {
       id: "inland-fishing-10-day-nonresident",
       name: "Inland Fishing 10-Day (Nonresident)",
-      price: 29,
+      price: 19.9833333333,
       residency: "nonresident",
       duration: "10-Day",
       category: "freshwater",
@@ -61,7 +61,7 @@ export const config: StateConfig = {
     {
       id: "state-inland-fishing-annual-resident",
       name: "State Inland Fishing (Resident)",
-      price: 32,
+      price: 23.3166666667,
       residency: "resident",
       duration: "Annual (12 months from purchase)",
       category: "freshwater",
@@ -71,7 +71,7 @@ export const config: StateConfig = {
     {
       id: "state-inland-fishing-annual-nonresident",
       name: "State Inland Fishing (Nonresident)",
-      price: 56,
+      price: 33.3166666667,
       residency: "nonresident",
       duration: "Annual (12 months from purchase)",
       category: "freshwater",
@@ -111,7 +111,7 @@ export const config: StateConfig = {
     {
       id: "coastal-recreational-fishing-annual-resident",
       name: "Coastal Recreational Fishing License (Resident)",
-      price: 20,
+      price: 16.65,
       residency: "resident",
       duration: "Annual (12 months from purchase)",
       category: "saltwater",
@@ -121,7 +121,7 @@ export const config: StateConfig = {
     {
       id: "coastal-recreational-fishing-annual-nonresident",
       name: "Coastal Recreational Fishing License (Nonresident)",
-      price: 40,
+      price: 26.65,
       residency: "nonresident",
       duration: "Annual (12 months from purchase)",
       category: "saltwater",
@@ -131,7 +131,7 @@ export const config: StateConfig = {
     {
       id: "coastal-recreational-fishing-10-day-resident",
       name: "Coastal Recreational Fishing 10-Day (Resident)",
-      price: 9,
+      price: 13.3166666667,
       residency: "resident",
       duration: "10-Day",
       category: "saltwater",
@@ -141,7 +141,7 @@ export const config: StateConfig = {
     {
       id: "coastal-recreational-fishing-10-day-nonresident",
       name: "Coastal Recreational Fishing 10-Day (Nonresident)",
-      price: 15,
+      price: 19.9833333333,
       residency: "nonresident",
       duration: "10-Day",
       category: "saltwater",
@@ -151,7 +151,7 @@ export const config: StateConfig = {
     {
       id: "unified-inland-coastal-annual-resident",
       name: "Unified Inland/Coastal Recreational Fishing (Resident)",
-      price: 51,
+      price: 33.3166666667,
       residency: "resident",
       duration: "Annual (12 months from purchase)",
       category: "all-water",
@@ -211,7 +211,7 @@ export const config: StateConfig = {
     {
       id: "crfl-lifetime-adult-resident",
       name: "Coastal Recreational Fishing Lifetime License - Adult (Resident, ages 12 & older)",
-      price: 326,
+      price: 166.65,
       residency: "resident",
       duration: "Lifetime",
       category: "saltwater",
@@ -231,7 +231,7 @@ export const config: StateConfig = {
     {
       id: "crfl-lifetime-youth",
       name: "Coastal Recreational Fishing Lifetime License - Youth (ages 1-11)",
-      price: 196,
+      price: 99.9833333333,
       residency: "any",
       duration: "Lifetime",
       category: "saltwater",
@@ -281,7 +281,7 @@ export const config: StateConfig = {
     {
       id: "unified-inland-coastal-lifetime-resident",
       name: "Unified Inland/Coastal Recreational Fishing Lifetime License (Resident)",
-      price: 587,
+      price: 266.65,
       residency: "resident",
       duration: "Lifetime",
       category: "all-water",
@@ -331,7 +331,7 @@ export const config: StateConfig = {
     {
       id: "unified-sportsman-crfl-annual-resident",
       name: "Unified Sportsman/Coastal Recreational Fishing (Resident)",
-      price: 85,
+      price: 33.3166666667,
       residency: "resident",
       duration: "Annual (12 months from purchase)",
       category: "combo",

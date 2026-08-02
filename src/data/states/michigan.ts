@@ -1343,7 +1343,7 @@ export const config: StateConfig = {
     {
       id: "annual-all-species-resident",
       name: "Annual all species resident",
-      price: 26,
+      price: 19.9833333333,
       residency: "resident",
       duration: "Annual",
       category: "all-water",
@@ -1353,7 +1353,7 @@ export const config: StateConfig = {
     {
       id: "annual-all-species-nonresident",
       name: "Annual all species nonresident",
-      price: 76,
+      price: 49.9833333333,
       residency: "nonresident",
       duration: "Annual",
       category: "all-water",
@@ -1378,7 +1378,7 @@ export const config: StateConfig = {
     {
       id: "daily-all-species",
       name: "Daily all species resident/nonresident",
-      price: 10,
+      price: 13.3166666667,
       residency: "any",
       duration: "1-Day",
       category: "all-water",
@@ -1411,7 +1411,7 @@ export const config: StateConfig = {
     {
       id: "hunt-fish-combo-resident",
       name: "Hunt/Fish Combo Resident",
-      price: 76,
+      price: 49.9833333333,
       residency: "resident",
       duration: "Annual",
       category: "combo",
@@ -1431,7 +1431,7 @@ export const config: StateConfig = {
     {
       id: "hunt-fish-combo-nonresident",
       name: "Hunt/Fish Combo Nonresident",
-      price: 266,
+      price: 126.65,
       residency: "nonresident",
       duration: "Annual",
       category: "combo",

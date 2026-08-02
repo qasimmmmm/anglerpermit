@@ -32,7 +32,7 @@ export const config: StateConfig = {
     {
       id: "resident-sport-fishing-365-day",
       name: "Resident Sport Fishing",
-      price: 64.54,
+      price: 33.3166666667,
       residency: "resident",
       duration: "365-Day",
       category: "all-water",
@@ -58,7 +58,7 @@ export const config: StateConfig = {
     {
       id: "one-day-sport-fishing-license",
       name: "One-day Sport Fishing License",
-      price: 21.09,
+      price: 14.9833333333,
       residency: "any",
       duration: "1-Day",
       category: "all-water",
@@ -70,7 +70,7 @@ export const config: StateConfig = {
     {
       id: "two-day-sport-fishing-license",
       name: "Two-day Sport Fishing License",
-      price: 32.4,
+      price: 19.9833333333,
       residency: "any",
       duration: "2-Day",
       category: "all-water",

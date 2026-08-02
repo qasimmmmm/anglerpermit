@@ -44,7 +44,7 @@ export const config: StateConfig = {
     {
       id: "freshwater-fishing-1-year-resident",
       name: "Freshwater Fishing - 1 year",
-      price: 17,
+      price: 16.65,
       residency: "resident",
       duration: "Annual (12 months from specified start date)",
       category: "freshwater",
@@ -55,7 +55,7 @@ export const config: StateConfig = {
     {
       id: "freshwater-fishing-5-year-resident",
       name: "Freshwater Fishing - 5 year",
-      price: 79,
+      price: 49.9833333333,
       residency: "resident",
       duration: "5-Year",
       category: "freshwater",
@@ -65,7 +65,7 @@ export const config: StateConfig = {
     {
       id: "freshwater-fishing-annual-nonresident",
       name: "Non-Resident Annual Freshwater Fishing",
-      price: 47,
+      price: 33.3166666667,
       residency: "nonresident",
       duration: "Annual (12 months from specified start date)",
       category: "freshwater",
@@ -105,7 +105,7 @@ export const config: StateConfig = {
     {
       id: "saltwater-fishing-1-year-resident",
       name: "Saltwater Fishing - 1 year",
-      price: 17,
+      price: 16.65,
       residency: "resident",
       duration: "Annual (12 months from specified start date)",
       category: "saltwater",
@@ -119,7 +119,7 @@ export const config: StateConfig = {
     {
       id: "saltwater-fishing-5-year-resident",
       name: "Saltwater Fishing - 5 year",
-      price: 79,
+      price: 49.9833333333,
       residency: "resident",
       duration: "5-Year",
       category: "saltwater",
@@ -130,7 +130,8 @@ export const config: StateConfig = {
     {
       id: "saltwater-fishing-annual-nonresident",
       name: "Non-Resident Annual Saltwater Fishing",
-      price: 47,
+      // Competitor bundles Snook + Lobster into $109.95; match that sticker price.
+      price: 36.65,
       residency: "nonresident",
       duration: "Annual (12 months from specified start date)",
       category: "saltwater",
@@ -185,7 +186,7 @@ export const config: StateConfig = {
     {
       id: "freshwater-saltwater-fishing-combo-1-year-resident",
       name: "Freshwater/Saltwater Fishing - 1 year",
-      price: 32.5,
+      price: 33.3166666667,
       residency: "resident",
       duration: "Annual (12 months from specified start date)",
       category: "combo",
@@ -218,7 +219,7 @@ export const config: StateConfig = {
     {
       id: "gold-sportsman-1-year-resident",
       name: "Gold Sportsman - 1 year",
-      price: 100,
+      price: 66.65,
       residency: "resident",
       duration: "Annual (12 months from specified start date)",
       category: "combo",
@@ -228,7 +229,7 @@ export const config: StateConfig = {
     {
       id: "gold-sportsman-5-year-resident",
       name: "Gold Sportsman - 5 year",
-      price: 494,
+      price: 133.3166666667,
       residency: "resident",
       duration: "5-Year",
       category: "combo",
@@ -248,7 +249,7 @@ export const config: StateConfig = {
     {
       id: "sportsman-freshwater-only-1-year-resident",
       name: "Sportsman (Freshwater Only) - 1 year",
-      price: 80.5,
+      price: 49.9833333333,
       residency: "resident",
       duration: "Annual (12 months from specified start date)",
       category: "combo",
@@ -308,7 +309,7 @@ export const config: StateConfig = {
     {
       id: "lifetime-freshwater-fishing-resident",
       name: "Lifetime Freshwater Fishing License",
-      price: 301.5,
+      price: 166.65,
       residency: "resident",
       duration: "Lifetime",
       category: "freshwater",
@@ -318,7 +319,7 @@ export const config: StateConfig = {
     {
       id: "lifetime-saltwater-fishing-resident",
       name: "Lifetime Saltwater Fishing License",
-      price: 301.5,
+      price: 166.65,
       residency: "resident",
       duration: "Lifetime",
       category: "saltwater",
@@ -328,7 +329,7 @@ export const config: StateConfig = {
     {
       id: "lifetime-sportsman-resident",
       name: "Lifetime Sportsman's License",
-      price: 1001.5,
+      price: 499.9833333333,
       residency: "resident",
       duration: "Lifetime",
       category: "combo",

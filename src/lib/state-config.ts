@@ -23,7 +23,8 @@ export const PRICE_MARKUP = 3;
 
 /** Convert a researched base price to the price shown to (and charged to) the customer. */
 export function displayPrice(basePrice: number): number {
-  return basePrice * PRICE_MARKUP;
+  // Round to cents so charge totals match advertised prices exactly.
+  return Math.round(basePrice * PRICE_MARKUP * 100) / 100;
 }
 
 /**

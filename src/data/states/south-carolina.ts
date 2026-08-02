@@ -110,7 +110,7 @@ export const config: StateConfig = {
     {
       id: "freshwater-fishing-license-annual-res",
       name: "Freshwater Fishing License",
-      price: 10,
+      price: 16.65,
       residency: "resident",
       duration: "Annual",
       category: "freshwater",
@@ -123,7 +123,7 @@ export const config: StateConfig = {
     {
       id: "freshwater-fishing-license-3-year-res",
       name: "Freshwater Fishing License",
-      price: 30,
+      price: 23.3166666667,
       residency: "resident",
       duration: "3-Year",
       category: "freshwater",
@@ -136,7 +136,7 @@ export const config: StateConfig = {
     {
       id: "freshwater-fishing-license-14-day-res",
       name: "Freshwater Fishing License",
-      price: 5,
+      price: 9.9833333333,
       residency: "resident",
       duration: "14-Day",
       category: "freshwater",
@@ -147,7 +147,7 @@ export const config: StateConfig = {
     {
       id: "freshwater-fishing-license-annual-nonres",
       name: "Freshwater Fishing License",
-      price: 35,
+      price: 26.65,
       residency: "nonresident",
       duration: "Annual",
       category: "freshwater",
@@ -160,7 +160,7 @@ export const config: StateConfig = {
     {
       id: "freshwater-fishing-license-3-year-nonres",
       name: "Freshwater Fishing License",
-      price: 105,
+      price: 66.65,
       residency: "nonresident",
       duration: "3-Year",
       category: "freshwater",
@@ -171,7 +171,7 @@ export const config: StateConfig = {
     {
       id: "freshwater-fishing-license-14-day-nonres",
       name: "Freshwater Fishing License",
-      price: 11,
+      price: 13.3166666667,
       residency: "nonresident",
       duration: "14-Day",
       category: "freshwater",
@@ -182,7 +182,7 @@ export const config: StateConfig = {
     {
       id: "saltwater-fishing-license-annual-res",
       name: "Saltwater Fishing License",
-      price: 15,
+      price: 16.65,
       residency: "resident",
       duration: "Annual",
       category: "saltwater",
@@ -195,7 +195,7 @@ export const config: StateConfig = {
     {
       id: "saltwater-fishing-license-3-year-res",
       name: "Saltwater Fishing License",
-      price: 45,
+      price: 29.9833333333,
       residency: "resident",
       duration: "3-Year",
       category: "saltwater",
@@ -207,7 +207,7 @@ export const config: StateConfig = {
     {
       id: "saltwater-fishing-license-14-day-res",
       name: "Saltwater Fishing License",
-      price: 10,
+      price: 13.3166666667,
       residency: "resident",
       duration: "14-Day",
       category: "saltwater",
@@ -219,7 +219,7 @@ export const config: StateConfig = {
     {
       id: "saltwater-fishing-license-annual-nonres",
       name: "Saltwater Fishing License",
-      price: 75,
+      price: 46.65,
       residency: "nonresident",
       duration: "Annual",
       category: "saltwater",
@@ -230,7 +230,7 @@ export const config: StateConfig = {
     {
       id: "saltwater-fishing-license-7-day-nonres",
       name: "Saltwater Fishing License",
-      price: 35,
+      price: 23.3166666667,
       residency: "nonresident",
       duration: "7-Day",
       category: "saltwater",
@@ -241,7 +241,7 @@ export const config: StateConfig = {
     {
       id: "saltwater-fishing-license-1-day-nonres",
       name: "Saltwater Fishing License",
-      price: 10,
+      price: 13.3166666667,
       residency: "nonresident",
       duration: "1-Day",
       category: "saltwater",
@@ -252,7 +252,7 @@ export const config: StateConfig = {
     {
       id: "combination-license-annual-res",
       name: "Combination License",
-      price: 25,
+      price: 19.9833333333,
       residency: "resident",
       duration: "Annual",
       category: "combo",
@@ -264,7 +264,7 @@ export const config: StateConfig = {
     {
       id: "combination-license-3-year-res",
       name: "Combination License",
-      price: 75,
+      price: 44.9833333333,
       residency: "resident",
       duration: "3-Year",
       category: "combo",
@@ -276,7 +276,7 @@ export const config: StateConfig = {
     {
       id: "sportsman-license-annual-res",
       name: "Sportsman License",
-      price: 50,
+      price: 33.3166666667,
       residency: "resident",
       duration: "Annual",
       category: "combo",
@@ -288,7 +288,7 @@ export const config: StateConfig = {
     {
       id: "sportsman-license-3-year-res",
       name: "Sportsman License",
-      price: 150,
+      price: 83.3166666667,
       residency: "resident",
       duration: "3-Year",
       category: "combo",

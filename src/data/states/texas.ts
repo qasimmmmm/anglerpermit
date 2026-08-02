@@ -136,7 +136,7 @@ export const config: StateConfig = {
     {
       id: "resident-all-water-package",
       name: "Resident All-Water Package",
-      price: 40,
+      price: 33.3166666667,
       residency: "resident",
       duration: "Annual",
       category: "all-water",
@@ -192,7 +192,7 @@ export const config: StateConfig = {
     {
       id: "resident-one-day-all-water-license",
       name: "One-Day All-Water License",
-      price: 11,
+      price: 13.3166666667,
       residency: "resident",
       duration: "1-Day",
       category: "all-water",
@@ -202,7 +202,7 @@ export const config: StateConfig = {
     {
       id: "nonresident-one-day-all-water-license",
       name: "One-Day All-Water License",
-      price: 16,
+      price: 13.3166666667,
       residency: "nonresident",
       duration: "1-Day",
       category: "all-water",
@@ -222,7 +222,7 @@ export const config: StateConfig = {
     {
       id: "lake-texoma-license",
       name: "Lake Texoma License",
-      price: 12,
+      price: 13.3166666667,
       residency: "any",
       duration: "Annual (expires Dec. 31)",
       category: "other",
