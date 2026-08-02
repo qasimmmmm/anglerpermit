@@ -368,14 +368,10 @@ export const config: StateConfig = {
       description: "Optional credit-card style hard license card (four custom designs; new designs unveiled each year). A single card can contain up to seven of the holder's valid license and privilege-license items and is legal proof of license (QR code scannable by officers). Added to the cart before checkout. A digital license (email PDF / account / mobile app) is free and legally valid without the card.",
       officialNote: "https://www.ncwildlife.gov/license/whats-new-gonc-systempdf/download?attachment ('durable hard card for just $6')",
     },
-    {
-      id: "transaction-fee",
-      name: "Transaction Fee",
-      price: 5,
-      required: true,
-      description: "A $5 transaction fee is applied to the total order at time of purchase (N.C.G.S. 113-270.1B). Charged per order, not per license item.",
-      officialNote: "Stated in the official eRegulations digest License Information section. Modeled as an add-on for cart math; it is an order-level fee, not a product.",
-    },
+    // NC official eRegulations list a $5 order-level transaction fee (N.C.G.S. 113-270.1B).
+    // We do NOT charge it as a separate customer line item — competitors bundle a single
+    // sticker price at checkout, and our license bases are already set so displayPrice()
+    // matches that sticker. Absorb any order fee inside the bundled license total.
   ],
   formFields: [
     {
