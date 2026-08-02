@@ -169,11 +169,21 @@ export function DashboardView({ initialStats = null, initialOrders = [] }: Dashb
           setOrders([]);
         }
       } else {
-        const { orders: nextOrders, ok: _ok, statuses: _s, backend: _b, ...rest } = d as Stats & {
+        const payload = d as Stats & {
           orders?: ApplicationRecord[];
           ok?: boolean;
           statuses?: unknown;
           backend?: unknown;
+        };
+        const nextOrders = payload.orders;
+        const rest: Stats = {
+          total: payload.total,
+          paidCount: payload.paidCount,
+          revenueCents: payload.revenueCents,
+          byStatus: payload.byStatus,
+          byState: payload.byState,
+          last14: payload.last14,
+          mongoError: payload.mongoError,
         };
         setStats(rest);
         setError("");
