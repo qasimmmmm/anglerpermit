@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sendContactEmails } from "@/lib/email";
-import { SUPPORT_EMAIL } from "@/lib/site-contact";
 
 export const runtime = "nodejs";
 
@@ -95,7 +94,7 @@ export async function POST(request: Request) {
       {
         ok: false,
         message:
-          `You've sent several messages recently. Please wait a bit, or email ${SUPPORT_EMAIL} directly.`,
+          "You've sent several messages recently. Please wait a bit, or email support@anglerpermit.com directly.",
       },
       { status: 429 },
     );
@@ -108,7 +107,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: false,
-        message: `We couldn't send your message right now. Please email ${SUPPORT_EMAIL} directly.`,
+        message:
+          "We couldn't send your message right now. Please email support@anglerpermit.com directly.",
       },
       { status: 502 },
     );
