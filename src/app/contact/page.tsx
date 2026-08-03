@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Mail } from "lucide-react";
 import { ContactForm } from "@/components/ContactForm";
 
@@ -52,8 +53,11 @@ export default function ContactPage() {
                   will never ask for them by email.
                 </li>
                 <li>
-                  For urgent licensing questions you can also contact your state agency
-                  directly via the official portal linked on each state page.
+                  Need an official agency portal? See{" "}
+                  <Link href="/official-sites" className="font-medium text-forest-700 underline">
+                    official state websites
+                  </Link>
+                  .
                 </li>
               </ul>
             </div>

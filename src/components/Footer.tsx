@@ -13,6 +13,7 @@ const LEGAL_LINKS = [
 const SITE_LINKS = [
   { href: "/how-it-works", label: "How It Works" },
   { href: "/states", label: "States We Serve" },
+  { href: "/official-sites", label: "Official State Websites" },
   { href: "/faq", label: "FAQ" },
   { href: "/about", label: "About Us" },
   { href: "/contact", label: "Contact" },
