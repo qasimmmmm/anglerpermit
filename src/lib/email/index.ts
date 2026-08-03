@@ -96,7 +96,7 @@ function adminRecipients(): string[] {
 /** Contact-form inbox: support@ first, plus ADMIN_EMAIL if different. */
 function contactNotificationRecipients(): string[] {
   const support = env("SUPPORT_EMAIL") ?? DEFAULTS.replyTo;
-  return [...new Set([support, ...adminRecipients()].filter(Boolean))];
+  return Array.from(new Set([support, ...adminRecipients()].filter(Boolean)));
 }
 
 export interface SendResult {
