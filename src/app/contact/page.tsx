@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Mail } from "lucide-react";
 import { ContactForm } from "@/components/ContactForm";
+import { SUPPORT_EMAIL, supportMailto } from "@/lib/site-contact";
 
 export const metadata: Metadata = {
   title: "Contact Us",
@@ -15,8 +17,8 @@ export default function ContactPage() {
         <div className="container-site max-w-3xl">
           <h1 className="text-3xl font-bold text-white sm:text-4xl">Contact us</h1>
           <p className="mt-4 text-lg text-slate-300">
-            Questions about an application, a license, or our service? We typically reply
-            within one business day.
+            Questions about an application, a license, or our service? Email{" "}
+            {SUPPORT_EMAIL} or use the form — we typically reply within one business day.
           </p>
         </div>
       </section>
@@ -31,20 +33,20 @@ export default function ContactPage() {
               reference number (it starts with &ldquo;AP-&rdquo;).
             </p>
             <a
-              href="mailto:support@anglerpermit.com"
+              href={supportMailto()}
               className="mt-5 inline-flex items-center gap-2 font-semibold text-forest-700 hover:text-forest-500"
             >
               <Mail className="h-5 w-5" aria-hidden="true" />
-              support@anglerpermit.com
+              {SUPPORT_EMAIL}
             </a>
             <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
               <h3 className="text-sm font-semibold text-navy">Before you write</h3>
               <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-slate-600">
                 <li>
                   Many answers are in our{" "}
-                  <a href="/faq" className="font-medium text-forest-700 underline">
+                  <Link href="/faq" className="font-medium text-forest-700 underline">
                     FAQ
-                  </a>
+                  </Link>
                   .
                 </li>
                 <li>
@@ -52,8 +54,11 @@ export default function ContactPage() {
                   will never ask for them by email.
                 </li>
                 <li>
-                  For urgent licensing questions you can also contact your state agency
-                  directly via the official portal linked on each state page.
+                  Need an official agency portal? See{" "}
+                  <Link href="/official-sites" className="font-medium text-forest-700 underline">
+                    official state websites
+                  </Link>
+                  .
                 </li>
               </ul>
             </div>

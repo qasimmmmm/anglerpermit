@@ -14,9 +14,11 @@ import {
  * with a graceful console fallback when DATABASE_URL is unset so the site
  * still works with zero env (dev mode).
  *
- * PII POLICY (do not weaken):
- * - form_data receives the MASKED submission only (SSN -> ***-**-1234).
- *   The full SSN is never persisted anywhere in this system.
+ * PII POLICY:
+ * - form_data stores the full applicant submission (including SSN) so the
+ *   authenticated admin console can fulfill licenses on official portals.
+ * - Customer emails, logs, and public surfaces MUST use maskSensitiveFields()
+ *   — never send raw SSN outside the admin session.
  * - Payment rows contain gateway metadata only — card data never exists
  *   server-side in any form (see src/lib/nmi.ts header).
  */
@@ -161,7 +163,7 @@ export interface NewApplicationInput {
   firstName: string | null;
   lastName: string | null;
   phone: string | null;
-  /** MASKED submission data only. */
+  /** Full applicant submission (SSN included). Mask before emailing/logging. */
   formData: Record<string, unknown>;
   consents: Record<string, unknown>;
   amountCents: number;
@@ -204,7 +206,7 @@ export async function createOrReuseApplication(
       [input.email, input.stateSlug, input.licenseId, input.amountCents],
     );
     if (existing.rows[0]) {
-      // Refresh the masked form data to the latest submission.
+      // Refresh applicant data to the latest submission (full form, incl. SSN).
       const updated = await q<AppRow>(
         `update applications
             set form_data = $2, consents = $3, addon_ids = $4, residency = $5,
@@ -477,6 +479,78 @@ export async function markApplicationPaymentFailed(
     paymentFailedAt: new Date().toISOString(),
     statusReason: reason,
   }).catch(() => undefined);
+}
+
+/**
+ * Refresh applicant PII on an existing unpaid (or just-paid) application.
+ * Used when checkout reuses a pending row by id so SSN/address stay current.
+ */
+export async function updateApplicationApplicantData(
+  applicationId: string,
+  input: {
+    formData: Record<string, unknown>;
+    consents: Record<string, unknown>;
+    residency: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    phone: string | null;
+    addOnIds?: string[];
+  },
+): Promise<ApplicationRecord | null> {
+  if (dbConfigured()) {
+    const updated = await q<AppRow>(
+      `update applications
+          set form_data = $2, consents = $3, residency = $4,
+              email = $5, first_name = $6, last_name = $7, phone = $8
+              ${input.addOnIds ? ", addon_ids = $9" : ""}
+        where id = $1
+        returning ${APP_COLS}`,
+      input.addOnIds
+        ? [
+            applicationId,
+            input.formData,
+            input.consents,
+            input.residency,
+            input.email,
+            input.firstName,
+            input.lastName,
+            input.phone,
+            JSON.stringify(input.addOnIds),
+          ]
+        : [
+            applicationId,
+            input.formData,
+            input.consents,
+            input.residency,
+            input.email,
+            input.firstName,
+            input.lastName,
+            input.phone,
+          ],
+    );
+    if (updated.rows[0]) {
+      const app = rowToRecord(updated.rows[0]);
+      void mongoUpsertApp(app).catch(() => undefined);
+      return app;
+    }
+  }
+
+  const existing = await mongoGetById(applicationId);
+  if (!existing) return null;
+  const next: ApplicationRecord = {
+    ...existing,
+    formData: input.formData,
+    consents: input.consents,
+    residency: input.residency,
+    email: input.email,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    phone: input.phone,
+    ...(input.addOnIds ? { addOnIds: input.addOnIds } : {}),
+  };
+  await mongoUpsertApp(next);
+  return next;
 }
 
 export async function updateApplicationStatus(

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { Mail, ShieldCheck } from "lucide-react";
 import { NON_AFFILIATION_DISCLAIMER } from "@/components/ui/DisclaimerBanner";
 import { Logo } from "@/components/Logo";
+import { SUPPORT_EMAIL, supportMailto } from "@/lib/site-contact";
 
 const LEGAL_LINKS = [
   { href: "/privacy", label: "Privacy Policy" },
@@ -13,6 +14,7 @@ const LEGAL_LINKS = [
 const SITE_LINKS = [
   { href: "/how-it-works", label: "How It Works" },
   { href: "/states", label: "States We Serve" },
+  { href: "/official-sites", label: "Official State Websites" },
   { href: "/faq", label: "FAQ" },
   { href: "/about", label: "About Us" },
   { href: "/contact", label: "Contact" },
@@ -22,8 +24,8 @@ export function Footer() {
   return (
     <footer data-site-footer className="border-t border-white/10 bg-navy text-slate-300">
       <div className="container-site py-12">
-        <div className="grid gap-10 md:grid-cols-3">
-          <div>
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="sm:col-span-2 lg:col-span-1">
             <Link href="/" aria-label="AnglerPermit — home" className="inline-flex items-center">
               {/* White lockup on the navy footer background. */}
               <Logo theme="white" className="h-10 w-auto md:h-12" />
@@ -44,6 +46,31 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
+            </ul>
+          </nav>
+
+          <nav aria-label="Support">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-white">Support</h2>
+            <ul className="mt-4 space-y-2 text-sm">
+              <li>
+                <a
+                  href={supportMailto()}
+                  className="inline-flex items-center gap-2 hover:text-white"
+                >
+                  <Mail className="h-4 w-4 flex-shrink-0 text-forest-300" aria-hidden="true" />
+                  {SUPPORT_EMAIL}
+                </a>
+              </li>
+              <li>
+                <Link href="/contact" className="hover:text-white">
+                  Contact form
+                </Link>
+              </li>
+              <li>
+                <Link href="/official-sites" className="hover:text-white">
+                  Official state websites
+                </Link>
+              </li>
             </ul>
           </nav>
 

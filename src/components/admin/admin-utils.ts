@@ -34,9 +34,11 @@ export const STATUS_BG: Record<string, string> = {
 
 const FIELD_LABELS: Record<string, string> = {
   firstName: "First name",
+  middleName: "Middle name",
   lastName: "Last name",
   email: "Email",
   primaryPhone: "Phone",
+  primaryPhoneType: "Primary phone type",
   phone: "Phone",
   dateOfBirth: "Date of birth",
   gender: "Gender",
@@ -49,15 +51,30 @@ const FIELD_LABELS: Record<string, string> = {
   driversLicenseState: "Driver license state",
   resStreet1: "Street",
   resStreet2: "Street 2",
+  street: "Street",
   resCity: "City",
+  city: "City",
   resState: "State / region",
+  state: "State",
   resZip: "ZIP / postal",
+  zipCode: "ZIP code",
   resCountry: "Country",
+  residency: "Residency",
+  ssn: "SSN",
+  socialSecurityNumber: "SSN",
+  nonUsAddress: "Non-US address",
   michiganResident: "Michigan resident",
   licenseStartDate: "License start",
   updatesEmail: "Email updates",
   updatesText: "Text updates",
 };
+
+/** True when a stored SSN value is only the masked last-4 form. */
+export function isMaskedSsnValue(key: string, value: unknown): boolean {
+  if (!/ssn|social/i.test(key)) return false;
+  const s = String(value ?? "");
+  return /^\*{3}-\*{2}-\d{4}$/.test(s) || s === "***-**-****";
+}
 
 export function money(cents: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);

@@ -63,8 +63,10 @@ export {
  *
  * Environment variables (see .env.example):
  *   RESEND_API_KEY               — Resend secret key (required in production)
- *   ADMIN_EMAIL                  — where order/contact notifications go;
+ *   ADMIN_EMAIL                  — where order / ops notifications go;
  *                                  comma-separate for multiple recipients
+ *   SUPPORT_EMAIL                — contact-form inbox + public support address
+ *                                  (default: support@anglerpermit.com)
  *   EMAIL_FROM                   — orders sender    (default: AnglerPermit <orders@anglerpermit.com>)
  *   EMAIL_FROM_SUPPORT           — support sender  (default: AnglerPermit Support <support@anglerpermit.com>)
  *   EMAIL_FROM_LICENSES          — license sender  (default: AnglerPermit <licenses@anglerpermit.com>)
@@ -89,6 +91,12 @@ function adminRecipients(): string[] {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/** Contact-form inbox: support@ first, plus ADMIN_EMAIL if different. */
+function contactNotificationRecipients(): string[] {
+  const support = env("SUPPORT_EMAIL") ?? DEFAULTS.replyTo;
+  return [...new Set([support, ...adminRecipients()].filter(Boolean))];
 }
 
 export interface SendResult {
@@ -237,24 +245,27 @@ export interface ContactEmailsResult {
 
 /** Send the support-inbox notification and the customer acknowledgement. */
 export async function sendContactEmails(msg: ContactMessage): Promise<ContactEmailsResult> {
-  const admins = adminRecipients();
+  const inbox = contactNotificationRecipients();
   const fromSupport = env("EMAIL_FROM_SUPPORT") ?? DEFAULTS.fromSupport;
 
   const notif = contactNotificationEmail(msg);
   const ackTpl = contactAckEmail(msg);
 
   const [admin, ack] = await Promise.all([
-    admins.length
+    inbox.length
       ? deliver({
           from: fromSupport,
-          to: admins,
+          to: inbox,
           subject: notif.subject,
           html: notif.html,
           text: notif.text,
           replyTo: msg.email,
           tag: "contact-notification",
         })
-      : Promise.resolve<SendResult>({ delivered: false, error: "ADMIN_EMAIL not configured" }),
+      : Promise.resolve<SendResult>({
+          delivered: false,
+          error: "SUPPORT_EMAIL / ADMIN_EMAIL not configured",
+        }),
     deliver({
       from: fromSupport,
       to: msg.email,

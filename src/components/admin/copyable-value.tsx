@@ -5,21 +5,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 async function writeClipboard(text: string): Promise<boolean> {
   try {
-    if (navigator.clipboard?.writeText) {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
       return true;
     }
   } catch {
-    /* fall through */
+    /* fall through — insecure context / permission denied */
   }
   try {
     const ta = document.createElement("textarea");
     ta.value = text;
     ta.setAttribute("readonly", "");
     ta.style.position = "fixed";
-    ta.style.left = "-9999px";
+    ta.style.top = "0";
+    ta.style.left = "0";
+    ta.style.width = "1px";
+    ta.style.height = "1px";
+    ta.style.padding = "0";
+    ta.style.border = "none";
+    ta.style.outline = "none";
+    ta.style.boxShadow = "none";
+    ta.style.background = "transparent";
     document.body.appendChild(ta);
+    ta.focus();
     ta.select();
+    ta.setSelectionRange(0, text.length);
     const ok = document.execCommand("copy");
     document.body.removeChild(ta);
     return ok;
@@ -66,8 +76,8 @@ export function CopyableValue({
   href,
 }: Props) {
   const text = toCopyText(value);
-  const emptyValue = !text.trim();
-  const [copied, setCopied] = useState(false);
+  const emptyValue = !text.trim() || text === "—";
+  const [feedback, setFeedback] = useState<"copied" | "failed" | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -79,10 +89,9 @@ export function CopyableValue({
   const onCopy = useCallback(async () => {
     if (emptyValue) return;
     const ok = await writeClipboard(text);
-    if (!ok) return;
-    setCopied(true);
+    setFeedback(ok ? "copied" : "failed");
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setCopied(false), 1200);
+    timer.current = setTimeout(() => setFeedback(null), 1400);
   }, [emptyValue, text]);
 
   if (emptyValue) {
@@ -93,7 +102,9 @@ export function CopyableValue({
     );
   }
 
-  const sharedClass = `admin-copyable${copied ? " is-copied" : ""}${className ? ` ${className}` : ""}`;
+  const sharedClass = `admin-copyable${feedback === "copied" ? " is-copied" : ""}${
+    feedback === "failed" ? " is-failed" : ""
+  }${className ? ` ${className}` : ""}`;
   const sharedStyle: React.CSSProperties = { fontWeight: strong ? 650 : 500, ...style };
 
   if (href) {
@@ -115,12 +126,17 @@ export function CopyableValue({
       type="button"
       className={sharedClass}
       onClick={() => void onCopy()}
-      title={copied ? "Copied" : "Click to copy"}
-      aria-label={copied ? "Copied" : `Copy ${text}`}
+      title={
+        feedback === "copied" ? "Copied" : feedback === "failed" ? "Copy failed" : "Click to copy"
+      }
+      aria-label={
+        feedback === "copied" ? "Copied" : feedback === "failed" ? "Copy failed" : `Copy ${text}`
+      }
       style={sharedStyle}
     >
       <span className="admin-copyable-text">{text}</span>
-      {copied ? <span className="admin-copyable-toast">Copied</span> : null}
+      {feedback === "copied" ? <span className="admin-copyable-toast">Copied</span> : null}
+      {feedback === "failed" ? <span className="admin-copyable-toast">Copy failed</span> : null}
     </button>
   );
 }

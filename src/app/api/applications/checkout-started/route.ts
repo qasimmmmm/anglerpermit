@@ -79,13 +79,15 @@ export async function POST(req: Request) {
   }
 
   const submission = parsed.data;
-  const maskedData = maskSensitiveFields(config, submission.data);
+  // Persist full applicant data for admin; mask only for outbound emails.
+  const formData = submission.data;
+  const maskedData = maskSensitiveFields(config, formData);
   const amount = computeOrderTotal(config, submission.licenseId, submission.addOnIds);
   const amountCents = Math.round(amount * 100);
-  const email = str(submission.data.email);
-  const firstName = str(submission.data.firstName);
-  const lastName = str(submission.data.lastName);
-  const phone = str(submission.data.phone) ?? str(submission.data.primaryPhone);
+  const email = str(formData.email);
+  const firstName = str(formData.firstName);
+  const lastName = str(formData.lastName);
+  const phone = str(formData.phone) ?? str(formData.primaryPhone);
 
   let applicationId: string | null = null;
   let reference = generateReference(submission.stateSlug);
@@ -101,7 +103,7 @@ export async function POST(req: Request) {
       firstName,
       lastName,
       phone,
-      formData: maskedData,
+      formData,
       consents: submission.consents,
       amountCents,
     });

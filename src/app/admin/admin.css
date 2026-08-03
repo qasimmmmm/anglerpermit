@@ -674,6 +674,11 @@
   color: var(--ap-sea);
 }
 
+.admin-copyable.is-failed {
+  background: rgba(185, 28, 28, 0.12);
+  color: #b91c1c;
+}
+
 .admin-copyable-link {
   cursor: pointer;
   color: var(--ap-sea);

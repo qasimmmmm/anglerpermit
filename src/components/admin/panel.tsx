@@ -31,6 +31,7 @@ import {
   customerName,
   fieldLabel,
   formatFieldValue,
+  isMaskedSsnValue,
   labelStatus,
   money,
   stateLabel,
@@ -1012,18 +1013,24 @@ export function ApplicationDetailView({ id }: { id: string }) {
                 No form fields stored.
               </p>
             ) : (
-              formEntries.map(([k, v]) => (
-                <div key={k} className="admin-kv">
-                  <dt>{fieldLabel(k)}</dt>
-                  <dd>
-                    {k === "email" || k === "primaryPhone" || k === "phone" ? (
-                      <CopyableValue value={formatFieldValue(v)} strong={false} />
-                    ) : (
-                      formatFieldValue(v)
-                    )}
-                  </dd>
-                </div>
-              ))
+              formEntries.map(([k, v]) => {
+                const display = formatFieldValue(v);
+                const maskedSsn = isMaskedSsnValue(k, v);
+                return (
+                  <div key={k} className="admin-kv">
+                    <dt>{fieldLabel(k)}</dt>
+                    <dd>
+                      <CopyableValue value={display} strong={false} />
+                      {maskedSsn ? (
+                        <p className="admin-muted" style={{ margin: "4px 0 0", fontSize: 12 }}>
+                          Full SSN was not saved for this order. Use{" "}
+                          <strong>Request info</strong> to ask the customer for it.
+                        </p>
+                      ) : null}
+                    </dd>
+                  </div>
+                );
+              })
             )}
           </dl>
         </div>
@@ -1042,11 +1049,7 @@ export function ApplicationDetailView({ id }: { id: string }) {
               ].map(([label, value]) => (
                 <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                   <span className="admin-muted">{label}</span>
-                  {label === "Phone" ? (
-                    <CopyableValue value={value} strong={false} />
-                  ) : (
-                    <span style={{ fontWeight: 600 }}>{value || "—"}</span>
-                  )}
+                  <CopyableValue value={value || "—"} strong={false} />
                 </div>
               ))}
             </div>

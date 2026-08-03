@@ -17,6 +17,7 @@ import {
   markApplicationPaid,
   markApplicationPaymentFailed,
   recordPayment,
+  updateApplicationApplicantData,
   type ApplicationRecord,
   type StoredApplication,
 } from "@/lib/storage";
@@ -175,15 +176,16 @@ export async function POST(request: Request) {
   }
   const amountCents = Math.round(amount * 100);
 
-  /* ------------------------- persist (masked) before charging ------------------------- */
+  /* ------------------------- persist before charging ------------------------- */
 
-  // Mask SSNs before ANY storage/logging/email. The unmasked payload stays in
-  // `submission.data` only for the opt-in admin email and is never persisted.
-  const maskedData = maskSensitiveFields(config, submission.data);
-  const email = str(submission.data.email);
-  const firstName = str(submission.data.firstName);
-  const lastName = str(submission.data.lastName);
-  const phone = str(submission.data.phone) ?? str(submission.data.primaryPhone);
+  // Full applicant data (incl. SSN) is stored for admin fulfillment.
+  // Mask only for emails / customer-facing surfaces.
+  const formData = submission.data;
+  const maskedData = maskSensitiveFields(config, formData);
+  const email = str(formData.email);
+  const firstName = str(formData.firstName);
+  const lastName = str(formData.lastName);
+  const phone = str(formData.phone) ?? str(formData.primaryPhone);
 
   let appRecord: ApplicationRecord | null = null;
   let reference = "";
@@ -208,7 +210,17 @@ export async function POST(request: Request) {
           (existing.status === "pending_payment" || existing.status === "payment_failed") &&
           (!existing.email || !email || existing.email.toLowerCase() === email.toLowerCase())
         ) {
-          appRecord = existing;
+          appRecord =
+            (await updateApplicationApplicantData(existing.id, {
+              formData,
+              consents: submission.consents,
+              residency: submission.residency,
+              email,
+              firstName,
+              lastName,
+              phone,
+              addOnIds: submission.addOnIds,
+            })) ?? existing;
         }
       }
     }
@@ -223,7 +235,7 @@ export async function POST(request: Request) {
         firstName,
         lastName,
         phone,
-        formData: maskedData,
+        formData,
         consents: submission.consents,
         amountCents,
       });
@@ -383,7 +395,7 @@ export async function POST(request: Request) {
         firstName,
         lastName,
         phone,
-        formData: maskedData,
+        formData,
         consents: submission.consents,
         amountCents,
       });
@@ -397,6 +409,20 @@ export async function POST(request: Request) {
   }
 
   if (appRecord) {
+    // Ensure Mongo/Postgres have the full applicant payload (not a masked
+    // checkout-started draft) before we mark paid for admin fulfillment.
+    const synced = await updateApplicationApplicantData(appRecord.id, {
+      formData,
+      consents: submission.consents,
+      residency: submission.residency,
+      email,
+      firstName,
+      lastName,
+      phone,
+      addOnIds: submission.addOnIds,
+    }).catch(() => null);
+    if (synced) appRecord = synced;
+
     const paymentId = await recordPayment({
       applicationId: appRecord.id,
       kind: "sale",
@@ -426,6 +452,7 @@ export async function POST(request: Request) {
     await mongoUpsertApp(
       {
         ...appRecord,
+        formData,
         status: "received",
         paidAt,
         statusReason: null,
@@ -510,8 +537,8 @@ export async function POST(request: Request) {
     console.warn(`[api/applications] ${reference}: no customer email — #1/#2 skipped`);
   }
 
-  // [AP Ops] rich admin notification with full order details (SSN masked
-  // unless ADMIN_EMAIL_INCLUDE_FULL_SSN=true; rawData never logged/stored).
+  // [AP Ops] rich admin notification. Email body masks SSN unless
+  // ADMIN_EMAIL_INCLUDE_FULL_SSN=true; full data remains in admin console DB.
   const admins = adminRecipients();
   if (admins.length) {
     const app: StoredApplication = {
@@ -532,7 +559,7 @@ export async function POST(request: Request) {
       },
       submittedAt: appRecord?.submittedAt ?? new Date().toISOString(),
     };
-    const orderCtx: OrderEmailContext = { config, app, maskedData, rawData: submission.data };
+    const orderCtx: OrderEmailContext = { config, app, maskedData, rawData: formData };
     const adminTpl = adminNewOrderEmail(orderCtx, {
       includeFullSSN: process.env.ADMIN_EMAIL_INCLUDE_FULL_SSN === "true",
     });
