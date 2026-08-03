@@ -71,22 +71,8 @@ export default async function OfficialSitesPage() {
             </ul>
           )}
 
-          <div className="mt-10 max-w-3xl space-y-4">
+          <div className="mt-10 max-w-3xl">
             <DisclaimerBanner />
-            <p className="text-sm text-slate-600">
-              Questions about a portal or your application? Email{" "}
-              <a
-                href="mailto:support@anglerpermit.com"
-                className="font-semibold text-forest-700 underline underline-offset-2"
-              >
-                support@anglerpermit.com
-              </a>{" "}
-              or use our{" "}
-              <Link href="/contact" className="font-semibold text-forest-700 underline underline-offset-2">
-                contact form
-              </Link>
-              .
-            </p>
           </div>
         </div>
       </section>
