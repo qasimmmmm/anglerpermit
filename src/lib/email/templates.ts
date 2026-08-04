@@ -1,5 +1,5 @@
 import type { StateConfig } from "@/lib/state-config";
-import { computeOrderTotal } from "@/lib/state-config";
+import { computeOrderTotal, formatLicenseDateRange } from "@/lib/state-config";
 import { formatPrice } from "@/lib/format";
 import type { StoredApplication } from "@/lib/storage";
 import {
@@ -48,6 +48,18 @@ function licenseName(ctx: OrderEmailContext): string {
   );
 }
 
+/**
+ * Human-readable validity range for a short-term license (e.g.
+ * "Aug 4, 2026 – Aug 6, 2026 (3 days)"), pulled from the applicant's
+ * chosen `licenseStartDate` and the SKU's duration. Returns null when
+ * the license is annual/lifetime or the applicant didn't pick a date.
+ */
+function licenseValidity(ctx: OrderEmailContext): string | null {
+  const sku = ctx.config?.licenses.find((l) => l.id === ctx.app.licenseId);
+  if (!sku) return null;
+  return formatLicenseDateRange(ctx.maskedData["licenseStartDate"], sku.duration);
+}
+
 function addOnNames(ctx: OrderEmailContext): string[] {
   return ctx.app.addOnIds.map(
     (id) => ctx.config?.addOns.find((a) => a.id === id)?.name ?? id,
@@ -89,6 +101,29 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
+/** Pretty-print an ISO / MM-DD-YYYY date field for admin email display. */
+function formatDateValue(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "—";
+  const s = value.trim();
+  let d: Date | null = null;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    d = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])));
+  } else {
+    const us = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (us) {
+      d = new Date(Date.UTC(Number(us[3]), Number(us[1]) - 1, Number(us[2])));
+    }
+  }
+  if (!d || Number.isNaN(d.getTime())) return s;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
+}
+
 /* ------------------------------------------------------------------ */
 /* 1. customer order confirmation                                      */
 /* ------------------------------------------------------------------ */
@@ -105,10 +140,12 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): {
   const subject = `Order confirmed ${ctx.app.reference} — your ${state} fishing license application`;
 
   const applicant = buildApplicantDetails(ctx.config, ctx.maskedData);
+  const validity = licenseValidity(ctx);
   const orderRows = [
     detailRow("State", esc(state)),
     detailRow("Residency", esc(residencyLabel(ctx.app.residency))),
     detailRow("License", esc(licenseName(ctx))),
+    ...(validity ? [detailRow("Valid", esc(validity))] : []),
     ...(addOns.length ? [detailRow("Add-ons", esc(addOns.join(", ")))] : []),
     detailRow("Submitted", esc(new Date(ctx.app.submittedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Chicago" }) + " CT")),
   ].join("");
@@ -158,6 +195,7 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): {
     `State: ${state}`,
     `Residency: ${residencyLabel(ctx.app.residency)}`,
     `License: ${licenseName(ctx)}`,
+    ...(validity ? [`Valid: ${validity}`] : []),
     ...(addOns.length ? [`Add-ons: ${addOns.join(", ")}`] : []),
     ``,
     `PAYMENT RECEIPT`,
@@ -210,7 +248,15 @@ export function adminNewOrderEmail(
     for (const field of ctx.config.formFields) {
       if (!(field.name in data)) continue;
       rendered.add(field.name);
-      const value = formatValue(data[field.name]);
+      const raw = data[field.name];
+      let value: string;
+      if (field.type === "date") {
+        value = formatDateValue(raw);
+      } else if ((field.type === "select" || field.type === "radio") && typeof raw === "string") {
+        value = field.options?.find((o) => o.value === raw)?.label ?? formatValue(raw);
+      } else {
+        value = formatValue(raw);
+      }
       applicantRows.push(detailRow(field.label, esc(value)));
       applicantText.push(`${field.label}: ${value}`);
     }
@@ -226,11 +272,13 @@ export function adminNewOrderEmail(
     ? `<p style="margin:10px 0 0;font-size:12px;color:${BRAND.red600};font-weight:600;">Contains full SSN — handle per your data-handling policy and delete when fulfilled.</p>`
     : `<p style="margin:10px 0 0;font-size:12px;color:${BRAND.slate500};">SSN fields are masked (***-**-last4). Set ADMIN_EMAIL_INCLUDE_FULL_SSN=true only if your fulfillment flow requires the full number by email.</p>`;
 
+  const validity = licenseValidity(ctx);
   const orderRows = [
     detailRow("Reference", esc(ctx.app.reference), { mono: true, strong: true }),
     detailRow("State", esc(state)),
     detailRow("Residency", esc(residencyLabel(ctx.app.residency))),
     detailRow("License", esc(licenseName(ctx))),
+    ...(validity ? [detailRow("Valid", esc(validity))] : []),
     ...(addOns.length ? [detailRow("Add-ons", esc(addOns.join(", ")))] : []),
     detailRow("Started", esc(ctx.app.submittedAt), { mono: true }),
   ].join("");
@@ -274,6 +322,7 @@ export function adminNewOrderEmail(
     `State: ${state}`,
     `Residency: ${residencyLabel(ctx.app.residency)}`,
     `License: ${licenseName(ctx)}`,
+    ...(validity ? [`Valid: ${validity}`] : []),
     ...(addOns.length ? [`Add-ons: ${addOns.join(", ")}`] : []),
     `Started: ${ctx.app.submittedAt}`,
     ``,
@@ -321,11 +370,13 @@ export function checkoutStartedCustomerEmail(ctx: OrderEmailContext): {
   const subject = `Complete your ${state} license checkout (${ctx.app.reference})`;
 
   const applicant = buildApplicantDetails(ctx.config, ctx.maskedData);
+  const validity = licenseValidity(ctx);
   const orderRows = [
     detailRow("Reference", esc(ctx.app.reference), { mono: true, strong: true }),
     detailRow("State", esc(state)),
     detailRow("Residency", esc(residencyLabel(ctx.app.residency))),
     detailRow("License", esc(licenseName(ctx))),
+    ...(validity ? [detailRow("Valid", esc(validity))] : []),
     ...(addOns.length ? [detailRow("Add-ons", esc(addOns.join(", ")))] : []),
     detailRow("Amount due", esc(total), { strong: true }),
   ].join("");
@@ -353,6 +404,7 @@ export function checkoutStartedCustomerEmail(ctx: OrderEmailContext): {
     `State: ${state}`,
     `Residency: ${residencyLabel(ctx.app.residency)}`,
     `License: ${licenseName(ctx)}`,
+    ...(validity ? [`Valid: ${validity}`] : []),
     ...(addOns.length ? [`Add-ons: ${addOns.join(", ")}`] : []),
     `Amount due: ${total}`,
     ``,

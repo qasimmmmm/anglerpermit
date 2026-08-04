@@ -829,6 +829,29 @@ export const config: StateConfig = {
       step: 2,
       officialNote: "Checkbox at the end of the address block; reveals a mailing-address field group when checked. TODO: capture exact mailing address field labels — https://license.gooutdoorsflorida.com/Licensing/CreateCustomer.aspx",
     },
+    // Short-term license start date. FWC Non-Resident 3-Day and 7-Day
+    // freshwater/saltwater licenses are explicitly "consecutive days from
+    // specified start date" per the official portal. The picker appears in
+    // step 2 only when a short-term SKU is selected in step 1 (conditional
+    // on licenseId).
+    {
+      name: "licenseStartDate",
+      label: "License start date",
+      type: "date",
+      required: true,
+      conditional: {
+        field: "licenseId",
+        oneOf: [
+          "freshwater-fishing-3-day-nonresident",
+          "freshwater-fishing-7-day-nonresident",
+          "saltwater-fishing-3-day-nonresident",
+          "saltwater-fishing-7-day-nonresident",
+        ],
+      },
+      helpText: "Choose when your short-term license should start — it is valid for the number of consecutive days shown on your selected license.",
+      step: 2,
+      officialNote: "FWC Non-Resident 3-Day/7-Day licenses are 'consecutive days from specified start date' per Go Outdoors Florida. Start date collected here so the purchase can be completed on the applicant's behalf.",
+    },
   ],
   stateIdentifiers: [
     {

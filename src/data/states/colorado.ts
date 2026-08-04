@@ -400,6 +400,28 @@ export const config: StateConfig = {
       officialNote:
         "cpwshop.com purchase flow asks 'Enter your age and residency to view available licenses' (purchaseprivilege.page) and includes a residency confirmation page before checkout. Exact option labels TODO: verify. Resident products require proof of residency (CO driver's license/ID issued 6+ months prior, or 2 additional proofs).",
     },
+    // Short-term license start date. CPW One-day, Additional-day, and
+    // Five-day fishing licenses are valid for consecutive calendar days
+    // from the specified start date. The picker appears in step 2 only when
+    // a short-term SKU is selected in step 1 (conditional on licenseId).
+    {
+      name: "licenseStartDate",
+      label: "License start date",
+      type: "date",
+      required: true,
+      conditional: {
+        field: "licenseId",
+        oneOf: [
+          "one-day-fishing-resident",
+          "one-day-fishing-nonresident",
+          "additional-day-fishing",
+          "five-day-fishing-nonresident",
+        ],
+      },
+      helpText: "Choose when your short-term license should start — it is valid for the number of consecutive days shown on your selected license.",
+      step: 2,
+      officialNote: "CPW short-term (1-day, additional-day, 5-day) fishing licenses are valid for consecutive calendar days from the specified start date. Start date collected here so the purchase can be completed on the applicant's behalf.",
+    },
   ],
   stateIdentifiers: [
     {

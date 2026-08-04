@@ -838,6 +838,27 @@ export const config: StateConfig = {
       helpText: "Optional password protects your customer record and is required to enroll in Auto-Renewal and to access certain customer-record features (e.g., Upload File).",
       step: 2,
       officialNote: "TODO: verify label, rules and placement — see 'Password Protection (through Customer Record Security Settings)' at https://wildlife.ca.gov/Licensing/Online-Sales/Frequently-Asked-Questions"
+    },
+    // Short-term license start date. CDFW One-day, Two-day, and Ten-day
+    // Nonresident sport fishing licenses are valid for consecutive calendar
+    // days from the specified start date. The picker appears in step 2 only
+    // when a short-term SKU is selected in step 1 (conditional on licenseId).
+    {
+      name: "licenseStartDate",
+      label: "License start date",
+      type: "date",
+      required: true,
+      conditional: {
+        field: "licenseId",
+        oneOf: [
+          "one-day-sport-fishing-license",
+          "two-day-sport-fishing-license",
+          "ten-day-nonresident-sport-fishing-license",
+        ],
+      },
+      helpText: "Choose when your short-term license should start — it is valid for the number of consecutive days shown on your selected license.",
+      step: 2,
+      officialNote: "CDFW short-term (1-day, 2-day, 10-day nonresident) sport fishing licenses are valid for consecutive calendar days from the specified start date. Start date collected here so the purchase can be completed on the applicant's behalf."
     }
   ],
   stateIdentifiers: [

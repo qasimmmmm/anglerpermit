@@ -25,9 +25,11 @@ import {
 import type { FormFieldDef, StateConfig, TokenizedPayment } from "@/lib/state-config";
 import {
   addOnsForLicense,
+  buildFieldSchema,
   buildSubmissionSchema,
   computeOrderTotal,
   digitsOnlyPatternCount,
+  formatLicenseDateRange,
   isFieldEffectivelyRequired,
   isFieldVisible,
   licensesForResidency,
@@ -81,9 +83,39 @@ function displayValue(def: FormFieldDef, value: unknown): string {
     case "select":
     case "radio":
       return def.options?.find((o) => o.value === value)?.label ?? String(value);
+    case "date":
+      return formatDateForDisplay(value);
     default:
       return String(value);
   }
+}
+
+/**
+ * Pretty-print a date field for the review screen. Accepts either the
+ * dob-mask form (MM/DD/YYYY) or the native <input type="date"> form
+ * (YYYY-MM-DD) and renders "Aug 4, 2026". Falls back to the raw string
+ * if the value cannot be parsed.
+ */
+function formatDateForDisplay(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "—";
+  const s = value.trim();
+  let d: Date | null = null;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    d = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])));
+  } else {
+    const us = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (us) {
+      d = new Date(Date.UTC(Number(us[3]), Number(us[1]) - 1, Number(us[2])));
+    }
+  }
+  if (!d || Number.isNaN(d.getTime())) return s;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
 }
 
 /* ------------------------------------------------------------------ */
@@ -549,22 +581,37 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
     if (step === 0) {
       ok = await trigger(["residency", "licenseId"]);
     } else if (step === 1) {
-      // Full submission schema (with licenseId/residency context) so conditional
-      // required fields (FL resident DL, SC hunter-ed, MI daily start date) enforce.
-      for (const f of config.formFields) {
-        clearErrors(`data.${f.name}` as Path<WizardValues>);
-      }
-      const parsed = schema.safeParse(getValues());
-      if (!parsed.success) {
-        let hasDataError = false;
-        for (const issue of parsed.error.issues) {
-          if (issue.path[0] !== "data") continue;
+      // Validate the applicant fields WITH wizard-level context (licenseId +
+      // residency) so conditional required fields (FL resident DL, SC hunter-ed,
+      // MI/TX/etc. license start date) enforce here — at step 1, before payment
+      // and consents exist. We deliberately do NOT rely on the full submission
+      // schema's superRefine: Zod skips object-level refinements when the base
+      // parse fails, and at this step payment.token / consents are still empty,
+      // which would otherwise abort the parse and silently skip the conditional
+      // (licenseId-keyed) field checks.
+      const values = getValues();
+      const applicantContext: Record<string, unknown> = {
+        ...(values.data as Record<string, unknown>),
+        licenseId: values.licenseId,
+        residency: values.residency,
+      };
+      let hasDataError = false;
+      for (const field of config.formFields) {
+        clearErrors(`data.${field.name}` as Path<WizardValues>);
+        if (!isFieldVisible(field, applicantContext)) continue;
+        const required = isFieldEffectivelyRequired(config, field, applicantContext);
+        const result = buildFieldSchema({ ...field, required }).safeParse(
+          (values.data as Record<string, unknown>)[field.name],
+        );
+        if (!result.success) {
           hasDataError = true;
-          const path = issue.path.join(".") as Path<WizardValues>;
-          setError(path, { type: "validate", message: issue.message });
+          setError(`data.${field.name}` as Path<WizardValues>, {
+            type: "validate",
+            message: result.error.issues[0]?.message ?? `${field.label} is invalid`,
+          });
         }
-        ok = !hasDataError;
       }
+      ok = !hasDataError;
     } else if (step === 2) {
       ok = await trigger("consents.accurateAndTerms");
     }
@@ -878,6 +925,19 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
                       {config.licenses.find((l) => l.id === licenseId)?.name ?? licenseId}
                     </dd>
                   </div>
+                  {(() => {
+                    const sku = config.licenses.find((l) => l.id === licenseId);
+                    const range = formatLicenseDateRange(
+                      watchedData.licenseStartDate,
+                      sku?.duration,
+                    );
+                    return range ? (
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-slate-500">Valid</dt>
+                        <dd className="text-right font-medium text-navy">{range}</dd>
+                      </div>
+                    ) : null;
+                  })()}
                   {addOnIds.length > 0 && (
                     <div className="flex justify-between gap-4">
                       <dt className="text-slate-500">Add-ons</dt>

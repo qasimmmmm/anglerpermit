@@ -90,12 +90,25 @@ export function DeliverView() {
         return;
       }
       const app = data.app as ApplicationRecord;
+      const summary = data.licenseSummary as
+        | { startDate: string | null; endDate: string | null; formatted: string | null }
+        | null;
       setReference(app.reference);
       setTo(app.email || "");
       setCustomerName([app.firstName, app.lastName].filter(Boolean).join(" ") || "");
       setStateName(STATE_LABEL[app.stateSlug] || app.stateSlug);
+      // Auto-prefill validity dates from the applicant's chosen start date +
+      // the SKU's duration. Only overwrites blank fields so a partly-filled
+      // form isn't clobbered when re-looking up a reference.
+      if (summary?.startDate) {
+        setValidFrom((v) => (v ? v : summary.startDate ?? ""));
+      }
+      if (summary?.endDate) {
+        setValidTo((v) => (v ? v : summary.endDate ?? ""));
+      }
+      const validSuffix = summary?.formatted ? ` · Valid ${summary.formatted}` : "";
       setLookupMsg(
-        `Loaded ${app.reference} · ${app.status} · $${(app.amountCents / 100).toFixed(2)}`,
+        `Loaded ${app.reference} · ${app.status} · $${(app.amountCents / 100).toFixed(2)}${validSuffix}`,
       );
     } catch {
       setLookupMsg("Lookup failed — fill fields manually.");

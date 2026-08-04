@@ -17,6 +17,49 @@ import {
   type ApplicationStatus,
 } from "@/lib/storage";
 import { dbConfigured } from "@/lib/db";
+import { getStateConfig } from "@/lib/states";
+import {
+  computeLicenseEndDate,
+  formatLicenseDateRange,
+  parseIsoDate,
+  parseMmDdYyyy,
+} from "@/lib/state-config";
+
+interface LicenseSummary {
+  name: string;
+  duration: string;
+  startDate: string | null;
+  endDate: string | null;
+  formatted: string | null;
+}
+
+/**
+ * Resolve display-ready license details for an application row: SKU name +
+ * duration from the state config, and a formatted date range computed from
+ * the applicant's chosen start date. Returns null when the state or SKU
+ * cannot be resolved so callers can fall back to the raw licenseId.
+ */
+async function resolveLicenseSummary(
+  stateSlug: string,
+  licenseId: string,
+  formData: Record<string, unknown> | undefined,
+): Promise<LicenseSummary | null> {
+  const config = await getStateConfig(stateSlug);
+  const sku = config?.licenses.find((l) => l.id === licenseId);
+  if (!sku) return null;
+  const raw = formData?.licenseStartDate;
+  const start =
+    typeof raw === "string" && raw.includes("-") ? parseIsoDate(raw) : parseMmDdYyyy(raw);
+  const end = computeLicenseEndDate(start, sku.duration);
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return {
+    name: sku.name,
+    duration: sku.duration,
+    startDate: start ? iso(start) : null,
+    endDate: end ? iso(end) : null,
+    formatted: formatLicenseDateRange(raw, sku.duration),
+  };
+}
 
 async function guard() {
   if (!(await isAdminAuthenticated())) {
@@ -64,7 +107,12 @@ export async function GET(req: Request) {
       if (!id) return NextResponse.json({ ok: false, error: "id required" }, { status: 400 });
       const app = await mongoGetById(id);
       if (!app) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
-      return NextResponse.json({ ok: true, app });
+      const licenseSummary = await resolveLicenseSummary(
+        app.stateSlug,
+        app.licenseId,
+        app.formData,
+      );
+      return NextResponse.json({ ok: true, app, licenseSummary });
     }
 
     if (view === "byRef") {
@@ -74,7 +122,12 @@ export async function GET(req: Request) {
       }
       const app = await mongoGetByReference(reference);
       if (!app) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
-      return NextResponse.json({ ok: true, app });
+      const licenseSummary = await resolveLicenseSummary(
+        app.stateSlug,
+        app.licenseId,
+        app.formData,
+      );
+      return NextResponse.json({ ok: true, app, licenseSummary });
     }
 
     const result = await mongoListApps({

@@ -209,6 +209,71 @@ export const config: StateConfig = {
       description: "Valid for the selected day or days purchased. Endorsements are not required for this license. Consecutive days may be bought at the time of purchase. One red drum tag (Item 598) and one spotted seatrout tag (Item 596) are available at no additional charge with the purchase of the first one-day license only (limit one per customer). (TPWD Item 214)",
       officialNote: "Verified $16 (Item 214) on official Texas Outdoor Annual (eRegulations) and Texas Register TRD-202502444.",
     },
+    // Multi-day all-water licenses. TPWD sells the One-Day All-Water License
+    // with additional consecutive days added at purchase; these fixed 2/3/4-Day
+    // SKUs package that so the buyer can pick a duration up front (matching the
+    // multi-day options offered by comparison services). Base price is set so
+    // displayPrice() (×PRICE_MARKUP) lands on the advertised total.
+    {
+      id: "resident-two-day-all-water-license",
+      name: "Two-Day All-Water License",
+      price: 17.65,
+      residency: "resident",
+      duration: "2-Day",
+      category: "all-water",
+      description: "Valid for two consecutive days from your selected start date. Endorsements are not required for this license. One red drum tag and one spotted seatrout tag are available at no additional charge with the first one-day license purchased (limit one per customer). (Based on TPWD Item 213 with an added consecutive day.)",
+      officialNote: "TPWD One-Day All-Water License (Item 213) with one additional consecutive day added at purchase.",
+    },
+    {
+      id: "resident-three-day-all-water-license",
+      name: "Three-Day All-Water License",
+      price: 21.65,
+      residency: "resident",
+      duration: "3-Day",
+      category: "all-water",
+      description: "Valid for three consecutive days from your selected start date. Endorsements are not required for this license. One red drum tag and one spotted seatrout tag are available at no additional charge with the first one-day license purchased (limit one per customer). (Based on TPWD Item 213 with two added consecutive days.)",
+      officialNote: "TPWD One-Day All-Water License (Item 213) with two additional consecutive days added at purchase.",
+    },
+    {
+      id: "resident-four-day-all-water-license",
+      name: "Four-Day All-Water License",
+      price: 24.9833333333,
+      residency: "resident",
+      duration: "4-Day",
+      category: "all-water",
+      description: "Valid for four consecutive days from your selected start date. Endorsements are not required for this license. One red drum tag and one spotted seatrout tag are available at no additional charge with the first one-day license purchased (limit one per customer). (Based on TPWD Item 213 with three added consecutive days.)",
+      officialNote: "TPWD One-Day All-Water License (Item 213) with three additional consecutive days added at purchase.",
+    },
+    {
+      id: "nonresident-two-day-all-water-license",
+      name: "Two-Day All-Water License",
+      price: 19.9833333333,
+      residency: "nonresident",
+      duration: "2-Day",
+      category: "all-water",
+      description: "Valid for two consecutive days from your selected start date. Endorsements are not required for this license. One red drum tag and one spotted seatrout tag are available at no additional charge with the first one-day license purchased (limit one per customer). (Based on TPWD Item 214 with an added consecutive day.)",
+      officialNote: "TPWD One-Day All-Water License (Item 214) with one additional consecutive day added at purchase.",
+    },
+    {
+      id: "nonresident-three-day-all-water-license",
+      name: "Three-Day All-Water License",
+      price: 29.9833333333,
+      residency: "nonresident",
+      duration: "3-Day",
+      category: "all-water",
+      description: "Valid for three consecutive days from your selected start date. Endorsements are not required for this license. One red drum tag and one spotted seatrout tag are available at no additional charge with the first one-day license purchased (limit one per customer). (Based on TPWD Item 214 with two added consecutive days.)",
+      officialNote: "TPWD One-Day All-Water License (Item 214) with two additional consecutive days added at purchase.",
+    },
+    {
+      id: "nonresident-four-day-all-water-license",
+      name: "Four-Day All-Water License",
+      price: 33.3166666667,
+      residency: "nonresident",
+      duration: "4-Day",
+      category: "all-water",
+      description: "Valid for four consecutive days from your selected start date. Endorsements are not required for this license. One red drum tag and one spotted seatrout tag are available at no additional charge with the first one-day license purchased (limit one per customer). (Based on TPWD Item 214 with three added consecutive days.)",
+      officialNote: "TPWD One-Day All-Water License (Item 214) with three additional consecutive days added at purchase.",
+    },
     {
       id: "special-resident-all-water-fishing-license",
       name: "Special Resident All-Water Fishing License",
@@ -714,6 +779,33 @@ export const config: StateConfig = {
       },
       step: 2,
       officialNote: "Mailing Address section checkbox on official screen.",
+    },
+    // Short-term license start date. The TPWD One-Day All-Water License is
+    // valid for the selected day (consecutive days may be purchased at the
+    // same time — the start date is the first day). The picker appears in
+    // step 2 only when a one-day SKU is selected in step 1 (conditional on
+    // licenseId).
+    {
+      name: "licenseStartDate",
+      label: "License start date",
+      type: "date",
+      required: true,
+      conditional: {
+        field: "licenseId",
+        oneOf: [
+          "resident-one-day-all-water-license",
+          "nonresident-one-day-all-water-license",
+          "resident-two-day-all-water-license",
+          "resident-three-day-all-water-license",
+          "resident-four-day-all-water-license",
+          "nonresident-two-day-all-water-license",
+          "nonresident-three-day-all-water-license",
+          "nonresident-four-day-all-water-license",
+        ],
+      },
+      helpText: "Choose when your license should start — it is valid for the number of consecutive days shown on your selected license.",
+      step: 2,
+      officialNote: "One-Day and multi-day All-Water Licenses (TPWD Items 213/214, plus added consecutive days) are valid from the selected start date. Start date collected here so the purchase can be completed on the applicant's behalf.",
     },
   ],
   stateIdentifiers: [

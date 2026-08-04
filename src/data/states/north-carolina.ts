@@ -845,6 +845,30 @@ export const config: StateConfig = {
       step: 2,
       officialNote: "Collected in a later 'Additional Action Required to Proceed / Additional Info Needed' step of the official flow (seen in Google's cached render of the CustomerLookup page), not on the initial Create Customer form. Exact prompt text: 'Please submit your full social security number to proceed. Social Security Number is required pursuant to federal law.'",
     },
+    // Short-term license start date. NCWRC / NC DEQ short-term inland and
+    // coastal 10-day licenses (and Mountain Heritage Trout Waters 3-day) are
+    // valid for consecutive calendar days from the specified start date. The
+    // picker appears in step 2 only when a short-term SKU is selected in
+    // step 1 (conditional on licenseId).
+    {
+      name: "licenseStartDate",
+      label: "License start date",
+      type: "date",
+      required: true,
+      conditional: {
+        field: "licenseId",
+        oneOf: [
+          "inland-fishing-10-day-resident",
+          "inland-fishing-10-day-nonresident",
+          "mountain-heritage-trout-waters-3-day",
+          "coastal-recreational-fishing-10-day-resident",
+          "coastal-recreational-fishing-10-day-nonresident",
+        ],
+      },
+      helpText: "Choose when your short-term license should start — it is valid for the number of consecutive days shown on your selected license.",
+      step: 2,
+      officialNote: "NCWRC / NC DEQ short-term licenses are valid for consecutive calendar days from the specified start date. Start date collected here so the purchase can be completed on the applicant's behalf.",
+    },
   ],
   stateIdentifiers: [
     {

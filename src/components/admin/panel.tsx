@@ -827,9 +827,18 @@ export function ApplicationsView() {
   );
 }
 
+interface LicenseSummary {
+  name: string;
+  duration: string;
+  startDate: string | null;
+  endDate: string | null;
+  formatted: string | null;
+}
+
 export function ApplicationDetailView({ id }: { id: string }) {
   const router = useRouter();
   const [app, setApp] = useState<ApplicationRecord | null>(null);
+  const [licenseSummary, setLicenseSummary] = useState<LicenseSummary | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState<ApplicationStatus>("received");
   const [reason, setReason] = useState("");
@@ -853,6 +862,7 @@ export function ApplicationDetailView({ id }: { id: string }) {
           return;
         }
         setApp(d.app);
+        setLicenseSummary((d.licenseSummary as LicenseSummary | null) ?? null);
         setStatus(d.app.status);
         setReason(d.app.statusReason || "");
       } catch (err) {
@@ -1042,7 +1052,10 @@ export function ApplicationDetailView({ id }: { id: string }) {
               {[
                 ["Amount", money(app.amountCents)],
                 ["State", stateLabel(app.stateSlug)],
-                ["License", app.licenseId],
+                ["License", licenseSummary?.name ?? app.licenseId],
+                ...(licenseSummary?.formatted
+                  ? ([["Valid", licenseSummary.formatted]] as [string, string][])
+                  : []),
                 ["Residency", app.residency],
                 ["Phone", app.phone],
                 ["Submitted", new Date(app.submittedAt).toLocaleString()],

@@ -226,6 +226,93 @@ export function parseMmDdYyyy(value: unknown): Date | null {
   return date;
 }
 
+/** Parse an <input type="date"> value (YYYY-MM-DD) to a UTC date, or null. */
+export function parseIsoDate(value: unknown): Date | null {
+  if (typeof value !== "string") return null;
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
+/**
+ * Number of consecutive days a short-term license is valid for, parsed
+ * from its `duration` string. Returns null for annual/lifetime/unknown.
+ *
+ * Handles the verbatim strings used across the seven state configs:
+ *   - "1-Day", "2-Day", ..., "14-Day"                → the leading N
+ *   - "3-Day (consecutive days from specified ...)"  → the leading N
+ *   - "Additional Day"                               → 1 (CPW extension)
+ *   - "Annual", "Annual (...)", "3-Year", "Lifetime" → null
+ */
+export function licenseDurationDays(duration: string | undefined): number | null {
+  if (!duration) return null;
+  const dayMatch = duration.trim().match(/^(\d+)-Day/i);
+  if (dayMatch) {
+    const days = Number(dayMatch[1]);
+    return Number.isFinite(days) && days > 0 ? days : null;
+  }
+  if (/^additional\s+day/i.test(duration.trim())) return 1;
+  return null;
+}
+
+/**
+ * Compute the inclusive last day a short-term license is valid, given the
+ * user-selected start date and the SKU's duration string. Returns null if
+ * either input is missing/invalid or the SKU is not day-based.
+ *
+ * A 1-Day license starting Aug 4 ends on Aug 4. A 3-Day license starting
+ * Aug 4 ends on Aug 6 (start + duration - 1).
+ */
+export function computeLicenseEndDate(
+  startDate: Date | null,
+  duration: string | undefined,
+): Date | null {
+  const days = licenseDurationDays(duration);
+  if (!startDate || days == null) return null;
+  const end = new Date(startDate.getTime());
+  end.setUTCDate(end.getUTCDate() + days - 1);
+  return end;
+}
+
+/**
+ * Human-readable range like "Aug 4, 2026 – Aug 6, 2026 (3 days)" for a
+ * short-term license, or a single date for 1-Day. Returns null when the
+ * start date is missing/invalid or the SKU is not day-based.
+ */
+export function formatLicenseDateRange(
+  startValue: unknown,
+  duration: string | undefined,
+): string | null {
+  const start =
+    typeof startValue === "string" && startValue.includes("-")
+      ? parseIsoDate(startValue)
+      : parseMmDdYyyy(startValue);
+  const end = computeLicenseEndDate(start, duration);
+  if (!start || !end) return null;
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  const days = licenseDurationDays(duration) ?? 1;
+  if (start.getTime() === end.getTime()) {
+    return `${fmt.format(start)} (1 day)`;
+  }
+  return `${fmt.format(start)} \u2013 ${fmt.format(end)} (${days} days)`;
+}
+
 /** True when a conditional field should be visible given current values. */
 export function isFieldVisible(
   field: FormFieldDef,

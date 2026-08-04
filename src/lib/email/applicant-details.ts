@@ -1,4 +1,4 @@
-import type { StateConfig } from "@/lib/state-config";
+import type { FormFieldDef, StateConfig } from "@/lib/state-config";
 import { detailCard, detailRow, esc } from "./email-layout";
 
 function formatValue(value: unknown): string {
@@ -14,6 +14,42 @@ function formatValue(value: unknown): string {
     }
   }
   return String(value);
+}
+
+/**
+ * Pretty-print a raw date field value (ISO YYYY-MM-DD from <input type="date">
+ * or masked MM/DD/YYYY from DOB fields) as "Aug 4, 2026". Falls back to the
+ * raw string if the value can't be parsed so nothing is dropped in email.
+ */
+function formatDateValue(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "—";
+  const s = value.trim();
+  let d: Date | null = null;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) {
+    d = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])));
+  } else {
+    const us = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (us) {
+      d = new Date(Date.UTC(Number(us[3]), Number(us[1]) - 1, Number(us[2])));
+    }
+  }
+  if (!d || Number.isNaN(d.getTime())) return s;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
+}
+
+function formatFieldValue(field: FormFieldDef, value: unknown): string {
+  if (field.type === "date") return formatDateValue(value);
+  if (field.type === "select" || field.type === "radio") {
+    const label = field.options?.find((o) => o.value === value)?.label;
+    if (label) return label;
+  }
+  return formatValue(value);
 }
 
 function prettyKey(key: string): string {
@@ -45,7 +81,7 @@ export function buildApplicantDetails(
     for (const field of config.formFields) {
       if (!(field.name in data)) continue;
       rendered.add(field.name);
-      const value = formatValue(data[field.name]);
+      const value = formatFieldValue(field, data[field.name]);
       const label = field.label.replace(/:\s*$/, "");
       rows.push(detailRow(label, esc(value)));
       textLines.push(`${label}: ${value}`);

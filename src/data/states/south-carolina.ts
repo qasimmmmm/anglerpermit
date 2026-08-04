@@ -1017,6 +1017,29 @@ export const config: StateConfig = {
       officialNote:
         "Exact label from official SCDNR application (Hunter Education Certification section). Option list TODO: verify (CAPTCHA).",
     },
+    // Short-term license start date. SCDNR issues 1-, 7-, and 14-day licenses
+    // valid for consecutive calendar days from the specified start date. The
+    // picker appears in step 2 only when a short-term SKU is selected in
+    // step 1 (conditional on licenseId).
+    {
+      name: "licenseStartDate",
+      label: "License start date",
+      type: "date",
+      required: true,
+      conditional: {
+        field: "licenseId",
+        oneOf: [
+          "freshwater-fishing-license-14-day-res",
+          "freshwater-fishing-license-14-day-nonres",
+          "saltwater-fishing-license-14-day-res",
+          "saltwater-fishing-license-7-day-nonres",
+          "saltwater-fishing-license-1-day-nonres",
+        ],
+      },
+      helpText: "Choose when your short-term license should start — it is valid for the number of consecutive days shown on your selected license.",
+      step: 2,
+      officialNote: "SCDNR short-term (1/7/14-day) licenses are valid for consecutive calendar days from the specified start date. Start date collected here so the purchase can be completed on the applicant's behalf.",
+    },
   ],
   stateIdentifiers: [
     {
