@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { ExternalLink, MapPin } from "lucide-react";
 import { getAllStateConfigs } from "@/lib/states";
-import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 
 export const metadata: Metadata = {
   title: "Official State Fishing License Websites",
@@ -70,10 +69,6 @@ export default async function OfficialSitesPage() {
               ))}
             </ul>
           )}
-
-          <div className="mt-10 max-w-3xl">
-            <DisclaimerBanner />
-          </div>
         </div>
       </section>
     </>

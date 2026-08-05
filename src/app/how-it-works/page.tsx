@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { buttonClasses } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 
 export const metadata: Metadata = {
   title: "How It Works",
@@ -152,9 +151,6 @@ export default function HowItWorksPage() {
             You can always purchase directly from the official state portal instead —
             every state page links to it.
           </p>
-          <div className="mt-8">
-            <DisclaimerBanner />
-          </div>
           <div className="mt-8">
             <Link href="/states" className={buttonClasses("accent", "lg")}>
               Start your application

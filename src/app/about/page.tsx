@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Fish, HeartHandshake, Receipt, ShieldCheck } from "lucide-react";
 import { buttonClasses } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 
 export const metadata: Metadata = {
   title: "About Us",
@@ -87,9 +86,6 @@ export default function AboutPage() {
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.body}</p>
               </Card>
             ))}
-          </div>
-          <div className="mt-10 max-w-3xl">
-            <DisclaimerBanner />
           </div>
           <div className="mt-10">
             <Link href="/states" className={buttonClasses("accent", "lg")}>

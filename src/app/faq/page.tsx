@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FAQ_ITEMS } from "@/data/faq";
 import { buttonClasses } from "@/components/ui/Button";
-import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 
 export const metadata: Metadata = {
   title: "Frequently Asked Questions",
@@ -44,10 +43,6 @@ export default function FaqPage() {
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">{item.answer}</p>
               </details>
             ))}
-          </div>
-
-          <div className="mt-10">
-            <DisclaimerBanner />
           </div>
 
           <div className="mt-10 text-center">

@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getAllStateConfigs } from "@/lib/states";
 import { StateGrid } from "@/components/StateGrid";
-import { DisclaimerBanner } from "@/components/ui/DisclaimerBanner";
 
 export const metadata: Metadata = {
   title: "States We Serve",
@@ -23,21 +21,12 @@ export default async function StatesPage() {
             current licensing data, with one clear total shown before you pay — no
             hidden fees.
           </p>
-          <p className="mt-4 text-sm text-slate-400">
-            Looking for the government portals?{" "}
-            <Link href="/official-sites" className="font-medium text-forest-300 underline">
-              Official state websites
-            </Link>
-          </p>
         </div>
       </section>
 
       <section className="py-14 sm:py-16">
         <div className="container-site">
           <StateGrid states={states} />
-          <div className="mt-10 max-w-3xl">
-            <DisclaimerBanner />
-          </div>
         </div>
       </section>
     </>
