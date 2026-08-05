@@ -1541,6 +1541,7 @@ export const config: StateConfig = {
   formFields: [
     {
       name: "idType",
+      section: "Identification",
       label: "Choose an identification option",
       type: "select",
       required: true,
@@ -1563,6 +1564,7 @@ export const config: StateConfig = {
     },
     {
       name: "idNumber",
+      section: "Identification",
       label: "Identification Number",
       type: "text",
       required: true,
@@ -1573,6 +1575,7 @@ export const config: StateConfig = {
     // conditional 'Driver's License State' dropdown in the ID & Birthdate dialog).
     {
       name: "driversLicenseState",
+      section: "Identification",
       label: "Driver's License State",
       type: "select",
       required: true,
@@ -1584,16 +1587,14 @@ export const config: StateConfig = {
       step: 2,
       officialNote: "Exact label + full option list copied verbatim from eLicense (MICHIGAN pinned first and repeated alphabetically; 'AMERICAN SOMOA' spelling is the portal's own).",
     },
-    {
-      name: "lastName",
-      label: "Last Name",
-      type: "text",
-      required: true,
-      autocomplete: "family-name",
-      step: 2,
-    },
+    // Display order First -> Middle -> Last intentionally differs from the
+    // official DNR portal (which lists Last -> First -> Middle). We are a
+    // consumer-facing assistance service, so we use the familiar consumer
+    // order matching usafishingassistant.com. Field NAMES/values are
+    // unchanged, so the data submitted to the official portal is identical.
     {
       name: "firstName",
+      section: "Personal details",
       label: "First Name",
       type: "text",
       required: true,
@@ -1602,6 +1603,7 @@ export const config: StateConfig = {
     },
     {
       name: "middleName",
+      section: "Personal details",
       label: "Middle Name",
       type: "text",
       required: false,
@@ -1609,7 +1611,17 @@ export const config: StateConfig = {
       step: 2,
     },
     {
+      name: "lastName",
+      section: "Personal details",
+      label: "Last Name",
+      type: "text",
+      required: true,
+      autocomplete: "family-name",
+      step: 2,
+    },
+    {
       name: "suffix",
+      section: "Personal details",
       label: "Suffix",
       type: "select",
       required: false,
@@ -1660,6 +1672,7 @@ export const config: StateConfig = {
     },
     {
       name: "dateOfBirth",
+      section: "Personal details",
       label: "Date of Birth",
       type: "date",
       required: true,
@@ -1669,6 +1682,7 @@ export const config: StateConfig = {
     },
     {
       name: "gender",
+      section: "Personal details",
       label: "Gender",
       type: "select",
       required: true,
@@ -1694,6 +1708,7 @@ export const config: StateConfig = {
     },
     {
       name: "heightFt",
+      section: "Personal details",
       label: "Height (ft)",
       type: "select",
       required: true,
@@ -1747,6 +1762,7 @@ export const config: StateConfig = {
     },
     {
       name: "heightIn",
+      section: "Personal details",
       label: "Height (in)",
       type: "select",
       required: true,
@@ -1806,6 +1822,7 @@ export const config: StateConfig = {
     // sane UI constraint flagged in the research, not an official rule.
     {
       name: "weightPounds",
+      section: "Personal details",
       label: "Weight (pounds)",
       type: "number",
       required: true,
@@ -1818,6 +1835,7 @@ export const config: StateConfig = {
     },
     {
       name: "driversLicense",
+      section: "Personal details",
       label: "Driver's License",
       type: "text",
       required: false,
@@ -1829,6 +1847,7 @@ export const config: StateConfig = {
     // checked checkbox support; values still submit true/false).
     {
       name: "updatesEmail",
+      section: "Personal details",
       label: "I wish to receive DNR updates: via email",
       type: "checkbox",
       required: false,
@@ -1837,6 +1856,7 @@ export const config: StateConfig = {
     },
     {
       name: "updatesText",
+      section: "Personal details",
       label: "via text message",
       type: "checkbox",
       required: false,
@@ -1845,6 +1865,7 @@ export const config: StateConfig = {
     },
     {
       name: "email",
+      section: "Personal details",
       label: "Email",
       type: "email",
       required: true,
@@ -1853,6 +1874,7 @@ export const config: StateConfig = {
     },
     {
       name: "primaryPhone",
+      section: "Personal details",
       label: "Primary Phone",
       type: "tel",
       required: true,
@@ -1862,6 +1884,7 @@ export const config: StateConfig = {
     },
     {
       name: "secondaryPhone",
+      section: "Personal details",
       label: "Secondary Phone",
       type: "tel",
       required: false,
@@ -1870,6 +1893,7 @@ export const config: StateConfig = {
     },
     {
       name: "resStreet1",
+      section: "Residence",
       label: "Street 1",
       type: "text",
       required: true,
@@ -1879,6 +1903,7 @@ export const config: StateConfig = {
     },
     {
       name: "resStreet2",
+      section: "Residence",
       label: "Street 2",
       type: "text",
       required: false,
@@ -1887,6 +1912,7 @@ export const config: StateConfig = {
     },
     {
       name: "resCity",
+      section: "Residence",
       label: "City",
       type: "text",
       required: true,
@@ -1895,6 +1921,7 @@ export const config: StateConfig = {
     },
     {
       name: "resState",
+      section: "Residence",
       label: "State/Prov",
       type: "select",
       required: true,
@@ -1904,6 +1931,7 @@ export const config: StateConfig = {
     },
     {
       name: "resZip",
+      section: "Residence",
       label: "Zip/Postal Code",
       type: "zip",
       required: true,
@@ -1913,6 +1941,7 @@ export const config: StateConfig = {
     },
     {
       name: "resCountry",
+      section: "Residence",
       label: "Country",
       type: "select",
       required: true,
@@ -1922,14 +1951,18 @@ export const config: StateConfig = {
     },
     {
       name: "mailStreet1",
+      section: "Mailing address",
+      conditional: { field: "mailingDifferent", equals: "true" },
       label: "Street 1",
       type: "text",
       required: false,
-      helpText: "Mailing Address (optional; portal provides a 'Copy From Residence' button)",
+      helpText: "Where should mail be sent, if different from your residence?",
       step: 2,
     },
     {
       name: "mailStreet2",
+      section: "Mailing address",
+      conditional: { field: "mailingDifferent", equals: "true" },
       label: "Street 2",
       type: "text",
       required: false,
@@ -1937,6 +1970,8 @@ export const config: StateConfig = {
     },
     {
       name: "mailCity",
+      section: "Mailing address",
+      conditional: { field: "mailingDifferent", equals: "true" },
       label: "City",
       type: "text",
       required: false,
@@ -1944,6 +1979,8 @@ export const config: StateConfig = {
     },
     {
       name: "mailState",
+      section: "Mailing address",
+      conditional: { field: "mailingDifferent", equals: "true" },
       label: "State/Prov",
       type: "select",
       required: false,
@@ -1952,6 +1989,8 @@ export const config: StateConfig = {
     },
     {
       name: "mailZip",
+      section: "Mailing address",
+      conditional: { field: "mailingDifferent", equals: "true" },
       label: "Zip/Postal Code",
       type: "zip",
       required: false,
@@ -1960,6 +1999,8 @@ export const config: StateConfig = {
     },
     {
       name: "mailCountry",
+      section: "Mailing address",
+      conditional: { field: "mailingDifferent", equals: "true" },
       label: "Country",
       type: "select",
       required: false,
@@ -1971,6 +2012,10 @@ export const config: StateConfig = {
     // is enforced via the ID/Sportcard requirement at purchase).
     {
       name: "michiganResident",
+      section: "Residence",
+      // Auto-derived from the Step 1 residency choice (syncResidencyField), so
+      // we never re-ask it on the applicant form. Still validated + submitted.
+      hidden: true,
       label: "Michigan resident",
       type: "select",
       required: true,
@@ -1994,6 +2039,7 @@ export const config: StateConfig = {
     // when the daily license is selected in step 1 (conditional on licenseId).
     {
       name: "licenseStartDate",
+      section: "License start date",
       label: "License start date",
       type: "date",
       required: true,

@@ -183,6 +183,7 @@ export const config: StateConfig = {
   formFields: [
     {
       name: "salutation",
+      section: "Personal details",
       label: "Salutation",
       type: "select",
       required: false,
@@ -202,6 +203,7 @@ export const config: StateConfig = {
     },
     {
       name: "firstName",
+      section: "Personal details",
       label: "First Legal Name",
       type: "text",
       required: true,
@@ -211,6 +213,7 @@ export const config: StateConfig = {
     },
     {
       name: "middleInitial",
+      section: "Personal details",
       label: "Middle Initial",
       type: "text",
       required: false,
@@ -219,6 +222,7 @@ export const config: StateConfig = {
     },
     {
       name: "lastName",
+      section: "Personal details",
       label: "Last Legal Name",
       type: "text",
       required: true,
@@ -228,6 +232,7 @@ export const config: StateConfig = {
     },
     {
       name: "suffix",
+      section: "Personal details",
       label: "Suffix",
       type: "select",
       required: false,
@@ -248,6 +253,7 @@ export const config: StateConfig = {
     },
     {
       name: "dateOfBirth",
+      section: "Personal details",
       label: "Date of Birth",
       type: "date",
       required: true,
@@ -258,6 +264,7 @@ export const config: StateConfig = {
     },
     {
       name: "email",
+      section: "Contact",
       label: "Email",
       type: "email",
       required: true,
@@ -270,6 +277,7 @@ export const config: StateConfig = {
     },
     {
       name: "addressLine1",
+      section: "Address",
       label: "Mailing Address",
       type: "text",
       required: true,
@@ -280,6 +288,7 @@ export const config: StateConfig = {
     },
     {
       name: "city",
+      section: "Address",
       label: "City",
       type: "text",
       required: true,
@@ -289,6 +298,7 @@ export const config: StateConfig = {
     },
     {
       name: "state",
+      section: "Address",
       label: "State",
       type: "select",
       required: true,
@@ -299,6 +309,7 @@ export const config: StateConfig = {
     },
     {
       name: "zipCode",
+      section: "Address",
       label: "ZIP Code",
       type: "zip",
       required: true,
@@ -310,6 +321,7 @@ export const config: StateConfig = {
     },
     {
       name: "phone",
+      section: "Contact",
       label: "Phone",
       type: "tel",
       required: true,
@@ -321,6 +333,7 @@ export const config: StateConfig = {
     },
     {
       name: "identificationType",
+      section: "Identification",
       label: "Identification Type",
       type: "select",
       required: true,
@@ -341,6 +354,7 @@ export const config: StateConfig = {
     },
     {
       name: "identificationNumber",
+      section: "Identification",
       label: "Identification Number",
       type: "text",
       required: true,
@@ -354,6 +368,7 @@ export const config: StateConfig = {
       // Habitat Stamp / license-history logic on the customer's account.
       // (https://cpw.state.co.us/thingstodo/Pages/CPWShop-Account.aspx)
       name: "cpwCustomerId",
+      section: "Identification",
       label: "CPW Customer ID (CID) — if you have bought a Colorado license before",
       type: "text",
       required: false,
@@ -363,6 +378,7 @@ export const config: StateConfig = {
     },
     {
       name: "identificationState",
+      section: "Identification",
       label: "ID Issuing State",
       type: "select",
       required: false,
@@ -373,6 +389,7 @@ export const config: StateConfig = {
     },
     {
       name: "ssn",
+      section: "Identification",
       label: "Social Security Number",
       type: "ssn",
       required: true,
@@ -389,6 +406,7 @@ export const config: StateConfig = {
     },
     {
       name: "residencyDeclaration",
+      section: "Address",
       label: "Residency",
       type: "radio",
       required: true,
@@ -406,6 +424,7 @@ export const config: StateConfig = {
     // a short-term SKU is selected in step 1 (conditional on licenseId).
     {
       name: "licenseStartDate",
+      section: "License start date",
       label: "License start date",
       type: "date",
       required: true,
