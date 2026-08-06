@@ -446,6 +446,7 @@ export const config: StateConfig = {
   formFields: [
     {
       name: "residency",
+      section: "Eligibility",
       label: "Residency",
       type: "select",
       required: true,
@@ -460,6 +461,7 @@ export const config: StateConfig = {
     },
     {
       name: "customerType",
+      section: "Eligibility",
       label: "U.S. Customer / International Customer",
       type: "radio",
       required: true,
@@ -472,6 +474,7 @@ export const config: StateConfig = {
     },
     {
       name: "firstName",
+      section: "Personal details",
       label: "First Name",
       type: "text",
       required: true,
@@ -480,6 +483,7 @@ export const config: StateConfig = {
     },
     {
       name: "middleName",
+      section: "Personal details",
       label: "Middle Name",
       type: "text",
       required: false,
@@ -488,6 +492,7 @@ export const config: StateConfig = {
     },
     {
       name: "lastName",
+      section: "Personal details",
       label: "Last Name",
       type: "text",
       required: true,
@@ -496,6 +501,7 @@ export const config: StateConfig = {
     },
     {
       name: "suffix",
+      section: "Personal details",
       label: "Suffix",
       type: "select",
       required: false,
@@ -517,7 +523,18 @@ export const config: StateConfig = {
       step: 2,
     },
     {
+      name: "birthDate",
+      section: "Personal details",
+      label: "Birth Date (MM/DD/YYYY)",
+      type: "date",
+      required: true,
+      mask: "dob",
+      step: 2,
+      officialNote: "DOB is also the primary account-lookup key (with Last Name + last-4 SSN or DL number).",
+    },
+    {
       name: "documentType",
+      section: "Identification",
       label: "Document Type:",
       type: "select",
       required: true,
@@ -532,6 +549,7 @@ export const config: StateConfig = {
     },
     {
       name: "documentNumber",
+      section: "Identification",
       label: "Number:",
       type: "text",
       required: true,
@@ -541,6 +559,7 @@ export const config: StateConfig = {
     },
     {
       name: "dlExpirationDate",
+      section: "Identification",
       label: "DL Expiration Date",
       type: "date",
       required: true,
@@ -549,6 +568,7 @@ export const config: StateConfig = {
     },
     {
       name: "dlIssuingState",
+      section: "Identification",
       label: "Issuing State:",
       type: "select",
       required: true,
@@ -592,6 +612,7 @@ export const config: StateConfig = {
     },
     {
       name: "ssn",
+      section: "Identification",
       label: "SSN:",
       type: "ssn",
       required: true,
@@ -606,6 +627,7 @@ export const config: StateConfig = {
     },
     {
       name: "gender",
+      section: "Personal details",
       label: "Gender",
       type: "select",
       required: true,
@@ -616,16 +638,8 @@ export const config: StateConfig = {
       step: 2,
     },
     {
-      name: "birthDate",
-      label: "Birth Date (MM/DD/YYYY)",
-      type: "date",
-      required: true,
-      mask: "dob",
-      step: 2,
-      officialNote: "DOB is also the primary account-lookup key (with Last Name + last-4 SSN or DL number).",
-    },
-    {
       name: "ethnicity",
+      section: "Personal details",
       label: "Ethnicity:",
       type: "select",
       required: false,
@@ -639,6 +653,7 @@ export const config: StateConfig = {
     },
     {
       name: "heightFt",
+      section: "Personal details",
       label: "Height-ft:",
       type: "select",
       required: false,
@@ -652,6 +667,7 @@ export const config: StateConfig = {
     },
     {
       name: "heightIn",
+      section: "Personal details",
       label: "Height-in:",
       type: "select",
       required: false,
@@ -665,6 +681,7 @@ export const config: StateConfig = {
     },
     {
       name: "email",
+      section: "Contact",
       label: "Email:",
       type: "email",
       required: true,
@@ -673,6 +690,7 @@ export const config: StateConfig = {
     },
     {
       name: "primaryPhoneType",
+      section: "Contact",
       label: "Phone Type",
       type: "select",
       required: true,
@@ -685,6 +703,7 @@ export const config: StateConfig = {
     },
     {
       name: "primaryPhone",
+      section: "Contact",
       label: "Primary Phone:",
       type: "tel",
       required: true,
@@ -695,6 +714,7 @@ export const config: StateConfig = {
     },
     {
       name: "secondaryPhoneType",
+      section: "Contact",
       label: "Phone Type",
       type: "select",
       required: false,
@@ -707,6 +727,7 @@ export const config: StateConfig = {
     },
     {
       name: "secondaryPhone",
+      section: "Contact",
       label: "Secondary Phone:",
       type: "tel",
       required: false,
@@ -715,6 +736,7 @@ export const config: StateConfig = {
     },
     {
       name: "internationalPhoneNumber",
+      section: "Contact",
       label: "International Phone Number",
       type: "checkbox",
       required: false,
@@ -722,6 +744,7 @@ export const config: StateConfig = {
     },
     {
       name: "nonUsAddress",
+      section: "Address",
       label: "Is this a non-U.S. Address?",
       type: "radio",
       required: true,
@@ -733,6 +756,7 @@ export const config: StateConfig = {
     },
     {
       name: "street",
+      section: "Address",
       label: "Street",
       type: "text",
       required: true,
@@ -743,6 +767,7 @@ export const config: StateConfig = {
     },
     {
       name: "aptSuite",
+      section: "Address",
       label: "Apt / Suite / Other",
       type: "text",
       required: false,
@@ -751,6 +776,7 @@ export const config: StateConfig = {
     },
     {
       name: "city",
+      section: "Address",
       label: "City",
       type: "text",
       required: true,
@@ -759,6 +785,7 @@ export const config: StateConfig = {
     },
     {
       name: "state",
+      section: "Address",
       label: "State",
       type: "select",
       required: true,
@@ -801,6 +828,7 @@ export const config: StateConfig = {
     },
     {
       name: "zipCode",
+      section: "Address",
       label: "Zip Code",
       type: "zip",
       required: true,
@@ -815,6 +843,7 @@ export const config: StateConfig = {
     },
     {
       name: "county",
+      section: "Address",
       label: "County",
       type: "select",
       required: true,
@@ -823,19 +852,16 @@ export const config: StateConfig = {
     },
     {
       name: "differentMailingAddress",
+      section: "Address",
       label: "Different Mailing Address",
       type: "checkbox",
       required: false,
       step: 2,
       officialNote: "Checkbox at the end of the address block; reveals a mailing-address field group when checked. TODO: capture exact mailing address field labels — https://license.gooutdoorsflorida.com/Licensing/CreateCustomer.aspx",
     },
-    // Short-term license start date. FWC Non-Resident 3-Day and 7-Day
-    // freshwater/saltwater licenses are explicitly "consecutive days from
-    // specified start date" per the official portal. The picker appears in
-    // step 2 only when a short-term SKU is selected in step 1 (conditional
-    // on licenseId).
     {
       name: "licenseStartDate",
+      section: "License start date",
       label: "License start date",
       type: "date",
       required: true,

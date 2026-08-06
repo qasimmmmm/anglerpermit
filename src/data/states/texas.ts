@@ -391,20 +391,8 @@ export const config: StateConfig = {
   ],
   formFields: [
     {
-      name: "lastName",
-      label: "Last Name",
-      type: "text",
-      required: true,
-      autocomplete: "family-name",
-      validation: {
-        minLength: 1,
-        maxLength: 50,
-      },
-      step: 2,
-      officialNote: "Exact label from official View/Edit Customer Details screen (txfghelpsupport.com/ISAImages/isa5.png). Also asked on the initial Customer Login and Creation screen ('*Last Name:'). Name changes after account creation require contacting TPWD at (512) 389-4820.",
-    },
-    {
       name: "firstName",
+      section: "Personal details",
       label: "First Name",
       type: "text",
       required: true,
@@ -418,6 +406,7 @@ export const config: StateConfig = {
     },
     {
       name: "middleName",
+      section: "Personal details",
       label: "Middle Name",
       type: "text",
       required: false,
@@ -429,7 +418,22 @@ export const config: StateConfig = {
       officialNote: "Exact label from official View/Edit Customer Details screen; no asterisk (optional).",
     },
     {
+      name: "lastName",
+      section: "Personal details",
+      label: "Last Name",
+      type: "text",
+      required: true,
+      autocomplete: "family-name",
+      validation: {
+        minLength: 1,
+        maxLength: 50,
+      },
+      step: 2,
+      officialNote: "Exact label from official View/Edit Customer Details screen (txfghelpsupport.com/ISAImages/isa5.png). Also asked on the initial Customer Login and Creation screen ('*Last Name:'). Name changes after account creation require contacting TPWD at (512) 389-4820.",
+    },
+    {
       name: "suffix",
+      section: "Personal details",
       label: "Suffix",
       type: "select",
       required: false,
@@ -437,47 +441,8 @@ export const config: StateConfig = {
       officialNote: "Dropdown on official View/Edit Customer Details screen; no asterisk (optional). TODO: verify dropdown options (e.g., Jr., Sr., II, III) - https://www.txfgsales.com/",
     },
     {
-      name: "gender",
-      label: "Gender",
-      type: "select",
-      required: false,
-      step: 2,
-      officialNote: "Dropdown on official screen (screenshot shows 'Male' selected); no asterisk. TODO: verify full dropdown options - https://www.txfgsales.com/",
-    },
-    {
-      name: "heightFeet",
-      label: "Feet",
-      type: "select",
-      required: false,
-      step: 2,
-      officialNote: "Shown together with 'Inches' under a single 'Height' label on the official screen (two dropdowns: Feet, Inches). No asterisk. TODO: verify option ranges - https://www.txfgsales.com/",
-    },
-    {
-      name: "heightInches",
-      label: "Inches",
-      type: "select",
-      required: false,
-      step: 2,
-      officialNote: "Second dropdown of the official 'Height' field group. No asterisk. TODO: verify option ranges - https://www.txfgsales.com/",
-    },
-    {
-      name: "eyeColor",
-      label: "Eye Color",
-      type: "select",
-      required: false,
-      step: 2,
-      officialNote: "Dropdown on official screen (screenshot shows 'Blue' selected); no asterisk. TODO: verify full dropdown options - https://www.txfgsales.com/",
-    },
-    {
-      name: "hairColor",
-      label: "Hair Color",
-      type: "select",
-      required: false,
-      step: 2,
-      officialNote: "Dropdown on official screen (screenshot shows 'Grey' selected); no asterisk. TODO: verify full dropdown options - https://www.txfgsales.com/",
-    },
-    {
       name: "dob",
+      section: "Personal details",
       label: "DOB (MM/DD/YYYY)",
       type: "date",
       required: true,
@@ -487,7 +452,58 @@ export const config: StateConfig = {
       officialNote: "Exact label 'DOB (MM/DD/YYYY)' with asterisk on official screen; rendered as three separate text inputs (MM / DD / YYYY). Also asked on the initial Customer Login and Creation screen ('*Date of Birth:', mm/dd/yyyy inputs). DOB drives senior (65+) catalog filtering and under-17 exemption; DOB changes after account creation require contacting TPWD.",
     },
     {
+      name: "gender",
+      section: "Personal details",
+      label: "Gender",
+      type: "select",
+      required: false,
+      options: [
+        { value: "male", label: "Male" },
+        { value: "female", label: "Female" },
+        { value: "undisclosed", label: "Undisclosed" },
+      ],
+      step: 2,
+      officialNote: "Dropdown on official screen (screenshot shows 'Male' selected); no asterisk. Standard Male/Female/Undisclosed options used (full official list not observable) - https://www.txfgsales.com/",
+    },
+    {
+      name: "heightFeet",
+      section: "Personal details",
+      label: "Feet",
+      type: "select",
+      required: false,
+      step: 2,
+      officialNote: "Shown together with 'Inches' under a single 'Height' label on the official screen (two dropdowns: Feet, Inches). No asterisk. TODO: verify option ranges - https://www.txfgsales.com/",
+    },
+    {
+      name: "heightInches",
+      section: "Personal details",
+      label: "Inches",
+      type: "select",
+      required: false,
+      step: 2,
+      officialNote: "Second dropdown of the official 'Height' field group. No asterisk. TODO: verify option ranges - https://www.txfgsales.com/",
+    },
+    {
+      name: "eyeColor",
+      section: "Personal details",
+      label: "Eye Color",
+      type: "select",
+      required: false,
+      step: 2,
+      officialNote: "Dropdown on official screen (screenshot shows 'Blue' selected); no asterisk. TODO: verify full dropdown options - https://www.txfgsales.com/",
+    },
+    {
+      name: "hairColor",
+      section: "Personal details",
+      label: "Hair Color",
+      type: "select",
+      required: false,
+      step: 2,
+      officialNote: "Dropdown on official screen (screenshot shows 'Grey' selected); no asterisk. TODO: verify full dropdown options - https://www.txfgsales.com/",
+    },
+    {
       name: "ssn",
+      section: "Identification",
       label: "SSN (xxxxxxxxx)",
       type: "ssn",
       required: true,
@@ -502,6 +518,7 @@ export const config: StateConfig = {
     },
     {
       name: "driversLicenseState",
+      section: "Identification",
       // AUDIT FIX (form-audit): research JSON labeled BOTH DL fields
       // "Driver's License" (the official screen shows ONE 'Driver's License'
       // label over a state select + number input group - texas.md 'View/Edit
@@ -516,6 +533,7 @@ export const config: StateConfig = {
     },
     {
       name: "driversLicenseNumber",
+      section: "Identification",
       // AUDIT FIX (form-audit): was "Driver's License" (duplicate of the state
       // dropdown's label). Official login-screen phrasing for this pair is
       // "Driver's License (# and state)" - texas.md Step A / texas.json
@@ -532,6 +550,7 @@ export const config: StateConfig = {
     },
     {
       name: "passportNumber",
+      section: "Identification",
       label: "Passport Number",
       type: "text",
       required: false,
@@ -548,6 +567,7 @@ export const config: StateConfig = {
     },
     {
       name: "passportIssuingCountry",
+      section: "Identification",
       label: "Passport Issuing Country",
       type: "select",
       required: false,
@@ -560,6 +580,7 @@ export const config: StateConfig = {
     },
     {
       name: "customerId",
+      section: "Identification",
       label: "Customer ID",
       type: "text",
       required: false,
@@ -568,6 +589,7 @@ export const config: StateConfig = {
     },
     {
       name: "texasResident",
+      section: "Residence",
       label: "Texas Resident",
       type: "select",
       required: true,
@@ -586,6 +608,7 @@ export const config: StateConfig = {
     },
     {
       name: "resAddress1",
+      section: "Residence",
       label: "Address Line 1",
       type: "text",
       required: true,
@@ -599,6 +622,7 @@ export const config: StateConfig = {
     },
     {
       name: "resAddress2",
+      section: "Residence",
       label: "Address Line 2",
       type: "text",
       required: false,
@@ -611,6 +635,7 @@ export const config: StateConfig = {
     },
     {
       name: "resCity",
+      section: "Residence",
       label: "City/Town",
       type: "text",
       required: true,
@@ -624,6 +649,7 @@ export const config: StateConfig = {
     },
     {
       name: "resState",
+      section: "Residence",
       label: "State",
       type: "select",
       required: true,
@@ -633,6 +659,7 @@ export const config: StateConfig = {
     },
     {
       name: "resZip",
+      section: "Residence",
       label: "Zip",
       type: "zip",
       required: true,
@@ -647,6 +674,7 @@ export const config: StateConfig = {
     },
     {
       name: "phone",
+      section: "Contact",
       label: "Phone No.",
       type: "tel",
       required: true,
@@ -661,6 +689,7 @@ export const config: StateConfig = {
     },
     {
       name: "email",
+      section: "Contact",
       label: "E-Mail Address",
       type: "email",
       required: true,
@@ -673,6 +702,7 @@ export const config: StateConfig = {
     },
     {
       name: "resNonUsAddress",
+      section: "Residence",
       label: "Non U.S. Address",
       type: "checkbox",
       required: false,
@@ -681,6 +711,7 @@ export const config: StateConfig = {
     },
     {
       name: "mailSameAsResidence",
+      section: "Mailing address",
       label: "Same as Residence Address",
       type: "checkbox",
       required: false,
@@ -689,6 +720,7 @@ export const config: StateConfig = {
     },
     {
       name: "mailAddress1",
+      section: "Mailing address",
       label: "Address Line 1",
       type: "text",
       required: true,
@@ -706,6 +738,7 @@ export const config: StateConfig = {
     },
     {
       name: "mailAddress2",
+      section: "Mailing address",
       label: "Address Line 2",
       type: "text",
       required: false,
@@ -722,6 +755,7 @@ export const config: StateConfig = {
     },
     {
       name: "mailCity",
+      section: "Mailing address",
       label: "City/Town",
       type: "text",
       required: true,
@@ -739,6 +773,7 @@ export const config: StateConfig = {
     },
     {
       name: "mailState",
+      section: "Mailing address",
       label: "State",
       type: "select",
       required: true,
@@ -752,6 +787,7 @@ export const config: StateConfig = {
     },
     {
       name: "mailZip",
+      section: "Mailing address",
       label: "Zip",
       type: "zip",
       required: true,
@@ -770,6 +806,7 @@ export const config: StateConfig = {
     },
     {
       name: "mailNonUsAddress",
+      section: "Mailing address",
       label: "Non U.S. Address",
       type: "checkbox",
       required: false,
@@ -780,13 +817,9 @@ export const config: StateConfig = {
       step: 2,
       officialNote: "Mailing Address section checkbox on official screen.",
     },
-    // Short-term license start date. The TPWD One-Day All-Water License is
-    // valid for the selected day (consecutive days may be purchased at the
-    // same time — the start date is the first day). The picker appears in
-    // step 2 only when a one-day SKU is selected in step 1 (conditional on
-    // licenseId).
     {
       name: "licenseStartDate",
+      section: "License start date",
       label: "License start date",
       type: "date",
       required: true,

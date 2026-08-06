@@ -681,6 +681,7 @@ export const config: StateConfig = {
   formFields: [
     {
       name: "customerId",
+      section: "Identification",
       label: "Customer #",
       type: "text",
       required: false,
@@ -695,6 +696,7 @@ export const config: StateConfig = {
     },
     {
       name: "ssn",
+      section: "Identification",
       label: "Social Security #",
       type: "ssn",
       required: true,
@@ -715,18 +717,8 @@ export const config: StateConfig = {
         "Label and XXX-XX-XXXX format from official SCDNR application. 'Full social security number' required for first-time purchase per dnr.sc.gov/licenses/faqs.html. Portal lookup uses 'Last Four of SSN' for returning customers.",
     },
     {
-      name: "dateOfBirth",
-      label: "Date of Birth (MM/DD/YYYY)",
-      type: "date",
-      required: true,
-      mask: "dob",
-      autocomplete: "bday",
-      step: 2,
-      officialNote:
-        "Exact label from Go Outdoors SC customer lookup/enrollment form (license.gooutdoorssouthcarolina.com/Licensing/CustomerLookup.aspx).",
-    },
-    {
       name: "firstName",
+      section: "Personal details",
       label: "First",
       type: "text",
       required: true,
@@ -739,6 +731,7 @@ export const config: StateConfig = {
     },
     {
       name: "middleInitial",
+      section: "Personal details",
       label: "M Init",
       type: "text",
       required: false,
@@ -749,6 +742,7 @@ export const config: StateConfig = {
     },
     {
       name: "lastName",
+      section: "Personal details",
       label: "Last",
       type: "text",
       required: true,
@@ -759,6 +753,7 @@ export const config: StateConfig = {
     },
     {
       name: "suffix",
+      section: "Personal details",
       label: "Suffix (Sr, Jr, III, etc)",
       type: "text",
       required: false,
@@ -768,30 +763,60 @@ export const config: StateConfig = {
       officialNote: "Exact label from official SCDNR application.",
     },
     {
-      name: "gender",
-      label: "Gender",
-      // TYPE-MAP: research type "select" -> "text". The official option list is
-      // not observable (portal enrollment behind Cloudflare CAPTCHA) and
-      // inventing options is prohibited; a required select with zero options
-      // would make the wizard impossible to complete.
-      type: "text",
+      name: "dateOfBirth",
+      section: "Personal details",
+      label: "Date of Birth (MM/DD/YYYY)",
+      type: "date",
       required: true,
+      mask: "dob",
+      autocomplete: "bday",
       step: 2,
       officialNote:
-        "TODO: verify - field appears on official SCDNR paper application; online option list not observable (Go Outdoors SC enrollment is behind Cloudflare CAPTCHA) - https://license.gooutdoorssouthcarolina.com/Licensing/CustomerLookup.aspx",
+        "Exact label from Go Outdoors SC customer lookup/enrollment form (license.gooutdoorssouthcarolina.com/Licensing/CustomerLookup.aspx).",
+    },
+    {
+      name: "gender",
+      section: "Personal details",
+      label: "Gender",
+      // Rendered as a dropdown per product decision (Gender must always be a
+      // select). The official online option list is not observable (Go Outdoors
+      // SC enrollment is behind Cloudflare CAPTCHA), so a standard set is used.
+      type: "select",
+      required: true,
+      options: [
+        { value: "male", label: "Male" },
+        { value: "female", label: "Female" },
+        { value: "undisclosed", label: "Undisclosed" },
+      ],
+      step: 2,
+      officialNote:
+        "Field appears on official SCDNR application; online option list not observable (Go Outdoors SC enrollment is behind Cloudflare CAPTCHA). Standard Male/Female/Undisclosed options used - https://license.gooutdoorssouthcarolina.com/Licensing/CustomerLookup.aspx",
     },
     {
       name: "race",
+      section: "Personal details",
       label: "Race",
-      // TYPE-MAP: research type "select" -> "text" (same reason as gender).
-      type: "text",
+      // Rendered as a dropdown per product decision (Race must always be a
+      // select). Official online option list not observable (CAPTCHA); standard
+      // U.S. Census/OMB race categories used.
+      type: "select",
       required: true,
+      options: [
+        { value: "american-indian-alaska-native", label: "American Indian or Alaska Native" },
+        { value: "asian", label: "Asian" },
+        { value: "black-african-american", label: "Black or African American" },
+        { value: "native-hawaiian-pacific-islander", label: "Native Hawaiian or Other Pacific Islander" },
+        { value: "white", label: "White" },
+        { value: "other", label: "Other" },
+        { value: "prefer-not-to-answer", label: "Prefer not to answer" },
+      ],
       step: 2,
       officialNote:
-        "TODO: verify - field appears on official SCDNR paper application; online option list not observable (CAPTCHA) - https://license.gooutdoorssouthcarolina.com/Licensing/CustomerLookup.aspx",
+        "Field appears on official SCDNR application; online option list not observable (CAPTCHA). Standard U.S. Census/OMB race categories used - https://license.gooutdoorssouthcarolina.com/Licensing/CustomerLookup.aspx",
     },
     {
       name: "homeStreet",
+      section: "Residence",
       label: "Street",
       type: "text",
       required: true,
@@ -802,6 +827,7 @@ export const config: StateConfig = {
     },
     {
       name: "homeCity",
+      section: "Residence",
       label: "City",
       type: "text",
       required: true,
@@ -812,6 +838,7 @@ export const config: StateConfig = {
     },
     {
       name: "homeState",
+      section: "Residence",
       label: "State",
       type: "select",
       required: true,
@@ -825,6 +852,7 @@ export const config: StateConfig = {
     },
     {
       name: "homeZip",
+      section: "Residence",
       label: "Zip",
       type: "zip",
       required: true,
@@ -836,6 +864,7 @@ export const config: StateConfig = {
     },
     {
       name: "scCounty",
+      section: "Residence",
       label: "SC County of Residence",
       // TYPE-MAP 1: research conditional { field: "residency", equals: "resident" }
       // dropped — ConditionalRule is evaluated against applicant-data fields
@@ -856,6 +885,7 @@ export const config: StateConfig = {
     },
     {
       name: "mailingStreet",
+      section: "Mailing address",
       label: "Street or PO Box",
       type: "text",
       required: false,
@@ -868,6 +898,7 @@ export const config: StateConfig = {
     },
     {
       name: "mailingCity",
+      section: "Mailing address",
       label: "City",
       type: "text",
       required: false,
@@ -878,6 +909,7 @@ export const config: StateConfig = {
     },
     {
       name: "mailingState",
+      section: "Mailing address",
       label: "State",
       type: "select",
       required: false,
@@ -889,6 +921,7 @@ export const config: StateConfig = {
     },
     {
       name: "mailingZip",
+      section: "Mailing address",
       label: "Zip",
       type: "zip",
       required: false,
@@ -900,6 +933,7 @@ export const config: StateConfig = {
     },
     {
       name: "phone",
+      section: "Contact",
       label: "Phone",
       type: "tel",
       required: true,
@@ -917,6 +951,7 @@ export const config: StateConfig = {
     },
     {
       name: "phoneType",
+      section: "Contact",
       label: "Phone Type",
       type: "radio",
       required: true,
@@ -930,6 +965,7 @@ export const config: StateConfig = {
     },
     {
       name: "email",
+      section: "Contact",
       label: "E-mail Address",
       type: "email",
       required: true,
@@ -942,6 +978,7 @@ export const config: StateConfig = {
     },
     {
       name: "driversLicenseNumber",
+      section: "Identification",
       label: "SC Driver's License or ID#",
       type: "text",
       required: true,
@@ -955,6 +992,7 @@ export const config: StateConfig = {
     },
     {
       name: "idStateOfIssue",
+      section: "Identification",
       label: "State of Issue",
       type: "select",
       required: true,
@@ -967,6 +1005,7 @@ export const config: StateConfig = {
     },
     {
       name: "hunterEducationNumber",
+      section: "Identification",
       label: "Hunter Education Number",
       type: "text",
       required: true,
@@ -996,6 +1035,7 @@ export const config: StateConfig = {
     },
     {
       name: "hunterEducationStateOfIssue",
+      section: "Identification",
       label: "State of Issue",
       type: "select",
       required: true,
@@ -1017,12 +1057,9 @@ export const config: StateConfig = {
       officialNote:
         "Exact label from official SCDNR application (Hunter Education Certification section). Option list TODO: verify (CAPTCHA).",
     },
-    // Short-term license start date. SCDNR issues 1-, 7-, and 14-day licenses
-    // valid for consecutive calendar days from the specified start date. The
-    // picker appears in step 2 only when a short-term SKU is selected in
-    // step 1 (conditional on licenseId).
     {
       name: "licenseStartDate",
+      section: "License start date",
       label: "License start date",
       type: "date",
       required: true,

@@ -79,7 +79,22 @@ export interface FormFieldDef {
     max?: number;
   };
   conditional?: ConditionalRule; // conditional display logic
+  /**
+   * Never render this field, but keep it in the submitted data. Used for
+   * portal fields that are fully derived from an earlier answer — e.g. MI
+   * "michiganResident" is auto-set from the Step 1 residency choice, so
+   * re-asking it on the applicant step is redundant. The value is still
+   * validated and sent to the official portal.
+   */
+  hidden?: boolean;
   step: 2; // all applicant fields are wizard step 2
+  /**
+   * Optional grouping label for the applicant step. When fields define a
+   * section, the wizard pages the applicant step into one sub-step per
+   * section (in first-seen order). States that omit section render all
+   * applicant fields on a single page (legacy behavior).
+   */
+  section?: string;
   officialNote?: string; // provenance note / TODO: verify + URL
 }
 

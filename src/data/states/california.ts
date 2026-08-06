@@ -254,18 +254,28 @@ export const config: StateConfig = {
   ],
   formFields: [
     {
-      name: "dateOfBirth",
-      label: "Date of Birth (MM/DD/YYYY):",
-      type: "date",
+      name: "firstName",
+      section: "Personal details",
+      label: "First Name:",
+      type: "text",
       required: true,
-      placeholder: "MM/DD/YYYY",
-      helpText: "Enter a date of birth and last name of the individual for whom you wish to purchase a license. All information collected during the registration process is specific to the individual that will be utilizing the license.",
-      mask: "dob",
+      autocomplete: "given-name",
       step: 2,
-      officialNote: "Customer Search Criteria (step 1 of GO ID flow) — verified live on portal 2026-07-18"
+      officialNote: "TODO: verify exact label on Create New Customer Record form — CDFW FAQ confirms 'name' is required (https://wildlife.ca.gov/Licensing/Online-Sales/Frequently-Asked-Questions); create form is session-gated at https://www.licenses.wildlife.ca.gov/internetsales/CustomerSearch/Begin"
+    },
+    {
+      name: "middleName",
+      section: "Personal details",
+      label: "Middle Name:",
+      type: "text",
+      required: false,
+      autocomplete: "additional-name",
+      step: 2,
+      officialNote: "TODO: verify presence/label on Create New Customer Record form — https://www.licenses.wildlife.ca.gov/internetsales/CustomerSearch/Begin"
     },
     {
       name: "lastName",
+      section: "Personal details",
       label: "Last Name:",
       type: "text",
       required: true,
@@ -275,7 +285,30 @@ export const config: StateConfig = {
       officialNote: "Customer Search Criteria (step 1 of GO ID flow) — verified live on portal 2026-07-18"
     },
     {
+      name: "suffix",
+      section: "Personal details",
+      label: "Suffix:",
+      type: "text",
+      required: false,
+      autocomplete: "honorific-suffix",
+      step: 2,
+      officialNote: "TODO: verify presence/label — portal instructs not to enter suffix in the Last Name field, implying a separate suffix element — https://www.licenses.wildlife.ca.gov/internetsales/CustomerSearch/Begin"
+    },
+    {
+      name: "dateOfBirth",
+      section: "Personal details",
+      label: "Date of Birth (MM/DD/YYYY):",
+      type: "date",
+      required: true,
+      placeholder: "MM/DD/YYYY",
+      helpText: "All information collected is specific to the individual who will use this license. Enter their date of birth exactly as shown on their ID.",
+      mask: "dob",
+      step: 2,
+      officialNote: "Customer Search Criteria (step 1 of GO ID flow) — verified live on portal 2026-07-18"
+    },
+    {
       name: "identityType",
+      section: "Identification",
       label: "Identity Type",
       type: "select",
       required: true,
@@ -311,6 +344,7 @@ export const config: StateConfig = {
     },
     {
       name: "idNumber",
+      section: "Identification",
       label: "Number:",
       type: "text",
       required: true,
@@ -320,6 +354,7 @@ export const config: StateConfig = {
     },
     {
       name: "stateIssued",
+      section: "Identification",
       label: "State Issued:",
       type: "select",
       required: true,
@@ -538,6 +573,7 @@ export const config: StateConfig = {
     },
     {
       name: "countryIssued",
+      section: "Identification",
       label: "Country Issued:",
       type: "text",
       required: true,
@@ -555,6 +591,7 @@ export const config: StateConfig = {
     },
     {
       name: "youthFirstName",
+      section: "Identification",
       label: "Youth's First Name:",
       type: "text",
       required: true,
@@ -567,6 +604,7 @@ export const config: StateConfig = {
     },
     {
       name: "identificationOwner",
+      section: "Identification",
       label: "Identification Owner:",
       type: "radio",
       required: true,
@@ -589,34 +627,8 @@ export const config: StateConfig = {
       officialNote: "Youth (under 18) flow only. TODO: verify control type (radio vs dropdown) — https://www.licenses.wildlife.ca.gov/internetsales/CustomerSearch/Begin"
     },
     {
-      name: "firstName",
-      label: "First Name:",
-      type: "text",
-      required: true,
-      autocomplete: "given-name",
-      step: 2,
-      officialNote: "TODO: verify exact label on Create New Customer Record form — CDFW FAQ confirms 'name' is required (https://wildlife.ca.gov/Licensing/Online-Sales/Frequently-Asked-Questions); create form is session-gated at https://www.licenses.wildlife.ca.gov/internetsales/CustomerSearch/Begin"
-    },
-    {
-      name: "middleName",
-      label: "Middle Name:",
-      type: "text",
-      required: false,
-      autocomplete: "additional-name",
-      step: 2,
-      officialNote: "TODO: verify presence/label on Create New Customer Record form — https://www.licenses.wildlife.ca.gov/internetsales/CustomerSearch/Begin"
-    },
-    {
-      name: "suffix",
-      label: "Suffix:",
-      type: "text",
-      required: false,
-      autocomplete: "honorific-suffix",
-      step: 2,
-      officialNote: "TODO: verify presence/label — portal instructs not to enter suffix in the Last Name field, implying a separate suffix element — https://www.licenses.wildlife.ca.gov/internetsales/CustomerSearch/Begin"
-    },
-    {
       name: "gender",
+      section: "Personal details",
       label: "Gender:",
       type: "select",
       required: true,
@@ -635,6 +647,7 @@ export const config: StateConfig = {
     },
     {
       name: "height",
+      section: "Personal details",
       label: "Height:",
       type: "text",
       required: true,
@@ -645,6 +658,7 @@ export const config: StateConfig = {
     },
     {
       name: "weight",
+      section: "Personal details",
       label: "Weight:",
       type: "number",
       required: true,
@@ -658,6 +672,7 @@ export const config: StateConfig = {
     },
     {
       name: "eyeColor",
+      section: "Personal details",
       label: "Eye Color:",
       type: "text",
       required: true,
@@ -666,6 +681,7 @@ export const config: StateConfig = {
     },
     {
       name: "hairColor",
+      section: "Personal details",
       label: "Hair Color:",
       type: "text",
       required: true,
@@ -674,6 +690,7 @@ export const config: StateConfig = {
     },
     {
       name: "residency",
+      section: "Residence",
       label: "Residency:",
       type: "select",
       required: true,
@@ -701,6 +718,7 @@ export const config: StateConfig = {
     },
     {
       name: "country",
+      section: "Residence",
       label: "Country:",
       type: "text",
       required: true,
@@ -711,6 +729,7 @@ export const config: StateConfig = {
     },
     {
       name: "address",
+      section: "Residence",
       label: "Address:",
       type: "text",
       required: true,
@@ -720,6 +739,7 @@ export const config: StateConfig = {
     },
     {
       name: "zipCode",
+      section: "Residence",
       label: "Zip Code:",
       type: "zip",
       required: true,
@@ -739,6 +759,7 @@ export const config: StateConfig = {
     },
     {
       name: "city",
+      section: "Residence",
       label: "City:",
       type: "text",
       required: true,
@@ -752,6 +773,7 @@ export const config: StateConfig = {
     },
     {
       name: "state",
+      section: "Residence",
       label: "State:",
       type: "text",
       required: true,
@@ -765,6 +787,7 @@ export const config: StateConfig = {
     },
     {
       name: "internationalProvince",
+      section: "Residence",
       label: "International Province:",
       type: "text",
       required: true,
@@ -777,6 +800,7 @@ export const config: StateConfig = {
     },
     {
       name: "phone",
+      section: "Contact",
       label: "Phone Number:",
       type: "tel",
       required: true,
@@ -788,6 +812,7 @@ export const config: StateConfig = {
     },
     {
       name: "email",
+      section: "Contact",
       label: "Email Address:",
       type: "email",
       required: false,
@@ -798,6 +823,7 @@ export const config: StateConfig = {
     },
     {
       name: "emailPreference",
+      section: "Contact",
       label: "Email Preferences",
       type: "radio",
       required: false,
@@ -824,6 +850,7 @@ export const config: StateConfig = {
     },
     {
       name: "allowTextMessages",
+      section: "Contact",
       label: "Allow text messages for the above CDFW communications.",
       type: "checkbox",
       required: false,
@@ -832,6 +859,7 @@ export const config: StateConfig = {
     },
     {
       name: "password",
+      section: "Identification",
       label: "Password:",
       type: "text",
       required: false,
@@ -839,12 +867,9 @@ export const config: StateConfig = {
       step: 2,
       officialNote: "TODO: verify label, rules and placement — see 'Password Protection (through Customer Record Security Settings)' at https://wildlife.ca.gov/Licensing/Online-Sales/Frequently-Asked-Questions"
     },
-    // Short-term license start date. CDFW One-day, Two-day, and Ten-day
-    // Nonresident sport fishing licenses are valid for consecutive calendar
-    // days from the specified start date. The picker appears in step 2 only
-    // when a short-term SKU is selected in step 1 (conditional on licenseId).
     {
       name: "licenseStartDate",
+      section: "License start date",
       label: "License start date",
       type: "date",
       required: true,
@@ -859,7 +884,7 @@ export const config: StateConfig = {
       helpText: "Choose when your short-term license should start — it is valid for the number of consecutive days shown on your selected license.",
       step: 2,
       officialNote: "CDFW short-term (1-day, 2-day, 10-day nonresident) sport fishing licenses are valid for consecutive calendar days from the specified start date. Start date collected here so the purchase can be completed on the applicant's behalf."
-    }
+    },
   ],
   stateIdentifiers: [
     {

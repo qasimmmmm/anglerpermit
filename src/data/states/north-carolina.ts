@@ -376,6 +376,7 @@ export const config: StateConfig = {
   formFields: [
     {
       name: "residency",
+      section: "Eligibility",
       label: "Residency",
       type: "select",
       required: true,
@@ -393,6 +394,7 @@ export const config: StateConfig = {
     },
     {
       name: "usCitizenship",
+      section: "Eligibility",
       label: "U.S. Citizen",
       type: "radio",
       required: true,
@@ -405,6 +407,7 @@ export const config: StateConfig = {
     },
     {
       name: "firstName",
+      section: "Personal details",
       label: "First Name",
       type: "text",
       required: true,
@@ -413,6 +416,7 @@ export const config: StateConfig = {
     },
     {
       name: "middleName",
+      section: "Personal details",
       label: "Middle Name",
       type: "text",
       required: false,
@@ -421,6 +425,7 @@ export const config: StateConfig = {
     },
     {
       name: "lastName",
+      section: "Personal details",
       label: "Last Name",
       type: "text",
       required: true,
@@ -429,6 +434,7 @@ export const config: StateConfig = {
     },
     {
       name: "suffix",
+      section: "Personal details",
       label: "Suffix",
       type: "select",
       required: false,
@@ -452,7 +458,18 @@ export const config: StateConfig = {
       step: 2,
     },
     {
+      name: "birthDate",
+      section: "Personal details",
+      label: "Birth Date (MM/DD/YYYY)",
+      type: "date",
+      required: true,
+      mask: "dob",
+      autocomplete: "bday",
+      step: 2,
+    },
+    {
       name: "documentType",
+      section: "Identification",
       label: "Document Type:",
       type: "select",
       required: false,
@@ -464,6 +481,7 @@ export const config: StateConfig = {
     },
     {
       name: "documentNumber",
+      section: "Identification",
       label: "Number:",
       type: "text",
       required: false,
@@ -472,6 +490,7 @@ export const config: StateConfig = {
     },
     {
       name: "documentIssuingState",
+      section: "Identification",
       label: "Issuing State:",
       type: "select",
       required: false,
@@ -550,6 +569,7 @@ export const config: StateConfig = {
       // maskSensitiveFields only masks type "ssn" fields, but the full-SSN mask (***-**-####)
       // already reveals these same last 4 digits, so nothing extra leaks.
       name: "ssnLast4",
+      section: "Identification",
       label: "Last 4 of SSN:",
       type: "text",
       required: true,
@@ -563,6 +583,7 @@ export const config: StateConfig = {
       // lookup, and WRC paper applications ask for "WRC Customer Number (if
       // available)". Matching the existing record avoids duplicate profiles.
       name: "wrcCustomerNumber",
+      section: "Identification",
       label: "WRC Customer Number — if you have bought an NC license before",
       type: "text",
       required: false,
@@ -572,6 +593,7 @@ export const config: StateConfig = {
     },
     {
       name: "gender",
+      section: "Personal details",
       label: "Gender",
       type: "select",
       required: true,
@@ -584,16 +606,8 @@ export const config: StateConfig = {
       officialNote: "First field under 'Demographics'.",
     },
     {
-      name: "birthDate",
-      label: "Birth Date (MM/DD/YYYY)",
-      type: "date",
-      required: true,
-      mask: "dob",
-      autocomplete: "bday",
-      step: 2,
-    },
-    {
       name: "ethnicity",
+      section: "Personal details",
       label: "Ethnicity:",
       type: "select",
       required: false,
@@ -612,6 +626,7 @@ export const config: StateConfig = {
     },
     {
       name: "email",
+      section: "Contact",
       label: "Email:",
       type: "email",
       required: true,
@@ -622,6 +637,7 @@ export const config: StateConfig = {
     },
     {
       name: "primaryPhoneType",
+      section: "Contact",
       label: "Primary Phone: Phone Type",
       type: "select",
       required: false,
@@ -640,6 +656,7 @@ export const config: StateConfig = {
       //       which the phone input mask produces. The 10-digit pattern documents the portal's raw
       //       split-box entry.
       name: "primaryPhone",
+      section: "Contact",
       label: "Primary Phone:",
       type: "tel",
       required: false,
@@ -651,6 +668,7 @@ export const config: StateConfig = {
     },
     {
       name: "secondaryPhoneType",
+      section: "Contact",
       label: "Secondary Phone: Phone Type",
       type: "select",
       required: false,
@@ -668,6 +686,7 @@ export const config: StateConfig = {
       //       which the phone input mask produces. The 10-digit pattern documents the portal's raw
       //       split-box entry.
       name: "secondaryPhone",
+      section: "Contact",
       label: "Secondary Phone:",
       type: "tel",
       required: false,
@@ -677,6 +696,7 @@ export const config: StateConfig = {
     },
     {
       name: "isNonUSAddress",
+      section: "Address",
       label: "Is this a non-U.S. Address?",
       type: "radio",
       required: false,
@@ -689,6 +709,7 @@ export const config: StateConfig = {
     },
     {
       name: "street",
+      section: "Address",
       label: "Street",
       type: "text",
       required: true,
@@ -698,6 +719,7 @@ export const config: StateConfig = {
     },
     {
       name: "aptSuiteOther",
+      section: "Address",
       label: "Apt / Suite / Other",
       type: "text",
       required: false,
@@ -706,6 +728,7 @@ export const config: StateConfig = {
     },
     {
       name: "city",
+      section: "Address",
       label: "City",
       type: "text",
       required: true,
@@ -714,6 +737,7 @@ export const config: StateConfig = {
     },
     {
       name: "state",
+      section: "Address",
       label: "State",
       type: "select",
       required: true,
@@ -785,6 +809,7 @@ export const config: StateConfig = {
     },
     {
       name: "zipCode",
+      section: "Address",
       label: "Zip Code",
       type: "zip",
       required: true,
@@ -796,6 +821,7 @@ export const config: StateConfig = {
     },
     {
       name: "county",
+      section: "Address",
       label: "County",
       type: "select",
       required: true,
@@ -808,6 +834,7 @@ export const config: StateConfig = {
     },
     {
       name: "differentMailingAddress",
+      section: "Address",
       label: "Different Mailing Address",
       type: "checkbox",
       required: false,
@@ -816,6 +843,7 @@ export const config: StateConfig = {
     },
     {
       name: "emailOptIn",
+      section: "Contact",
       label: "Yes, I'd like to receive email updates, news, and special offers from the North Carolina Wildlife Resources Commission. You can unsubscribe at any time.",
       type: "checkbox",
       required: false,
@@ -824,6 +852,7 @@ export const config: StateConfig = {
     },
     {
       name: "smsOptIn",
+      section: "Contact",
       label: "Yes, I agree to receive SMS text message updates from the North Carolina Wildlife Resources Commission. Message frequency varies. Message and data rates may apply. You can opt out at any time.",
       type: "checkbox",
       required: false,
@@ -836,6 +865,7 @@ export const config: StateConfig = {
       //       123-45-6789 format (the ssn input mask produces hyphens). Behavior is correct; the raw
       //       9-digit pattern documents the portal's expectation.
       name: "socialSecurityNumber",
+      section: "Identification",
       label: "Social Security Number",
       type: "ssn",
       required: true,
@@ -845,13 +875,9 @@ export const config: StateConfig = {
       step: 2,
       officialNote: "Collected in a later 'Additional Action Required to Proceed / Additional Info Needed' step of the official flow (seen in Google's cached render of the CustomerLookup page), not on the initial Create Customer form. Exact prompt text: 'Please submit your full social security number to proceed. Social Security Number is required pursuant to federal law.'",
     },
-    // Short-term license start date. NCWRC / NC DEQ short-term inland and
-    // coastal 10-day licenses (and Mountain Heritage Trout Waters 3-day) are
-    // valid for consecutive calendar days from the specified start date. The
-    // picker appears in step 2 only when a short-term SKU is selected in
-    // step 1 (conditional on licenseId).
     {
       name: "licenseStartDate",
+      section: "License start date",
       label: "License start date",
       type: "date",
       required: true,

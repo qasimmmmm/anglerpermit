@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Controller,
   useForm,
@@ -19,8 +19,10 @@ import {
   CreditCard,
   Eye,
   EyeOff,
+  FileCheck2,
   Lock,
   Mail,
+  ShieldCheck,
 } from "lucide-react";
 import type { FormFieldDef, StateConfig, TokenizedPayment } from "@/lib/state-config";
 import {
@@ -37,6 +39,7 @@ import {
   residencyPricingTier,
 } from "@/lib/state-config";
 import { applyMask } from "@/lib/masks";
+import { formatPrice } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -453,6 +456,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
     control,
     handleSubmit,
     watch,
+    reset,
     setValue,
     getValues,
     trigger,
@@ -474,6 +478,15 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
   });
 
   const [step, setStep] = useState(0);
+  // Sub-step within the applicant step (step 1). When the state's applicant
+  // fields declare `section`s, the applicant step is paged one section at a
+  // time; this is the index into `applicantSections`. States without sections
+  // keep a single applicant page and never advance this past 0.
+  const [applicantSubStep, setApplicantSubStep] = useState(0);
+  // UI-only toggle: reveal the optional mailing-address fields. Kept out of
+  // form `data` so it never appears in the review, emails, or the submission —
+  // it only drives visibility of the mail* fields (which are conditional on it).
+  const [mailingDifferent, setMailingDifferent] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -485,22 +498,176 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
   // Ensures checkout-started emails fire once per wizard session.
   const checkoutStartedSentRef = useRef(false);
 
+  /* ------------------------- draft persistence ------------------------- */
+  // Keep the in-progress application alive across page reloads so a refresh
+  // (or accidental navigation) never wipes what the user typed. Stored per
+  // state in sessionStorage — it survives reloads within the tab but is not
+  // kept long-term (card details are never stored; PII is cleared on success
+  // or when the tab closes).
+  const draftKey = `anglerpermit:draft:${config.slug}`;
+  // State (not a ref) so the save effects stay fully disabled until the
+  // restore has been COMMITTED — otherwise the mount-time save would clobber
+  // the saved step with the initial 0 (and StrictMode's double-mount would
+  // then re-read that clobbered value).
+  const [hydrated, setHydrated] = useState(false);
+  // Latest wizard position, read by persistDraft without re-subscribing watch.
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  const subStepRef = useRef(applicantSubStep);
+  subStepRef.current = applicantSubStep;
+  const mailingDiffRef = useRef(mailingDifferent);
+  mailingDiffRef.current = mailingDifferent;
+
+  const persistDraft = useCallback(() => {
+    if (!hydrated) return;
+    try {
+      const v = getValues();
+      sessionStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          version: 1,
+          // Never auto-restore onto the payment/success screens: the furthest
+          // we resume is Review, where the user re-confirms and pays again.
+          step: Math.min(stepRef.current, 2),
+          applicantSubStep: subStepRef.current,
+          mailingDifferent: mailingDiffRef.current,
+          // Card details (payment) and the accuracy/consent checkbox are
+          // intentionally NOT persisted.
+          values: {
+            residency: v.residency,
+            licenseId: v.licenseId,
+            addOnIds: v.addOnIds,
+            data: v.data,
+          },
+        }),
+      );
+    } catch {
+      // Storage may be unavailable (private mode / quota) — never block typing.
+    }
+  }, [draftKey, getValues, hydrated]);
+
+  const clearDraft = useCallback(() => {
+    try {
+      sessionStorage.removeItem(draftKey);
+    } catch {
+      /* ignore */
+    }
+  }, [draftKey]);
+
+  // Restore a saved draft once, on mount.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      if (raw) {
+        const saved = JSON.parse(raw) as {
+          step?: number;
+          applicantSubStep?: number;
+          mailingDifferent?: boolean;
+          values?: {
+            residency?: string;
+            licenseId?: string;
+            addOnIds?: string[];
+            data?: Record<string, unknown>;
+          };
+        } | null;
+        if (saved?.values) {
+          reset({
+            stateSlug: config.slug,
+            residency: saved.values.residency ?? "",
+            licenseId: saved.values.licenseId ?? "",
+            addOnIds:
+              saved.values.addOnIds ??
+              config.addOns.filter((a) => a.required && !a.appliesTo).map((a) => a.id),
+            data: { ...defaultData(config.formFields), ...(saved.values.data ?? {}) },
+            consents: { accurateAndTerms: false },
+            payment: { token: "" },
+          });
+          if (typeof saved.mailingDifferent === "boolean") setMailingDifferent(saved.mailingDifferent);
+          if (typeof saved.applicantSubStep === "number") setApplicantSubStep(saved.applicantSubStep);
+          if (typeof saved.step === "number") setStep(Math.max(0, Math.min(saved.step, 2)));
+        }
+      }
+    } catch {
+      // Corrupt/unavailable storage → just start with a blank form.
+    }
+    // Batched with the setStep/reset above, so the first render where saving
+    // is enabled already has the restored step/data.
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Save on every field change …
+  useEffect(() => {
+    const sub = watch(() => persistDraft());
+    return () => sub.unsubscribe();
+  }, [watch, persistDraft]);
+
+  // … and whenever the wizard position changes.
+  useEffect(() => {
+    persistDraft();
+  }, [step, applicantSubStep, mailingDifferent, persistDraft]);
+
   const residency = watch("residency");
   const licenseId = watch("licenseId");
   const addOnIds = watch("addOnIds");
   const watchedData = watch("data");
 
+  // Running total shown in the sticky command bar + mobile action bar so the
+  // price never scrolls out of view. Zero until a license is chosen.
+  const orderTotal = computeOrderTotal(config, licenseId, addOnIds);
+
   // Conditional fields may reference another applicant field OR wizard-level
   // licenseId / residency (e.g. MI daily start date, SC hunter-ed, FL DL).
-  const fieldContext = { ...watchedData, licenseId, residency };
-  const visibleFields = config.formFields.filter((f) =>
-    isFieldVisible(f, fieldContext),
+  const fieldContext = { ...watchedData, licenseId, residency, mailingDifferent };
+  const visibleFields = config.formFields.filter(
+    (f) => !f.hidden && isFieldVisible(f, fieldContext),
   );
 
-  // Focus the step heading whenever the step changes (a11y).
+  // Optional mailing-address support. Opt-in per state: a state enables the
+  // built-in toggle by making its mailing fields conditional on the synthetic
+  // "mailingDifferent" control (see Michigan). States that keep their own
+  // mailing UX (e.g. TX "Same as Residence") are left untouched even after
+  // they gain sections, since none of their fields reference mailingDifferent.
+  const mailingFields = config.formFields.filter(
+    (f) => f.conditional?.field === "mailingDifferent",
+  );
+  const hasMailingFields = mailingFields.length > 0;
+  const residenceSection = hasMailingFields
+    ? (config.formFields.find((f) => /^res[A-Z]/.test(f.name))?.section ?? null)
+    : null;
+
+  // Group the applicant step into sub-steps by the field `section` label (in
+  // first-seen order). Only currently-visible fields count, so a section whose
+  // fields are all conditionally hidden never becomes an empty sub-step.
+  // States whose fields declare no section produce an empty list → the
+  // applicant step renders as a single page (legacy behavior).
+  const applicantSections: string[] = [];
+  for (const f of visibleFields) {
+    if (f.section && !applicantSections.includes(f.section)) {
+      applicantSections.push(f.section);
+    }
+  }
+  const hasSections = applicantSections.length > 0;
+  const lastSubStep = Math.max(0, applicantSections.length - 1);
+  const clampedSubStep = Math.min(applicantSubStep, lastSubStep);
+  const currentSection = hasSections ? applicantSections[clampedSubStep] : null;
+  const currentSectionFields = hasSections
+    ? visibleFields.filter((f) => f.section === currentSection)
+    : visibleFields;
+  // Show the "different mailing address" toggle at the bottom of the residence
+  // sub-step only.
+  const showMailingToggle =
+    hasSections &&
+    hasMailingFields &&
+    currentSection != null &&
+    currentSection === residenceSection;
+
+  // Focus the step heading whenever the step (or applicant sub-step) changes
+  // and bring it into view (a11y + so each short sub-step starts at the top).
   useEffect(() => {
     headingRef.current?.focus();
-  }, [step]);
+    headingRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [step, applicantSubStep]);
 
   // Focused checkout: once the user is past license selection (wizard step 2+,
   // i.e. step index >= 1 — including payment and the success screen), hide the
@@ -574,6 +741,21 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
     );
   }
 
+  /**
+   * Toggle the optional mailing-address fields. Unchecking clears any values
+   * already typed so stale mailing data is never submitted (the residence
+   * address is used for mail).
+   */
+  function handleMailingToggle(checked: boolean) {
+    setMailingDifferent(checked);
+    if (!checked) {
+      for (const f of mailingFields) {
+        setValue(`data.${f.name}` as Path<WizardValues>, f.type === "checkbox" ? false : "");
+        clearErrors(`data.${f.name}` as Path<WizardValues>);
+      }
+    }
+  }
+
   /* ------------------------- navigation ------------------------- */
 
   async function goNext() {
@@ -594,9 +776,14 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
         ...(values.data as Record<string, unknown>),
         licenseId: values.licenseId,
         residency: values.residency,
+        mailingDifferent,
       };
+      // When the applicant step is paged into sections, validate only the
+      // fields on the current sub-step; earlier sections were validated when
+      // the user advanced past them.
+      const fieldsToValidate = hasSections ? currentSectionFields : config.formFields;
       let hasDataError = false;
-      for (const field of config.formFields) {
+      for (const field of fieldsToValidate) {
         clearErrors(`data.${field.name}` as Path<WizardValues>);
         if (!isFieldVisible(field, applicantContext)) continue;
         const required = isFieldEffectivelyRequired(config, field, applicantContext);
@@ -612,6 +799,11 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
         }
       }
       ok = !hasDataError;
+      // More applicant sections remain → advance the sub-step, stay on step 1.
+      if (ok && hasSections && clampedSubStep < lastSubStep) {
+        setApplicantSubStep(clampedSubStep + 1);
+        return;
+      }
     } else if (step === 2) {
       ok = await trigger("consents.accurateAndTerms");
     }
@@ -643,6 +835,9 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
             checkoutStartedSentRef.current = false;
           });
       }
+      // Entering the applicant step from license selection always starts at
+      // the first sub-step.
+      if (step === 0) setApplicantSubStep(0);
       setStep((s) => s + 1);
     } else {
       // Move keyboard/screen-reader users to the first invalid field.
@@ -650,7 +845,35 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
     }
   }
 
+  /**
+   * Enter anywhere in the form advances to the next step instead of triggering
+   * a native form submit (there is no submit button; the only native-submit
+   * path was a stray Enter keypress, which previously fired the full-schema
+   * submit prematurely). Textareas keep newline behavior; buttons and links
+   * keep their own activation; the payment step manages its own inputs.
+   */
+  function handleFormKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key !== "Enter" || e.shiftKey) return;
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === "TEXTAREA" || tag === "BUTTON" || tag === "A") return;
+    e.preventDefault();
+    if (step <= 2 && !isSubmitting) void goNext();
+  }
+
   function goBack() {
+    // Within the paged applicant step, Back walks to the previous sub-step
+    // before leaving to license selection.
+    if (step === 1 && hasSections && clampedSubStep > 0) {
+      setApplicantSubStep(clampedSubStep - 1);
+      return;
+    }
+    // Returning from Review lands on the LAST applicant sub-step so the user
+    // continues where they left off.
+    if (step === 2) {
+      setApplicantSubStep(lastSubStep);
+      setStep(1);
+      return;
+    }
     setStep((s) => Math.max(0, s - 1));
   }
 
@@ -679,6 +902,9 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
 
       if (res.ok && json.ok && json.reference) {
         applicationIdRef.current = null;
+        // Application is complete — drop the saved draft so a later visit
+        // starts fresh instead of resuming a finished order.
+        clearDraft();
         setReference(json.reference);
         setConfirmationEmail(json.confirmationEmailedTo ?? null);
         setStep(4);
@@ -710,6 +936,9 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
         if (path === "residency" || path === "licenseId" || path === "addOnIds") firstStep = 0;
       }
       if (Object.keys(serverErrors).length > 0) {
+        // A rejected applicant field could sit in any section — start the
+        // paged applicant step at the first sub-step so the user pages through.
+        if (firstStep === 1) setApplicantSubStep(0);
         setStep(firstStep);
         setSubmitError("Please correct the highlighted fields and resubmit your application.");
       } else {
@@ -810,60 +1039,104 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
     ?.accurateAndTerms?.message;
 
   return (
-    <form onSubmit={submitApplication} noValidate className="mx-auto max-w-3xl" aria-label={`${config.stateName} fishing license application`}>
-      {/* Progress indicator */}
-      <nav aria-label="Application progress" className="mb-8">
-        <p className="mb-2 text-sm font-medium text-slate-500 sm:hidden">
-          Step {step + 1} of {STEP_TITLES.length}: {STEP_TITLES[step]}
+    <form
+      onSubmit={submitApplication}
+      onKeyDown={handleFormKeyDown}
+      noValidate
+      className="mx-auto max-w-3xl pb-24 sm:pb-0"
+      aria-label={`${config.stateName} fishing license application`}
+    >
+      {/* Sticky command bar — progress + running total + secure badge stay
+          visible under the site header so price and progress never scroll away. */}
+      <div className="sticky top-16 z-20 -mx-4 mb-8 border-b border-slate-200 bg-slate-50/85 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-slate-50/70 sm:-mx-6 sm:px-6 md:top-[72px]">
+        <div className="flex items-center justify-between gap-4">
+          <nav aria-label="Application progress" className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-navy sm:hidden">
+              Step {step + 1} of {STEP_TITLES.length}
+              <span className="font-medium text-slate-500"> · {STEP_TITLES[step]}</span>
+            </p>
+            <ol className="hidden items-center gap-2 sm:flex">
+              {STEP_TITLES.map((title, i) => {
+                const state = i < step ? "complete" : i === step ? "current" : "upcoming";
+                return (
+                  <li key={title} className="flex flex-1 items-center gap-2.5">
+                    <span
+                      className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors duration-300 ${
+                        state === "complete"
+                          ? "border-forest-600 bg-forest-600 text-white"
+                          : state === "current"
+                            ? "border-navy bg-navy text-white"
+                            : "border-slate-300 bg-white text-slate-400"
+                      }`}
+                      aria-hidden="true"
+                    >
+                      {state === "complete" ? (
+                        <Check className="h-3.5 w-3.5 animate-pop" />
+                      ) : (
+                        i + 1
+                      )}
+                    </span>
+                    <span
+                      className={`hidden text-sm font-medium lg:inline ${state === "current" ? "text-navy" : "text-slate-500"}`}
+                      aria-current={state === "current" ? "step" : undefined}
+                    >
+                      {title}
+                    </span>
+                    {i < STEP_TITLES.length - 1 && (
+                      <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+          <div className="flex flex-shrink-0 items-center gap-2.5">
+            {licenseId && (
+              <span className="flex items-baseline gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-bold text-navy shadow-sm ring-1 ring-slate-200">
+                <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                  Total
+                </span>
+                {formatPrice(orderTotal)}
+              </span>
+            )}
+            <span className="hidden items-center gap-1.5 rounded-full bg-forest-50 px-3 py-1.5 text-xs font-semibold text-forest-700 sm:flex">
+              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+              Secure
+            </span>
+          </div>
+        </div>
+        {/* Slim animated progress line on mobile */}
+        <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-slate-200 sm:hidden">
+          <div
+            className="h-full rounded-full bg-forest-500 transition-all duration-500 ease-out"
+            style={{ width: `${((step + 1) / STEP_TITLES.length) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Keyed so each step / applicant sub-step animates in. */}
+      <div key={`${step}-${clampedSubStep}`} className="animate-step-in">
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="scroll-mt-36 text-xl font-bold text-navy focus:outline-none sm:text-2xl"
+        >
+          {step === 0 && "Choose your license"}
+          {step === 1 && "Tell us about the applicant"}
+          {step === 2 && "Review your application"}
+          {step === 3 && "Payment"}
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          {step === 0 && "Select your residency status and license. One clear total before you pay — no hidden fees."}
+          {step === 1 &&
+            (hasSections
+              ? `Step ${clampedSubStep + 1} of ${applicantSections.length}: ${currentSection}. These fields match the official ${config.officialPortalName} application — required fields are marked with an asterisk.`
+              : `These fields match the official ${config.officialPortalName} application. Required fields are marked with an asterisk.`)}
+          {step === 2 && "Check everything carefully — we use exactly this information to purchase your license."}
+          {step === 3 && "Your card is charged once, securely. Card details never touch our servers."}
         </p>
-        <ol className="hidden gap-2 sm:flex">
-          {STEP_TITLES.map((title, i) => {
-            const state = i < step ? "complete" : i === step ? "current" : "upcoming";
-            return (
-              <li key={title} className="flex flex-1 items-center gap-3">
-                <span
-                  className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
-                    state === "complete"
-                      ? "border-forest-600 bg-forest-600 text-white"
-                      : state === "current"
-                        ? "border-navy bg-navy text-white"
-                        : "border-slate-300 bg-white text-slate-400"
-                  }`}
-                  aria-hidden="true"
-                >
-                  {state === "complete" ? <Check className="h-4 w-4" /> : i + 1}
-                </span>
-                <span
-                  className={`text-sm font-medium ${state === "current" ? "text-navy" : "text-slate-500"}`}
-                  aria-current={state === "current" ? "step" : undefined}
-                >
-                  {title}
-                </span>
-                {i < STEP_TITLES.length - 1 && <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />}
-              </li>
-            );
-          })}
-        </ol>
-      </nav>
 
-      <h2
-        ref={headingRef}
-        tabIndex={-1}
-        className="text-xl font-bold text-navy focus:outline-none sm:text-2xl"
-      >
-        {step === 0 && "Choose your license"}
-        {step === 1 && "Tell us about the applicant"}
-        {step === 2 && "Review your application"}
-        {step === 3 && "Payment"}
-      </h2>
-      <p className="mt-1 text-sm text-slate-500">
-        {step === 0 && "Select your residency status and license. One clear total before you pay — no hidden fees."}
-        {step === 1 && `These fields match the official ${config.officialPortalName} application. Required fields are marked with an asterisk.`}
-        {step === 2 && "Check everything carefully — we use exactly this information to purchase your license."}
-        {step === 3 && "Your card is charged once, securely. Card details never touch our servers."}
-      </p>
-
-      <div className="mt-6">
+        <div className="mt-6">
         {/* STEP 1 — license selection */}
         {step === 0 && (
           <div className="space-y-6">
@@ -879,26 +1152,71 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
           </div>
         )}
 
-        {/* STEP 2 — applicant details */}
+        {/* STEP 2 — applicant details (paged into sections when defined) */}
         {step === 1 && (
-          <Card>
-            <div className="grid gap-5 px-6 py-6 sm:grid-cols-2">
-              {visibleFields.map((def) => (
-                <div
-                  key={def.name}
-                  className={def.type === "textarea" || def.type === "checkbox" || def.type === "radio" || def.type === "ssn" ? "sm:col-span-2" : ""}
-                >
-                  <FieldControl
-                    def={def}
-                    config={config}
-                    control={control}
-                    errors={dataErrorsOf(errors)}
-                    required={isFieldEffectivelyRequired(config, def, fieldContext)}
-                  />
+          <div className="space-y-5">
+            {hasSections && (
+              <ol className="flex gap-2" aria-label="Applicant detail sections">
+                {applicantSections.map((s, i) => {
+                  const state =
+                    i < clampedSubStep ? "complete" : i === clampedSubStep ? "current" : "upcoming";
+                  return (
+                    <li key={s} className="flex flex-1 flex-col gap-1.5">
+                      <span
+                        className={`h-1.5 rounded-full ${state === "upcoming" ? "bg-slate-200" : "bg-forest-500"}`}
+                        aria-hidden="true"
+                      />
+                      <span
+                        className={`text-xs font-medium ${state === "current" ? "text-navy" : "text-slate-400"}`}
+                        aria-current={state === "current" ? "step" : undefined}
+                      >
+                        {s}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+            <Card>
+              <div className="grid gap-5 px-6 py-6 sm:grid-cols-2">
+                {currentSectionFields.map((def) => (
+                  <div
+                    key={def.name}
+                    className={def.type === "textarea" || def.type === "checkbox" || def.type === "radio" || def.type === "ssn" ? "sm:col-span-2" : ""}
+                  >
+                    <FieldControl
+                      def={def}
+                      config={config}
+                      control={control}
+                      errors={dataErrorsOf(errors)}
+                      required={isFieldEffectivelyRequired(config, def, fieldContext)}
+                    />
+                  </div>
+                ))}
+              </div>
+              {showMailingToggle && (
+                <div className="border-t border-slate-100 px-6 py-5">
+                  <label className="flex items-start gap-3 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={mailingDifferent}
+                      onChange={(e) => handleMailingToggle(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-forest-600 focus:ring-forest-500"
+                    />
+                    <span>
+                      <span className="font-medium text-navy">
+                        My mailing address is different from my residence
+                      </span>
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        Leave unchecked to use your residence address for mail. Check this to add a
+                        separate mailing address on the next step.
+                      </span>
+                    </span>
+                  </label>
                 </div>
-              ))}
-            </div>
-          </Card>
+              )}
+            </Card>
+          </div>
         )}
 
         {/* STEP 3 — review + consents */}
@@ -956,12 +1274,23 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
               <div className="px-6 py-5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-semibold text-navy">Applicant details</h3>
-                  <Button variant="ghost" size="sm" onClick={() => setStep(1)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setApplicantSubStep(0);
+                      setStep(1);
+                    }}
+                  >
                     Edit
                   </Button>
                 </div>
                 <dl className="mt-3 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
-                  {visibleFields.map((def) => (
+                  {visibleFields
+                    // Hide empty optional fields (e.g. an unused mailing
+                    // address) so the review isn't cluttered with "—" rows.
+                    .filter((def) => displayValue(def, watchedData[def.name]) !== "—")
+                    .map((def) => (
                     <div key={def.name} className="flex justify-between gap-4 sm:block">
                       <dt className="text-slate-500">{def.label}</dt>
                       <dd className="text-right font-medium text-navy sm:mt-0.5 sm:text-left">
@@ -1040,6 +1369,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
             onPay={handleTokenized}
           />
         )}
+        </div>
       </div>
 
       {submitError && (
@@ -1049,7 +1379,8 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
         </div>
       )}
 
-      {/* Nav buttons (payment step has its own Pay button inside PaymentStep) */}
+      {/* Nav buttons (payment step has its own Pay button inside PaymentStep).
+          On mobile, Continue lives in the fixed action bar below. */}
       <div className="mt-8 flex items-center justify-between gap-4">
         {step > 0 ? (
           <Button variant="outline" onClick={goBack} disabled={isSubmitting}>
@@ -1060,23 +1391,64 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
           <span />
         )}
         {step < 2 && (
-          <Button variant="primary" onClick={goNext}>
+          <Button variant="primary" onClick={goNext} className="hidden sm:inline-flex">
             Continue
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
         {step === 2 && (
-          <Button variant="primary" onClick={goNext}>
+          <Button variant="primary" onClick={goNext} className="hidden sm:inline-flex">
             Continue to payment
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
       </div>
 
-      <p className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-500">
-        <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-        Submitted over an encrypted connection. Sensitive identifiers are masked in all notifications.
-      </p>
+      {/* Trust + reassurance row. Reinforces security and legitimacy at the
+          point of friction (we submit to the official portal — never claiming
+          to BE the agency) and surfaces the silent autosave so users know they
+          can step away and return without losing progress. */}
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-slate-500">
+        <span className="flex items-center gap-1.5">
+          <Lock className="h-3.5 w-3.5 text-forest-600" aria-hidden="true" />
+          256-bit SSL encrypted
+        </span>
+        <span className="flex items-center gap-1.5">
+          <ShieldCheck className="h-3.5 w-3.5 text-forest-600" aria-hidden="true" />
+          SSN masked to last 4
+        </span>
+        <span className="flex items-center gap-1.5">
+          <FileCheck2 className="h-3.5 w-3.5 text-forest-600" aria-hidden="true" />
+          Submitted to the official {config.officialPortalName}
+        </span>
+        {hydrated && step < 4 && (
+          <span className="flex items-center gap-1.5 font-medium text-forest-700 animate-fade-in">
+            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+            Progress saved automatically
+          </span>
+        )}
+      </div>
+
+      {/* Mobile action bar — keeps Continue + the running total one tap away so
+          the CTA is never a scroll away on a phone. */}
+      {step <= 2 && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-4px_16px_-8px_rgba(10,37,64,0.25)] backdrop-blur sm:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 leading-tight">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                {step === 2 ? "Total due today" : "Total"}
+              </p>
+              <p className="text-base font-bold text-navy">
+                {licenseId ? formatPrice(orderTotal) : "—"}
+              </p>
+            </div>
+            <Button variant="accent" size="lg" onClick={goNext} className="flex-1">
+              {step === 2 ? "Continue to payment" : "Continue"}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

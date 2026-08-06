@@ -34,7 +34,13 @@ export function LicenseSelector({
   onLicenseChange,
   onAddOnToggle,
 }: LicenseSelectorProps) {
-  const visibleLicenses = licensesForResidency(config, value.residency || undefined);
+  // Progressive disclosure: the license list is revealed only after a
+  // residency is chosen. Before that we keep the first screen to a single
+  // question so it doesn't render the full (unfiltered) catalog.
+  const hasResidency = Boolean(value.residency);
+  const visibleLicenses = hasResidency
+    ? licensesForResidency(config, value.residency)
+    : [];
   const applicableAddOns = addOnsForLicense(config, value.licenseId || undefined);
 
   // Group licenses by category, preserving config order within each group.
@@ -61,10 +67,10 @@ export function LicenseSelector({
             return (
               <label
                 key={opt.value}
-                className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
+                className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition duration-150 ease-out ${
                   selected
                     ? "border-forest-500 bg-forest-50 ring-1 ring-forest-500"
-                    : "border-slate-300 bg-white hover:border-navy-300"
+                    : "border-slate-300 bg-white hover:-translate-y-0.5 hover:border-navy-300 hover:shadow-card motion-reduce:hover:translate-y-0"
                 }`}
               >
                 <input
@@ -76,6 +82,11 @@ export function LicenseSelector({
                   className="h-4 w-4 border-slate-300 text-forest-600 focus:ring-forest-500"
                 />
                 <span className="text-sm font-medium text-navy">{opt.label}</span>
+                {selected && (
+                  <span className="ml-auto flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-forest-600 text-white animate-pop">
+                    <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
+                )}
               </label>
             );
           })}
@@ -85,9 +96,16 @@ export function LicenseSelector({
             {errors.residency}
           </p>
         )}
+        {!hasResidency && (
+          <p className="mt-4 flex items-center gap-2 text-sm text-slate-500">
+            <span aria-hidden="true">↓</span>
+            Choose your residency to see the licenses available to you.
+          </p>
+        )}
       </fieldset>
 
-      {/* Licenses */}
+      {/* Licenses — revealed only after a residency is chosen */}
+      {hasResidency && (
       <fieldset>
         <legend className="text-base font-semibold text-navy">
           Choose your license
@@ -97,11 +115,6 @@ export function LicenseSelector({
         </legend>
         {config.licenseYearNote && (
           <p className="mt-1 text-sm text-slate-500">{config.licenseYearNote}</p>
-        )}
-        {!value.residency && (
-          <p className="mt-3 rounded-lg bg-navy-50 px-4 py-3 text-sm text-navy">
-            Select your residency status above to filter the available licenses.
-          </p>
         )}
         <div className="mt-3 space-y-6" role="radiogroup" aria-label="License options">
           {categories.map((category) => (
@@ -119,10 +132,10 @@ export function LicenseSelector({
                     return (
                       <label
                         key={license.id}
-                        className={`relative flex cursor-pointer flex-col rounded-xl border px-4 py-4 transition-colors ${
+                        className={`relative flex cursor-pointer flex-col rounded-xl border px-4 py-4 transition duration-150 ease-out ${
                           selected
                             ? "border-forest-500 bg-forest-50 ring-1 ring-forest-500"
-                            : "border-slate-300 bg-white hover:border-navy-300"
+                            : "border-slate-300 bg-white hover:-translate-y-0.5 hover:border-navy-300 hover:shadow-card motion-reduce:hover:translate-y-0"
                         }`}
                       >
                         <span className="flex items-start justify-between gap-3">
@@ -161,8 +174,11 @@ export function LicenseSelector({
                           </span>
                         )}
                         {selected && (
-                          <span className="absolute right-3 top-3 hidden" aria-hidden="true">
-                            <Check className="h-4 w-4 text-forest-600" />
+                          <span
+                            className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-forest-600 text-white shadow-card animate-pop"
+                            aria-hidden="true"
+                          >
+                            <Check className="h-3.5 w-3.5" />
                           </span>
                         )}
                       </label>
@@ -178,6 +194,7 @@ export function LicenseSelector({
           </p>
         )}
       </fieldset>
+      )}
 
       {/* Add-ons */}
       {value.licenseId && applicableAddOns.length > 0 && (
@@ -192,10 +209,10 @@ export function LicenseSelector({
               return (
                 <label
                   key={addOn.id}
-                  className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${
+                  className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition duration-150 ease-out ${
                     addOn.required
                       ? "cursor-not-allowed border-slate-200 bg-slate-50"
-                      : "cursor-pointer border-slate-300 bg-white hover:border-navy-300"
+                      : "cursor-pointer border-slate-300 bg-white hover:-translate-y-0.5 hover:border-navy-300 hover:shadow-card motion-reduce:hover:translate-y-0"
                   }`}
                 >
                   <input
