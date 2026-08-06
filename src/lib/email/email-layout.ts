@@ -29,8 +29,8 @@ export const BRAND = {
 export const FONT_STACK =
   "'Inter','Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif";
 
-export const NON_AFFILIATION_DISCLAIMER =
-  "AnglerPermit.com is a privately owned license-assistance service and is not affiliated with, endorsed by, or operated by any government agency. Fishing licenses are also available directly from official state agencies, often at a lower cost.";
+import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
+export { NON_AFFILIATION_DISCLAIMER };
 
 /** Business identity shown in every footer (CAN-SPAM physical address). */
 export const BUSINESS = {
