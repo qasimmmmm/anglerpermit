@@ -1,10 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, CreditCard, HelpCircle, Loader2, Lock, ShieldCheck } from "lucide-react";
 import type { TokenizedPayment } from "@/lib/state-config";
-import { nmiBrowserConfigured, tokenizeCard } from "@/lib/payment-client";
+import {
+  initInlineCollectJs,
+  type InlineField,
+  nmiBrowserConfigured,
+  submitInlinePayment,
+  tokenizeCard,
+} from "@/lib/payment-client";
 import {
   billingZipError,
   BRAND_LABELS,
@@ -31,6 +37,20 @@ import { Button } from "@/components/ui/Button";
  */
 
 type FieldKey = "number" | "expiry" | "cvv" | "zip";
+
+/** DOM ids for the inline Collect.js iframe containers. */
+const COLLECT_IDS: Record<InlineField, string> = {
+  ccnumber: "ap-cc-number",
+  ccexp: "ap-cc-exp",
+  cvv: "ap-cc-cvv",
+};
+
+/** Fallback messages when an embedded field is empty/untouched on submit. */
+const FIELD_REQUIRED: Record<InlineField, string> = {
+  ccnumber: "Card number is required",
+  ccexp: "Expiry date is required",
+  cvv: "Security code is required",
+};
 
 /** Small brand badge shown inside the card-number field (dev mode). */
 function BrandBadge({ brand }: { brand: CardBrand }) {
@@ -59,6 +79,70 @@ function BrandBadge({ brand }: { brand: CardBrand }) {
   );
 }
 
+/** Static row of accepted card brands — a small, familiar trust signal. */
+function AcceptedCards() {
+  return (
+    <div className="flex items-center gap-1.5" aria-label="Accepted cards: Visa, Mastercard, American Express, Discover">
+      {(["visa", "mastercard", "amex", "discover"] as const).map((b) => (
+        <BrandBadge key={b} brand={b} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Styled shell for an inline Collect.js field. Collect.js injects its secure
+ * iframe into the `id` container; the border / padding / focus ring are ours so
+ * the embedded field matches the rest of the form.
+ */
+function CollectFieldFrame({
+  id,
+  label,
+  error,
+  ready,
+  rightAdornment,
+}: {
+  id: string;
+  label: string;
+  error?: string;
+  ready: boolean;
+  rightAdornment?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-sm font-medium text-navy">
+        {label}
+        <span className="ml-1 text-red-600" aria-hidden="true">
+          *
+        </span>
+      </label>
+      <div className="relative">
+        <div
+          id={id}
+          className={`ap-collect-field flex min-h-[46px] items-center rounded-lg border bg-white px-3.5 shadow-sm transition focus-within:ring-2 ${
+            error
+              ? "border-red-500 focus-within:border-red-500 focus-within:ring-red-500/20"
+              : "border-slate-300 focus-within:border-forest-500 focus-within:ring-forest-500/30"
+          } ${rightAdornment ? "pr-11" : ""} ${ready ? "" : "opacity-60"}`}
+        />
+        {!ready && (
+          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <Loader2 className="h-4 w-4 animate-spin text-slate-400" aria-hidden="true" />
+          </div>
+        )}
+        {ready && rightAdornment && (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3">{rightAdornment}</div>
+        )}
+      </div>
+      {error && (
+        <p role="alert" className="mt-1.5 text-sm font-medium text-red-600">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function PaymentStep({
   total,
   stateName,
@@ -81,8 +165,69 @@ export function PaymentStep({
   const [tokenizing, setTokenizing] = useState(false);
   const [tokenizeError, setTokenizeError] = useState<string | null>(null);
 
+  // Inline (embedded) Collect.js state — production only.
+  const [ready, setReady] = useState(false);
+  const [liveErrors, setLiveErrors] = useState<Partial<Record<InlineField, string>>>({});
+  const [initError, setInitError] = useState<string | null>(null);
+  const fieldValidRef = useRef<Record<InlineField, boolean>>({
+    ccnumber: false,
+    ccexp: false,
+    cvv: false,
+  });
+  const onPayRef = useRef(onPay);
+  onPayRef.current = onPay;
+  const zipRef = useRef(zip);
+  zipRef.current = zip;
+
   const brand = useMemo(() => detectBrand(number), [number]);
   const busy = processing || tokenizing;
+
+  useEffect(() => {
+    if (!liveNmi) return;
+    let cancelled = false;
+    initInlineCollectJs({
+      selectors: {
+        ccnumber: `#${COLLECT_IDS.ccnumber}`,
+        ccexp: `#${COLLECT_IDS.ccexp}`,
+        cvv: `#${COLLECT_IDS.cvv}`,
+      },
+      onReady: () => {
+        if (!cancelled) setReady(true);
+      },
+      onValidity: (field, valid, message) => {
+        fieldValidRef.current[field] = valid;
+        if (cancelled) return;
+        setLiveErrors((e) => ({ ...e, [field]: valid ? undefined : message || FIELD_REQUIRED[field] }));
+      },
+      onToken: (card) => {
+        if (cancelled) return;
+        setTokenizing(false);
+        onPayRef.current({
+          token: card.token,
+          last4: card.last4,
+          brand: card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : "",
+          billingZip: zipRef.current.trim(),
+        });
+      },
+      onError: (message) => {
+        if (cancelled) return;
+        setTokenizing(false);
+        setTokenizeError(message);
+      },
+      onTimeout: () => {
+        if (cancelled) return;
+        setTokenizing(false);
+        setTokenizeError("That took longer than expected — check your card details and try again.");
+      },
+    }).catch(() => {
+      if (!cancelled) {
+        setInitError("Secure payment fields could not load. Refresh the page and try again.");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [liveNmi]);
 
   function validateField(key: FieldKey) {
     const message =
@@ -102,31 +247,33 @@ export function PaymentStep({
     setTokenizeError(null);
 
     if (liveNmi) {
+      if (initError) {
+        setTokenizeError(initError);
+        return;
+      }
       const zipMessage = billingZipError(zip);
-      if (zipMessage) {
-        setErrors({ zip: zipMessage });
+      setErrors((e) => ({ ...e, zip: zipMessage ?? undefined }));
+
+      // Surface any embedded card fields that aren't valid yet.
+      const nextLive: Partial<Record<InlineField, string>> = {};
+      for (const f of ["ccnumber", "ccexp", "cvv"] as InlineField[]) {
+        if (!fieldValidRef.current[f]) nextLive[f] = liveErrors[f] ?? FIELD_REQUIRED[f];
+      }
+      const hasCardErrors = Object.keys(nextLive).length > 0;
+      if (hasCardErrors) setLiveErrors((e) => ({ ...e, ...nextLive }));
+
+      if (!ready) {
+        setTokenizeError("Secure payment fields are still loading — one moment.");
+        return;
+      }
+      if (zipMessage || hasCardErrors) {
         document.querySelector<HTMLElement>('[data-payment-fields] [aria-invalid="true"]')?.focus();
         return;
       }
+
+      // Collect.js validates the iframes and returns the token via onToken.
       setTokenizing(true);
-      try {
-        // Lightbox collects PAN/expiry/CVV; only the token returns here.
-        const tokenized = await tokenizeCard();
-        onPay({
-          token: tokenized.token,
-          last4: tokenized.last4,
-          brand: tokenized.brand
-            ? tokenized.brand.charAt(0).toUpperCase() + tokenized.brand.slice(1)
-            : "",
-          billingZip: zip.trim(),
-        });
-      } catch (err) {
-        setTokenizeError(
-          err instanceof Error ? err.message : "We couldn't process your card. Please try again.",
-        );
-      } finally {
-        setTokenizing(false);
-      }
+      submitInlinePayment();
       return;
     }
 
@@ -191,7 +338,7 @@ export function PaymentStep({
       </div>
 
       <div className="px-6 py-6 sm:px-8">
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div data-payment-fields className="grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2 rounded-2xl border border-forest-200 bg-gradient-to-br from-forest-50 via-white to-sky-50 px-4 py-4">
             <div className="flex gap-3">
               <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-forest-100">
@@ -200,10 +347,11 @@ export function PaymentStep({
               <div>
                 <p className="text-sm font-semibold text-navy">Secure card entry</p>
                 <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                  After you click Pay, a secure payment window opens to collect your card details.
-                  Those details go straight to our payment processor and never touch AnglerPermit.
+                  {liveNmi
+                    ? "Enter your card in the secure fields below. Your details are encrypted and tokenized by our payment processor — they never touch AnglerPermit's servers."
+                    : "Your card details are encrypted and tokenized by our payment processor — they never touch AnglerPermit's servers."}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-600">
                   <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
                     <CheckCircle2 className="h-3.5 w-3.5 text-forest-600" aria-hidden="true" />
                     Hosted by our processor
@@ -212,12 +360,55 @@ export function PaymentStep({
                     <CheckCircle2 className="h-3.5 w-3.5 text-forest-600" aria-hidden="true" />
                     One-time tokenized payment
                   </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
+                    <AcceptedCards />
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {liveNmi ? null : (
+          {liveNmi ? (
+            <>
+              <div className="sm:col-span-2">
+                <CollectFieldFrame
+                  id={COLLECT_IDS.ccnumber}
+                  label="Card number"
+                  error={liveErrors.ccnumber}
+                  ready={ready}
+                  rightAdornment={<CreditCard className="h-5 w-5 text-slate-400" aria-hidden="true" />}
+                />
+              </div>
+              <CollectFieldFrame
+                id={COLLECT_IDS.ccexp}
+                label="Expiry (MM/YY)"
+                error={liveErrors.ccexp}
+                ready={ready}
+              />
+              <CollectFieldFrame
+                id={COLLECT_IDS.cvv}
+                label="Security code (CVV)"
+                error={liveErrors.cvv}
+                ready={ready}
+                rightAdornment={
+                  <span className="group relative inline-flex">
+                    <span
+                      aria-label="Where is my security code?"
+                      className="rounded p-1 text-slate-400"
+                    >
+                      <HelpCircle className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none absolute bottom-full right-0 z-10 mb-2 w-56 rounded-lg bg-navy px-3 py-2 text-xs leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
+                    >
+                      The 3–4 digit code on your card (back for most cards, front for Amex).
+                    </span>
+                  </span>
+                }
+              />
+            </>
+          ) : (
             <>
               <div className="sm:col-span-2">
                 <Input
@@ -305,12 +496,12 @@ export function PaymentStep({
           </div>
         </div>
 
-        {(tokenizeError || error) && (
+        {(tokenizeError || error || initError) && (
           <div
             role="alert"
             className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
           >
-            {tokenizeError ?? error}
+            {tokenizeError ?? error ?? initError}
           </div>
         )}
 
@@ -337,7 +528,7 @@ export function PaymentStep({
           {busy ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-              {liveNmi ? "Opening secure payment…" : "Processing payment…"}
+              Processing payment…
             </>
           ) : (
             <>

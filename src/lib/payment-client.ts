@@ -44,6 +44,8 @@ interface CollectJsGlobal {
   closePaymentRequest?: () => void;
 }
 
+export type InlineField = "ccnumber" | "ccexp" | "cvv";
+
 declare global {
   interface Window {
     CollectJS?: CollectJsGlobal;
@@ -156,6 +158,100 @@ async function tokenizeViaLightbox(): Promise<TokenizedCard> {
       );
     }
   });
+}
+
+/**
+ * Inline (embedded) Collect.js integration.
+ *
+ * Instead of NMI's default lightbox popup, Collect.js mounts secure PCI iframes
+ * INSIDE our own styled field containers (`selectors`), so the card entry looks
+ * like the rest of the form. Same PCI-SAQ-A posture as the lightbox — the PAN,
+ * expiry, and CVV live only inside NMI's iframes and never touch our DOM/servers.
+ */
+export interface InlineInitOptions {
+  selectors: Record<InlineField, string>;
+  onToken: (card: TokenizedCard) => void;
+  onError: (message: string) => void;
+  onValidity?: (field: InlineField, valid: boolean, message: string) => void;
+  onReady?: () => void;
+  onTimeout?: () => void;
+}
+
+function mapCollectField(raw: string): InlineField | null {
+  if (raw.includes("ccnumber") || raw.includes("ccnum")) return "ccnumber";
+  if (raw.includes("ccexp")) return "ccexp";
+  if (raw.includes("cvv")) return "cvv";
+  return null;
+}
+
+/**
+ * Load Collect.js and configure it in inline mode against the given field
+ * containers. Resolves once configuration has been requested; the iframes become
+ * usable when `onReady` (fieldsAvailableCallback) fires.
+ */
+export async function initInlineCollectJs(opts: InlineInitOptions): Promise<void> {
+  const tokenizationKey = process.env.NEXT_PUBLIC_NMI_TOKENIZATION_KEY?.trim();
+  if (!tokenizationKey) throw new Error("tokenization-key-missing");
+
+  await loadCollectJs(tokenizationKey);
+
+  window.CollectJS!.configure!({
+    variant: "inline",
+    // Don't copy styles from sibling inputs; we provide explicit CSS below.
+    styleSniffer: false,
+    fields: {
+      ccnumber: {
+        selector: opts.selectors.ccnumber,
+        title: "Card Number",
+        placeholder: "1234 5678 9012 3456",
+        enableCardBrandPreviews: true,
+      },
+      ccexp: {
+        selector: opts.selectors.ccexp,
+        title: "Expiration Date",
+        placeholder: "MM / YY",
+      },
+      cvv: {
+        selector: opts.selectors.cvv,
+        title: "Security Code",
+        placeholder: "CVV",
+      },
+    },
+    // Only the inner text is styled here; the container border/padding is ours.
+    customCss: {
+      color: "#0f172a",
+      "font-size": "16px",
+      "font-family": "inherit",
+      "line-height": "1.5",
+    },
+    focusCss: { color: "#0f172a" },
+    invalidCss: { color: "#dc2626" },
+    placeholderCss: { color: "#94a3b8" },
+    validationCallback: (field: string, status: boolean, message: string) => {
+      const mapped = mapCollectField(field);
+      if (mapped) opts.onValidity?.(mapped, status, message);
+    },
+    fieldsAvailableCallback: () => opts.onReady?.(),
+    timeoutDuration: 15000,
+    timeoutCallback: () => opts.onTimeout?.(),
+    callback: (response: CollectJsResponse) => {
+      const token = response?.token?.trim();
+      if (!token) {
+        opts.onError("We couldn't securely process your card details. Please try again.");
+        return;
+      }
+      opts.onToken({
+        token,
+        last4: last4FromMasked(response.card?.number),
+        brand: response.card?.type ?? "",
+      });
+    },
+  });
+}
+
+/** Trigger inline validation + tokenization; the token arrives via `onToken`. */
+export function submitInlinePayment(): void {
+  window.CollectJS?.startPaymentRequest?.();
 }
 
 function tokenizeDev(card: CardDetails): TokenizedCard {

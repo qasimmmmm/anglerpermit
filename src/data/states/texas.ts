@@ -1,4 +1,5 @@
 import type { StateConfig } from "@/lib/state-config";
+import { US_STATE_OPTIONS } from "@/lib/us-states";
 
 /**
  * TEXAS — Texas Parks and Wildlife Department (TPWD)
@@ -528,8 +529,9 @@ export const config: StateConfig = {
       label: "Driver's License State",
       type: "select",
       required: false,
+      options: US_STATE_OPTIONS,
       step: 2,
-      officialNote: "State dropdown portion of the official 'Driver's License' field group (defaults to 'TX' in screenshot), paired with a number text input. No asterisk. TODO: verify state option list - https://www.txfgsales.com/",
+      officialNote: "State dropdown portion of the official 'Driver's License' field group (defaults to 'TX' in screenshot), paired with a number text input. No asterisk. TODO: verify state option list - https://www.txfgsales.com/ (standard 50-state + DC list used).",
     },
     {
       name: "driversLicenseNumber",
@@ -653,9 +655,10 @@ export const config: StateConfig = {
       label: "State",
       type: "select",
       required: true,
+      options: US_STATE_OPTIONS,
       autocomplete: "address-level1",
       step: 2,
-      officialNote: "Residence Address section, dropdown with asterisk (defaults to 'TX' in screenshot). TODO: verify full state/territory option list - https://www.txfgsales.com/",
+      officialNote: "Residence Address section, dropdown with asterisk (defaults to 'TX' in screenshot). TODO: verify full state/territory option list - https://www.txfgsales.com/ (standard 50-state + DC list used).",
     },
     {
       name: "resZip",
@@ -777,13 +780,14 @@ export const config: StateConfig = {
       label: "State",
       type: "select",
       required: true,
+      options: US_STATE_OPTIONS,
       autocomplete: "off",
       conditional: {
         field: "mailSameAsResidence",
         equals: "false",
       },
       step: 2,
-      officialNote: "Mailing Address section, dropdown with asterisk. TODO: verify option list - https://www.txfgsales.com/",
+      officialNote: "Mailing Address section, dropdown with asterisk. TODO: verify option list - https://www.txfgsales.com/ (standard 50-state + DC list used).",
     },
     {
       name: "mailZip",
