@@ -169,6 +169,7 @@ export function PaymentStep({
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
   const [zip, setZip] = useState("");
+  const [promoOpen, setPromoOpen] = useState(false);
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
@@ -533,53 +534,6 @@ export function PaymentStep({
           </div>
         </div>
 
-        {showPromo && (
-          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="flex-1">
-                <Input
-                  label="Promo code"
-                  name="promoCode"
-                  type="text"
-                  autoComplete="off"
-                  placeholder="Enter code"
-                  value={promoInput}
-                  onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleApplyPromo();
-                    }
-                  }}
-                  disabled={busy}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleApplyPromo}
-                disabled={busy}
-                className="sm:mb-0"
-              >
-                Apply
-              </Button>
-            </div>
-            {promoMessage && (
-              <p
-                className={`mt-2 text-xs font-medium ${appliedPromo ? "text-forest-700" : "text-red-600"}`}
-                role="status"
-              >
-                {promoMessage}
-              </p>
-            )}
-            {appliedPromo && chargeTotal !== total && (
-              <p className="mt-1 text-xs text-slate-500">
-                Original total {formatPrice(total)} → {formatPrice(chargeTotal)}
-              </p>
-            )}
-          </div>
-        )}
-
         {(tokenizeError || error || initError) && (
           <div
             role="alert"
@@ -625,6 +579,67 @@ export function PaymentStep({
           <Lock className="h-3.5 w-3.5" aria-hidden="true" />
           Your card is charged once, and your receipt shows &ldquo;ANGLER PERMIT&rdquo;.
         </p>
+
+        {showPromo && (
+          <div className="mt-4">
+            {!promoOpen && !appliedPromo ? (
+              <p className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setPromoOpen(true)}
+                  disabled={busy}
+                  className="text-sm font-medium text-forest-700 underline decoration-forest-300 underline-offset-2 hover:text-forest-800 disabled:opacity-50"
+                >
+                  Have a promo code?
+                </button>
+              </p>
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <div className="flex-1">
+                    <Input
+                      label="Promo code"
+                      name="promoCode"
+                      type="text"
+                      autoComplete="off"
+                      placeholder="Enter code"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleApplyPromo();
+                        }
+                      }}
+                      disabled={busy}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleApplyPromo}
+                    disabled={busy}
+                  >
+                    Apply
+                  </Button>
+                </div>
+                {promoMessage && (
+                  <p
+                    className={`mt-2 text-xs font-medium ${appliedPromo ? "text-forest-700" : "text-red-600"}`}
+                    role="status"
+                  >
+                    {promoMessage}
+                  </p>
+                )}
+                {appliedPromo && chargeTotal !== total && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Original total {formatPrice(total)} → {formatPrice(chargeTotal)}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );
