@@ -89,3 +89,13 @@ body.wizard-active footer[data-site-footer] {
     animation: none !important;
   }
 }
+
+/* NMI Collect.js injects an iframe into each field shell — make it fill the
+   container so the embedded card fields line up with our other inputs. */
+.ap-collect-field iframe {
+  width: 100% !important;
+  height: 24px !important;
+  border: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+}

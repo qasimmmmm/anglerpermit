@@ -1,4 +1,5 @@
 import type { StateConfig } from "@/lib/state-config";
+import { US_STATE_OPTIONS } from "@/lib/us-states";
 
 /**
  * CALIFORNIA — typed StateConfig converted from /research/california.json.
@@ -775,15 +776,16 @@ export const config: StateConfig = {
       name: "state",
       section: "Residence",
       label: "State:",
-      type: "text",
+      type: "select",
       required: true,
+      options: US_STATE_OPTIONS,
       autocomplete: "address-level1",
       conditional: {
         field: "country",
         equals: "us"
       },
       step: 2,
-      officialNote: "State abbreviation auto-fills from ZIP code (portal Bootstrap-AddressControl.js). TODO: verify exact label and whether read-only"
+      officialNote: "State abbreviation auto-fills from ZIP code (portal Bootstrap-AddressControl.js). Rendered as a standard 50-state + DC dropdown here. TODO: verify exact label and whether read-only"
     },
     {
       name: "internationalProvince",

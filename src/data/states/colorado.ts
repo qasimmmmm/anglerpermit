@@ -1,4 +1,5 @@
 import type { StateConfig } from "@/lib/state-config";
+import { US_STATE_OPTIONS } from "@/lib/us-states";
 
 /**
  * COLORADO — Colorado Parks and Wildlife (CPW)
@@ -302,10 +303,11 @@ export const config: StateConfig = {
       label: "State",
       type: "select",
       required: true,
+      options: US_STATE_OPTIONS,
       autocomplete: "address-level1",
       step: 2,
       officialNote:
-        "TODO: verify — see addressLine1 note (signup Step 2/6). Options presumably the 50 US states + territories; exact list not observed.",
+        "TODO: verify — see addressLine1 note (signup Step 2/6). Options presumably the 50 US states + territories; exact list not observed. Standard 50-state + DC list used.",
     },
     {
       name: "zipCode",
