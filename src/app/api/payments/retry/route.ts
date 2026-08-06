@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { getStateConfig } from "@/lib/states";
 import { paymentSchema } from "@/lib/state-config";
 import { chargeSale, NMI_DESCRIPTOR } from "@/lib/nmi";
+import { applyPromoCode } from "@/lib/promo";
 import {
   getApplicationById,
   hasApprovedPayment,
@@ -11,6 +12,7 @@ import {
   logPaymentEvent,
   markApplicationPaid,
   recordPayment,
+  updateApplicationApplicantData,
 } from "@/lib/storage";
 import { checkRetryToken, consumeRetryToken } from "@/lib/retry-tokens";
 import { dbConfigured, q } from "@/lib/db";
@@ -44,6 +46,7 @@ export const runtime = "nodejs";
 const bodySchema = z.object({
   token: z.string().min(20).max(200),
   payment: paymentSchema,
+  promoCode: z.string().trim().max(64).optional(),
 });
 
 const MAX_ATTEMPTS_PER_HOUR = 6;
@@ -69,7 +72,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ ok: false, message: "Invalid request." }, { status: 400 });
   }
-  const { token, payment } = parsed.data;
+  const { token, payment, promoCode } = parsed.data;
 
   const check = await checkRetryToken(token);
   if (check.status !== "valid") {
@@ -110,14 +113,32 @@ export async function POST(request: Request) {
     );
   }
 
-  const amount = app.amountCents / 100;
+  const baseAmount = app.amountCents / 100;
+  const { amount, applied: promoApplied } = applyPromoCode(baseAmount, promoCode);
+  const amountCents = Math.round(amount * 100);
+  if (promoApplied && amountCents !== app.amountCents) {
+    await updateApplicationApplicantData(app.id, {
+      formData: app.formData,
+      consents: app.consents,
+      residency: app.residency,
+      email: app.email,
+      firstName: app.firstName,
+      lastName: app.lastName,
+      phone: app.phone,
+      amountCents,
+    }).catch(() => null);
+  }
   const tokenFingerprint = createHash("sha256").update(payment.token).digest("hex").slice(0, 12);
 
   await logPaymentEvent({
     applicationId: app.id,
     source: "retry_page",
     eventType: "charge_attempt",
-    detail: { amountCents: app.amountCents, tokenFp: tokenFingerprint },
+    detail: {
+      amountCents,
+      tokenFp: tokenFingerprint,
+      ...(promoApplied ? { promoCode: promoApplied, baseAmountCents: app.amountCents } : {}),
+    },
   });
 
   const charge = await chargeSale({
@@ -139,7 +160,7 @@ export async function POST(request: Request) {
       kind: "retry_sale",
       source: "retry_page",
       transactionId: charge.transactionId,
-      amountCents: app.amountCents,
+      amountCents,
       status: charge.status === "declined" ? "declined" : "error",
       declineCode: charge.declineCode,
       declineMessage: charge.message,
@@ -178,7 +199,7 @@ export async function POST(request: Request) {
     kind: "retry_sale",
     source: "retry_page",
     transactionId: charge.transactionId,
-    amountCents: app.amountCents,
+    amountCents,
     status: "approved",
     cardBrand: payment.brand,
     cardLast4: payment.last4,

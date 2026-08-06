@@ -496,38 +496,44 @@ export async function updateApplicationApplicantData(
     lastName: string | null;
     phone: string | null;
     addOnIds?: string[];
+    /** When set (e.g. after a test promo), overwrite the stored charge amount. */
+    amountCents?: number;
   },
 ): Promise<ApplicationRecord | null> {
   if (dbConfigured()) {
+    const sets = [
+      "form_data = $2",
+      "consents = $3",
+      "residency = $4",
+      "email = $5",
+      "first_name = $6",
+      "last_name = $7",
+      "phone = $8",
+    ];
+    const params: unknown[] = [
+      applicationId,
+      input.formData,
+      input.consents,
+      input.residency,
+      input.email,
+      input.firstName,
+      input.lastName,
+      input.phone,
+    ];
+    if (input.addOnIds) {
+      params.push(JSON.stringify(input.addOnIds));
+      sets.push(`addon_ids = $${params.length}`);
+    }
+    if (typeof input.amountCents === "number") {
+      params.push(input.amountCents);
+      sets.push(`amount_cents = $${params.length}`);
+    }
     const updated = await q<AppRow>(
       `update applications
-          set form_data = $2, consents = $3, residency = $4,
-              email = $5, first_name = $6, last_name = $7, phone = $8
-              ${input.addOnIds ? ", addon_ids = $9" : ""}
+          set ${sets.join(", ")}
         where id = $1
         returning ${APP_COLS}`,
-      input.addOnIds
-        ? [
-            applicationId,
-            input.formData,
-            input.consents,
-            input.residency,
-            input.email,
-            input.firstName,
-            input.lastName,
-            input.phone,
-            JSON.stringify(input.addOnIds),
-          ]
-        : [
-            applicationId,
-            input.formData,
-            input.consents,
-            input.residency,
-            input.email,
-            input.firstName,
-            input.lastName,
-            input.phone,
-          ],
+      params,
     );
     if (updated.rows[0]) {
       const app = rowToRecord(updated.rows[0]);
@@ -548,6 +554,7 @@ export async function updateApplicationApplicantData(
     lastName: input.lastName,
     phone: input.phone,
     ...(input.addOnIds ? { addOnIds: input.addOnIds } : {}),
+    ...(typeof input.amountCents === "number" ? { amountCents: input.amountCents } : {}),
   };
   await mongoUpsertApp(next);
   return next;
