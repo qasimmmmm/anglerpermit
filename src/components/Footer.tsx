@@ -63,13 +63,9 @@ export function Footer() {
         </div>
 
         {/* Mandatory persistent non-affiliation disclaimer — kept verbatim,
-            styled as a single small, quiet line (subtle but legible). The full
-            version with context lives on /disclaimer. */}
+            styled as a single small, quiet line (subtle but legible). */}
         <p className="mt-10 text-xs leading-relaxed text-slate-500">
-          {NON_AFFILIATION_DISCLAIMER}{" "}
-          <Link href="/disclaimer" className="underline decoration-slate-600 underline-offset-2 hover:text-slate-300">
-            Learn more
-          </Link>
+          {NON_AFFILIATION_DISCLAIMER}
         </p>
 
         <div className="mt-6 flex items-start gap-2 text-xs text-slate-400">

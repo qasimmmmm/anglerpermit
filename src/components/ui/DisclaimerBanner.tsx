@@ -1,8 +1,7 @@
 import { Info } from "lucide-react";
+import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 
-/** The mandatory non-affiliation disclaimer — use verbatim site-wide. */
-export const NON_AFFILIATION_DISCLAIMER =
-  "AnglerPermit.com is a privately owned license-assistance service and is not affiliated with, endorsed by, or operated by any government agency. Fishing licenses are also available directly from official state agencies, often at a lower cost.";
+export { NON_AFFILIATION_DISCLAIMER };
 
 export function DisclaimerBanner({ className = "" }: { className?: string }) {
   return (

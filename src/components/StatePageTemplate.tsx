@@ -1,6 +1,7 @@
-import { ExternalLink, FileCheck2, ShieldCheck } from "lucide-react";
+import { FileCheck2, ShieldCheck } from "lucide-react";
 import type { StateConfig } from "@/lib/state-config";
 import { publicConfig } from "@/lib/state-config";
+import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { ApplicationForm } from "@/components/ApplicationForm";
 
 /**
@@ -58,22 +59,11 @@ export function StatePageTemplate({ config }: { config: StateConfig }) {
         </div>
       </section>
 
-      {/* Small inline non-affiliation note (compliance) — no provenance line,
-          no "official fee" claims. The official portal link stays. */}
+      {/* Non-affiliation disclaimer — plain text, same wording as site footer. */}
       <section className="border-t border-slate-200 py-8">
         <div className="container-site max-w-3xl">
           <p className="text-xs leading-relaxed text-slate-500">
-            AnglerPermit is a private license-assistance service, not a government agency.{" "}
-            Official licensing portal:{" "}
-            <a
-              href={config.officialPortalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-forest-700 underline decoration-forest-300 underline-offset-2 hover:text-forest-500"
-            >
-              {config.officialPortalName}
-              <ExternalLink className="ml-1 inline h-3.5 w-3.5" aria-hidden="true" />
-            </a>
+            {NON_AFFILIATION_DISCLAIMER}
           </p>
         </div>
       </section>
