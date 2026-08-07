@@ -1,0 +1,1174 @@
+"use client";
+
+import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import type { LicenseOption, StateConfig, TokenizedPayment } from "@/lib/state-config";
+import { computeOrderTotal, displayPrice } from "@/lib/state-config";
+import { US_STATE_OPTIONS } from "@/lib/us-states";
+import { formatPrice } from "@/lib/format";
+import { PaymentStep } from "@/components/PaymentStep";
+import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
+
+const RESIDENT_ANNUAL_IDS = ["resident-all-water-package"] as const;
+const RESIDENT_SHORT_IDS = [
+  "resident-one-day-all-water-license",
+  "resident-two-day-all-water-license",
+  "resident-three-day-all-water-license",
+  "resident-four-day-all-water-license",
+] as const;
+const NONRESIDENT_ANNUAL_IDS = ["lake-texoma-license"] as const;
+const NONRESIDENT_SHORT_IDS = [
+  "nonresident-one-day-all-water-license",
+  "nonresident-two-day-all-water-license",
+  "nonresident-three-day-all-water-license",
+  "nonresident-four-day-all-water-license",
+] as const;
+
+const SHORT_TERM_IDS = new Set<string>([...RESIDENT_SHORT_IDS, ...NONRESIDENT_SHORT_IDS]);
+
+const LICENSE_LABELS: Record<string, string> = {
+  "resident-all-water-package": "All Water Fishing Package",
+  "resident-one-day-all-water-license": "1-Day",
+  "resident-two-day-all-water-license": "2-Day",
+  "resident-three-day-all-water-license": "3-Day",
+  "resident-four-day-all-water-license": "4-Day",
+  "lake-texoma-license": "Lake Texoma Fishing License",
+  "nonresident-one-day-all-water-license": "1-Day",
+  "nonresident-two-day-all-water-license": "2-Day",
+  "nonresident-three-day-all-water-license": "3-Day",
+  "nonresident-four-day-all-water-license": "4-Day",
+};
+
+const LICENSE_SUB: Record<string, string> = {
+  "resident-all-water-package": "Valid for 365 days",
+  "lake-texoma-license": "Valid to 12/31/2026",
+};
+
+const ID_COUNTRIES = [
+  "United States",
+  "Canada",
+  "Mexico",
+  "United Kingdom",
+  "Germany",
+  "France",
+  "Australia",
+  "Japan",
+  "Brazil",
+  "India",
+  "China",
+  "South Korea",
+  "Italy",
+  "Spain",
+  "Netherlands",
+  "Sweden",
+  "Norway",
+  "Denmark",
+  "Finland",
+  "Switzerland",
+  "Other",
+];
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const TX_STATE_OPTIONS = [
+  ...US_STATE_OPTIONS.filter((s) => s.value === "TX"),
+  ...US_STATE_OPTIONS.filter((s) => s.value !== "TX" && s.value !== "DC"),
+  ...US_STATE_OPTIONS.filter((s) => s.value === "DC"),
+];
+
+type IdKind = "drivers-license" | "personal-id";
+type Step = 0 | 1 | 2;
+
+type FormState = {
+  residency: "" | "resident" | "nonresident";
+  idKind: IdKind | "";
+  idNumber: string;
+  issueMonth: string;
+  issueDay: string;
+  issueYear: string;
+  expMonth: string;
+  expDay: string;
+  expYear: string;
+  idCountry: string;
+  issuingState: string;
+  ssn: string;
+  passportNumber: string;
+  passportCountry: string;
+  dlUploadName: string;
+  dlUploadData: string;
+  licenseId: string;
+  digitalLicense: "" | "yes" | "no";
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  dobDay: string;
+  dobMonth: string;
+  dobYear: string;
+  gender: string;
+  heightFt: string;
+  heightIn: string;
+  weightPounds: string;
+  street: string;
+  city: string;
+  zip: string;
+  email: string;
+  phone: string;
+  consent: boolean;
+};
+
+const INITIAL: FormState = {
+  residency: "",
+  idKind: "",
+  idNumber: "",
+  issueMonth: "",
+  issueDay: "",
+  issueYear: "",
+  expMonth: "",
+  expDay: "",
+  expYear: "",
+  idCountry: "United States",
+  issuingState: "TX",
+  ssn: "",
+  passportNumber: "",
+  passportCountry: "",
+  dlUploadName: "",
+  dlUploadData: "",
+  licenseId: "",
+  digitalLicense: "",
+  firstName: "",
+  middleName: "",
+  lastName: "",
+  dobDay: "",
+  dobMonth: "",
+  dobYear: "",
+  gender: "",
+  heightFt: "",
+  heightIn: "",
+  weightPounds: "",
+  street: "",
+  city: "",
+  zip: "",
+  email: "",
+  phone: "",
+  consent: false,
+};
+
+const inputClass =
+  "form-input w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-navy focus:ring-1 focus:ring-navy";
+
+function pad2(n: string | number) {
+  return String(n).padStart(2, "0");
+}
+
+function monthIndex(name: string): number {
+  return MONTHS.indexOf(name) + 1;
+}
+
+function digitsOnly(s: string) {
+  return s.replace(/\D/g, "");
+}
+
+function formatSsnDisplay(raw: string): string {
+  const d = digitsOnly(raw).slice(0, 9);
+  if (d.length <= 3) return d;
+  if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
+}
+
+function ChoiceButton({
+  selected,
+  onClick,
+  children,
+  className = "",
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "rounded border-2 px-3 py-2 text-sm font-semibold transition-colors",
+        selected
+          ? "border-navy bg-navy/10 text-navy"
+          : "border-slate-200 bg-white text-slate-500 hover:border-slate-300",
+        className,
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Field({
+  label,
+  required,
+  children,
+  className = "",
+}: {
+  label: string;
+  required?: boolean;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="mb-1 block text-sm font-medium text-slate-700">
+        {label}
+        {required ? <span className="text-red-600"> *</span> : null}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function SectionHeading({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="mt-8 border-t border-slate-100 pt-6 text-base font-bold uppercase tracking-wide text-slate-800">
+      {children}
+    </h2>
+  );
+}
+
+function DateTriple({
+  month,
+  day,
+  year,
+  onMonth,
+  onDay,
+  onYear,
+  yearOptions,
+}: {
+  month: string;
+  day: string;
+  year: string;
+  onMonth: (v: string) => void;
+  onDay: (v: string) => void;
+  onYear: (v: string) => void;
+  yearOptions: string[];
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <select className={inputClass} value={month} onChange={(e) => onMonth(e.target.value)}>
+        <option value="">Month</option>
+        {MONTHS.map((m) => (
+          <option key={m} value={m}>
+            {m}
+          </option>
+        ))}
+      </select>
+      <select className={inputClass} value={day} onChange={(e) => onDay(e.target.value)}>
+        <option value="">Day</option>
+        {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
+          <option key={d} value={d}>
+            {d}
+          </option>
+        ))}
+      </select>
+      <select className={inputClass} value={year} onChange={(e) => onYear(e.target.value)}>
+        <option value="">Year</option>
+        {yearOptions.map((y) => (
+          <option key={y} value={y}>
+            {y}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function LicenseCard({
+  lic,
+  selected,
+  onSelect,
+  shortTerm = false,
+}: {
+  lic: LicenseOption;
+  selected: boolean;
+  onSelect: () => void;
+  shortTerm?: boolean;
+}) {
+  const price = displayPrice(lic.price);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={[
+        "flex w-full items-center justify-between gap-3 rounded border px-3 py-3 text-left text-sm transition-colors",
+        selected
+          ? "border-navy bg-navy/5 ring-1 ring-navy"
+          : "border-slate-200 bg-white hover:border-slate-300",
+      ].join(" ")}
+    >
+      <span>
+        <span className="block font-medium text-slate-800">
+          {LICENSE_LABELS[lic.id] ?? lic.name}
+        </span>
+        {!shortTerm && LICENSE_SUB[lic.id] && (
+          <span className="block text-xs text-slate-500">{LICENSE_SUB[lic.id]}</span>
+        )}
+      </span>
+      <span className="shrink-0 font-bold text-navy">{formatPrice(price)}</span>
+    </button>
+  );
+}
+
+export function TexasCompetitorApply({ config }: { config: StateConfig }) {
+  const [step, setStep] = useState<Step>(0);
+  const [form, setForm] = useState<FormState>(INITIAL);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [reference, setReference] = useState<string | null>(null);
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
+  const [showConsentTerms, setShowConsentTerms] = useState(false);
+  const applicationIdRef = useRef<string | null>(null);
+  const promoCodeRef = useRef<string | null>(null);
+
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
+
+  const isResident = form.residency === "resident";
+
+  const annualLicenses = useMemo(() => {
+    if (!form.residency) return [] as LicenseOption[];
+    const ids = isResident ? RESIDENT_ANNUAL_IDS : NONRESIDENT_ANNUAL_IDS;
+    return ids
+      .map((id) => config.licenses.find((l) => l.id === id))
+      .filter((l): l is LicenseOption => Boolean(l));
+  }, [config.licenses, form.residency, isResident]);
+
+  const shortTermLicenses = useMemo(() => {
+    if (!form.residency) return [] as LicenseOption[];
+    const ids = isResident ? RESIDENT_SHORT_IDS : NONRESIDENT_SHORT_IDS;
+    return ids
+      .map((id) => config.licenses.find((l) => l.id === id))
+      .filter((l): l is LicenseOption => Boolean(l));
+  }, [config.licenses, form.residency, isResident]);
+
+  const selectedLicense = config.licenses.find((l) => l.id === form.licenseId);
+  const total = form.licenseId ? computeOrderTotal(config, form.licenseId, []) : 0;
+  const needsStartDate = SHORT_TERM_IDS.has(form.licenseId);
+
+  function selectResidency(value: "resident" | "nonresident") {
+    setForm((f) => ({
+      ...f,
+      residency: value,
+      licenseId: "",
+      digitalLicense: "",
+      idKind: "",
+      idNumber: "",
+      passportNumber: "",
+      passportCountry: "",
+      issuingState: value === "resident" ? "TX" : "",
+      idCountry: "United States",
+    }));
+    setErrors([]);
+  }
+
+  function onUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors(["Driver's license upload must be 5MB or smaller."]);
+      return;
+    }
+    const ok =
+      /image\/(jpeg|png)/.test(file.type) ||
+      file.type === "application/pdf" ||
+      /\.(jpe?g|png|pdf)$/i.test(file.name);
+    if (!ok) {
+      setErrors(["Upload must be JPG, PNG, or PDF."]);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
+      setForm((f) => ({ ...f, dlUploadName: file.name, dlUploadData: dataUrl }));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function validateStep0(): string[] {
+    const e: string[] = [];
+    if (!form.residency) e.push("Select whether your primary residence is in Texas.");
+    if (!form.idKind) e.push("Select an ID type.");
+    if (!form.idNumber.trim()) {
+      e.push(
+        form.idKind === "personal-id"
+          ? "Enter your Personal ID number."
+          : "Enter your Driver's License number.",
+      );
+    }
+    if (!form.issueMonth || !form.issueDay || !form.issueYear) {
+      e.push("Driver's License issue date is required.");
+    }
+    if (!form.expMonth || !form.expDay || !form.expYear) {
+      e.push("Driver's License expiration date is required.");
+    }
+    if (!isResident && !form.idCountry) e.push("Country is required.");
+    if (!form.issuingState) e.push("Issuing state is required.");
+    if (digitsOnly(form.ssn).length !== 9) e.push("Enter a valid Social Security number.");
+    if (!isResident) {
+      if (!form.passportNumber.trim()) e.push("Passport number is required.");
+      if (!form.passportCountry) e.push("Passport issuing country is required.");
+    }
+    if (!form.licenseId) e.push("Select a license.");
+    if (!form.digitalLicense) e.push("Select digital or paper license preference.");
+    return e;
+  }
+
+  function validateStep1(): string[] {
+    const e: string[] = [];
+    if (!form.firstName.trim()) e.push("First name is required.");
+    if (!form.lastName.trim()) e.push("Last name is required.");
+    if (!form.dobDay || !form.dobMonth || !form.dobYear) e.push("Date of birth is required.");
+    if (!form.gender) e.push("Gender is required.");
+    if (!form.heightFt || form.heightIn === "") e.push("Height is required.");
+    if (!form.weightPounds.trim() || Number(form.weightPounds) <= 0) {
+      e.push("Weight is required.");
+    }
+    if (!form.street.trim()) e.push("Street address is required.");
+    if (!form.city.trim()) e.push("City is required.");
+    if (!/^\d{5}$/.test(form.zip.trim())) e.push("Enter a valid 5-digit ZIP code.");
+    if (!form.email.trim() || !form.email.includes("@")) e.push("Email address is required.");
+    if (digitsOnly(form.phone).length !== 10) e.push("Enter a valid 10-digit phone number.");
+    if (!form.consent) e.push("Please confirm your information and agree to the terms.");
+    return e;
+  }
+
+  function buildPayload(payment: TokenizedPayment) {
+    const dob = `${pad2(monthIndex(form.dobMonth))}/${pad2(form.dobDay)}/${form.dobYear}`;
+    const ssnDigits = digitsOnly(form.ssn);
+    const data: Record<string, string | boolean | number> = {
+      firstName: form.firstName.trim(),
+      middleName: form.middleName.trim(),
+      lastName: form.lastName.trim(),
+      dob,
+      gender: form.gender === "non-binary" ? "undisclosed" : form.gender,
+      heightFeet: form.heightFt,
+      heightInches: form.heightIn,
+      weightPounds: form.weightPounds.trim(),
+      ssn: ssnDigits,
+      driversLicenseState: form.issuingState,
+      driversLicenseNumber: form.idNumber.trim(),
+      texasResident: isResident ? "yes" : "no",
+      resAddress1: form.street.trim(),
+      resCity: form.city.trim(),
+      resState: isResident ? "TX" : form.issuingState || "TX",
+      resZip: form.zip.trim(),
+      phone: digitsOnly(form.phone),
+      email: form.email.trim(),
+      digitalLicense: form.digitalLicense,
+      idIssueDate: `${pad2(monthIndex(form.issueMonth))}/${pad2(form.issueDay)}/${form.issueYear}`,
+      idExpirationDate: `${pad2(monthIndex(form.expMonth))}/${pad2(form.expDay)}/${form.expYear}`,
+      idCountry: form.idCountry,
+    };
+
+    if (!isResident) {
+      data.passportNumber = form.passportNumber.trim();
+      data.passportIssuingCountry = form.passportCountry;
+    }
+    if (form.dlUploadData) {
+      data.dlUploadName = form.dlUploadName;
+      data.dlUploadData = form.dlUploadData;
+    }
+    if (needsStartDate) {
+      const today = new Date();
+      data.licenseStartDate = `${pad2(today.getMonth() + 1)}/${pad2(today.getDate())}/${today.getFullYear()}`;
+    }
+
+    return {
+      stateSlug: config.slug,
+      residency: form.residency,
+      licenseId: form.licenseId,
+      addOnIds: [] as string[],
+      data,
+      consents: { accurateAndTerms: true as const },
+      payment,
+      ...(applicationIdRef.current ? { applicationId: applicationIdRef.current } : {}),
+      ...(promoCodeRef.current ? { promoCode: promoCodeRef.current } : {}),
+    };
+  }
+
+  async function handlePay(payment: TokenizedPayment, promoCode?: string | null) {
+    promoCodeRef.current = promoCode ?? null;
+    setProcessing(true);
+    setPaymentError(null);
+    try {
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildPayload(payment)),
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        reference?: string;
+        applicationId?: string | null;
+        confirmationEmailedTo?: string | null;
+        message?: string;
+        errors?: Record<string, string[]>;
+      };
+      if (res.ok && json.ok && json.reference) {
+        applicationIdRef.current = null;
+        setReference(json.reference);
+        setConfirmationEmail(json.confirmationEmailedTo ?? null);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      if (res.status === 402) {
+        if (json.applicationId) applicationIdRef.current = json.applicationId;
+        setPaymentError(
+          json.message ?? "Your payment could not be completed. Please try a different card.",
+        );
+        return;
+      }
+      const detail = json.errors
+        ? Object.values(json.errors).flat().slice(0, 3).join(" ")
+        : "";
+      setPaymentError(
+        [json.message ?? "Something went wrong while submitting. Please try again.", detail]
+          .filter(Boolean)
+          .join(" "),
+      );
+    } catch {
+      setPaymentError("We could not reach the server. Check your connection and try again.");
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  if (reference) {
+    return (
+      <div className="mx-auto max-w-xl rounded border border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
+        <h2 className="text-2xl font-bold text-navy">Application received</h2>
+        <p className="mt-2 text-slate-600">
+          Thank you — your Texas fishing license application and payment have been received.
+        </p>
+        <div className="mt-6 rounded border border-navy/10 bg-slate-50 px-6 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Your reference number
+          </p>
+          <p className="mt-1 font-mono text-xl font-bold text-navy">{reference}</p>
+        </div>
+        {confirmationEmail && (
+          <p className="mt-4 text-sm text-slate-600">
+            A confirmation email is on its way to{" "}
+            <span className="font-semibold text-navy">{confirmationEmail}</span>.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  const steps = ["Residency & License", "Your Information", "Payment"] as const;
+  const issueYears = Array.from({ length: 30 }, (_, i) => String(2026 - i));
+  const expYears = Array.from({ length: 20 }, (_, i) => String(2026 + i));
+
+  return (
+    <div className="mx-auto w-full max-w-xl">
+      <div className="mb-6 flex items-center justify-center gap-3">
+        {steps.map((label, i) => (
+          <div key={label} className="flex items-center gap-3">
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className={[
+                  "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold",
+                  i <= step ? "bg-navy text-white" : "bg-slate-200 text-slate-500",
+                ].join(" ")}
+              >
+                {i + 1}
+              </div>
+              <span
+                className={`max-w-[5.5rem] text-center text-xs ${
+                  i <= step ? "font-medium text-slate-800" : "text-slate-400"
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+            {i < steps.length - 1 && <div className="mb-4 h-px w-8 bg-slate-200 sm:w-10" />}
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded border border-slate-200 bg-white px-4 py-6 shadow-sm sm:px-6">
+        {errors.length > 0 && (
+          <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <ul className="list-disc pl-4">
+              {errors.map((err) => (
+                <li key={err}>{err}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {step === 0 && (
+          <>
+            <h2 className="text-xl font-bold text-slate-900">Residency &amp; License Selection</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Tell us about your residency and select your license type.
+            </p>
+
+            <div className="mt-6">
+              <p className="text-sm font-semibold text-slate-800">
+                Is your primary residence in Texas? <span className="text-red-600">*</span>
+              </p>
+              <div className="mt-2 flex w-full flex-row gap-2">
+                <ChoiceButton
+                  className="flex-1"
+                  selected={form.residency === "resident"}
+                  onClick={() => selectResidency("resident")}
+                >
+                  Yes
+                </ChoiceButton>
+                <ChoiceButton
+                  className="flex-1"
+                  selected={form.residency === "nonresident"}
+                  onClick={() => selectResidency("nonresident")}
+                >
+                  No
+                </ChoiceButton>
+              </div>
+              <p className="mt-3 text-sm text-slate-500">
+                A Texas resident is a person who has lived continuously in Texas for more than six
+                months immediately before buying their license. Members of the U.S. Armed Forces
+                (and their dependents) on full-time &quot;active duty&quot; anywhere are also
+                considered residents.
+              </p>
+            </div>
+
+            {form.residency && (
+              <>
+                <div className="mt-6">
+                  <p className="text-sm font-semibold text-slate-800">
+                    ID Type <span className="text-red-600">*</span>
+                  </p>
+                  <div className="mt-2 flex w-full flex-row gap-2">
+                    <ChoiceButton
+                      className="flex-1"
+                      selected={form.idKind === "drivers-license"}
+                      onClick={() => set("idKind", "drivers-license")}
+                    >
+                      Driver&apos;s License
+                    </ChoiceButton>
+                    <ChoiceButton
+                      className="flex-1"
+                      selected={form.idKind === "personal-id"}
+                      onClick={() => set("idKind", "personal-id")}
+                    >
+                      Personal ID Card
+                    </ChoiceButton>
+                  </div>
+                </div>
+
+                {form.idKind && (
+                  <div className="mt-4 grid gap-3">
+                    <Field
+                      label={
+                        form.idKind === "personal-id"
+                          ? "Personal ID Number"
+                          : "Driver's License Number"
+                      }
+                      required
+                    >
+                      <input
+                        className={inputClass}
+                        value={form.idNumber}
+                        onChange={(e) => set("idNumber", e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Driver's License Issue Date" required>
+                      <DateTriple
+                        month={form.issueMonth}
+                        day={form.issueDay}
+                        year={form.issueYear}
+                        onMonth={(v) => set("issueMonth", v)}
+                        onDay={(v) => set("issueDay", v)}
+                        onYear={(v) => set("issueYear", v)}
+                        yearOptions={issueYears}
+                      />
+                    </Field>
+                    <Field label="Driver's License Expiration Date" required>
+                      <DateTriple
+                        month={form.expMonth}
+                        day={form.expDay}
+                        year={form.expYear}
+                        onMonth={(v) => set("expMonth", v)}
+                        onDay={(v) => set("expDay", v)}
+                        onYear={(v) => set("expYear", v)}
+                        yearOptions={expYears}
+                      />
+                    </Field>
+                    <div>
+                      <p className="mb-1 text-sm font-medium text-slate-700">
+                        Upload Driver&apos;s License{" "}
+                        <span className="font-normal text-slate-400">(optional)</span>
+                      </p>
+                      <label className="flex cursor-pointer flex-col items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600 hover:border-navy/40">
+                        <span className="font-semibold text-navy">
+                          {form.dlUploadName || "Click to upload your Driver's License"}
+                        </span>
+                        <span className="mt-1 text-xs text-slate-400">
+                          JPG, PNG or PDF — max 5MB
+                        </span>
+                        <input
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                          className="hidden"
+                          onChange={onUpload}
+                        />
+                      </label>
+                    </div>
+                    {!isResident && (
+                      <Field label="Country" required>
+                        <select
+                          className={inputClass}
+                          value={form.idCountry}
+                          onChange={(e) => set("idCountry", e.target.value)}
+                        >
+                          {ID_COUNTRIES.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    )}
+                    <Field label="Issuing State" required>
+                      <select
+                        className={inputClass}
+                        value={form.issuingState}
+                        onChange={(e) => set("issuingState", e.target.value)}
+                      >
+                        <option value="">Select issuing state</option>
+                        {TX_STATE_OPTIONS.map((s) => (
+                          <option key={s.value} value={s.value}>
+                            {s.value === "TX" ? "TX — Texas" : s.value}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Social Security Number" required>
+                      <input
+                        className={inputClass}
+                        placeholder="XXX-XX-XXXX"
+                        inputMode="numeric"
+                        value={formatSsnDisplay(form.ssn)}
+                        onChange={(e) => set("ssn", digitsOnly(e.target.value))}
+                      />
+                    </Field>
+                    {!isResident && (
+                      <>
+                        <Field label="Passport Number" required>
+                          <input
+                            className={inputClass}
+                            value={form.passportNumber}
+                            onChange={(e) => set("passportNumber", e.target.value)}
+                          />
+                        </Field>
+                        <Field label="Passport Issuing Country" required>
+                          <select
+                            className={inputClass}
+                            value={form.passportCountry}
+                            onChange={(e) => set("passportCountry", e.target.value)}
+                          >
+                            <option value="">Select country</option>
+                            {ID_COUNTRIES.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      </>
+                    )}
+                    <div
+                      className={[
+                        "rounded border px-3 py-2 text-sm",
+                        isResident
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                          : "border-amber-200 bg-amber-50 text-amber-900",
+                      ].join(" ")}
+                    >
+                      {isResident
+                        ? "✓ You are a Texas Resident"
+                        : "You are a Non-Resident of Texas"}
+                    </div>
+                  </div>
+                )}
+
+                {form.idKind && annualLicenses.length > 0 && (
+                  <>
+                    <SectionHeading>Fishing Licenses</SectionHeading>
+                    <div className="mt-3 space-y-2">
+                      {annualLicenses.map((lic) => (
+                        <LicenseCard
+                          key={lic.id}
+                          lic={lic}
+                          selected={form.licenseId === lic.id}
+                          onSelect={() => {
+                            set("licenseId", lic.id);
+                            if (!form.digitalLicense) set("digitalLicense", "yes");
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {form.idKind && shortTermLicenses.length > 0 && (
+                  <>
+                    <SectionHeading>Short-Term Fishing Licenses</SectionHeading>
+                    <div className="mt-3 space-y-2">
+                      {shortTermLicenses.map((lic) => (
+                        <LicenseCard
+                          key={lic.id}
+                          lic={lic}
+                          shortTerm
+                          selected={form.licenseId === lic.id}
+                          onSelect={() => {
+                            set("licenseId", lic.id);
+                            if (!form.digitalLicense) set("digitalLicense", "yes");
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {form.licenseId && (
+                  <div className="mt-6">
+                    <p className="text-sm font-semibold text-slate-800">
+                      Do you want to be a digital customer? <span className="text-red-600">*</span>
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      <ChoiceButton
+                        className="w-full text-left"
+                        selected={form.digitalLicense === "yes"}
+                        onClick={() => set("digitalLicense", "yes")}
+                      >
+                        <span className="block">Yes (Digital License)</span>
+                        <span className="mt-1 block text-xs font-normal text-slate-500">
+                          You will access your license, tags, and reporting on the Texas Hunt &amp;
+                          Fish app. We will NOT mail you a paper license.
+                        </span>
+                      </ChoiceButton>
+                      <ChoiceButton
+                        className="w-full text-left"
+                        selected={form.digitalLicense === "no"}
+                        onClick={() => set("digitalLicense", "no")}
+                      >
+                        <span className="block">No (Paper License)</span>
+                        <span className="mt-1 block text-xs font-normal text-slate-500">
+                          We will mail you a paper license. It typically takes 7–10 business days to
+                          receive your license.
+                        </span>
+                      </ChoiceButton>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            <button
+              type="button"
+              className="mt-8 w-full rounded bg-navy px-4 py-3 text-sm font-semibold text-white hover:bg-navy/90"
+              onClick={() => {
+                const e = validateStep0();
+                setErrors(e);
+                if (e.length === 0) {
+                  setStep(1);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+              }}
+            >
+              Continue →
+            </button>
+          </>
+        )}
+
+        {step === 1 && (
+          <>
+            <h2 className="text-xl font-bold text-slate-900">Your Personal Information</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Please provide us with some personal information — this is essential for your TX
+              Fishing License guidance.
+            </p>
+            <p className="mt-4 text-sm text-slate-600">
+              State: <span className="font-semibold text-slate-900">Texas</span>
+            </p>
+
+            <SectionHeading>Personal information</SectionHeading>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <Field label="First name" required>
+                <input
+                  className={inputClass}
+                  value={form.firstName}
+                  onChange={(e) => set("firstName", e.target.value)}
+                />
+              </Field>
+              <Field label="Middle name">
+                <input
+                  className={inputClass}
+                  value={form.middleName}
+                  onChange={(e) => set("middleName", e.target.value)}
+                />
+              </Field>
+              <Field label="Last name" required>
+                <input
+                  className={inputClass}
+                  value={form.lastName}
+                  onChange={(e) => set("lastName", e.target.value)}
+                />
+              </Field>
+            </div>
+
+            <Field label="Date of birth" required className="mt-3">
+              <div className="grid grid-cols-3 gap-2">
+                <select
+                  className={inputClass}
+                  value={form.dobDay}
+                  onChange={(e) => set("dobDay", e.target.value)}
+                >
+                  <option value="">Day</option>
+                  {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className={inputClass}
+                  value={form.dobMonth}
+                  onChange={(e) => set("dobMonth", e.target.value)}
+                >
+                  <option value="">Month</option>
+                  {MONTHS.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className={inputClass}
+                  value={form.dobYear}
+                  onChange={(e) => set("dobYear", e.target.value)}
+                >
+                  <option value="">Year</option>
+                  {Array.from({ length: 100 }, (_, i) => String(2025 - i)).map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </Field>
+
+            <SectionHeading>Demographics</SectionHeading>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Gender" required className="sm:col-span-2">
+                <select
+                  className={inputClass}
+                  value={form.gender}
+                  onChange={(e) => set("gender", e.target.value)}
+                >
+                  <option value="">Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="non-binary">Non-binary</option>
+                  <option value="undisclosed">Prefer not to say</option>
+                </select>
+              </Field>
+              <Field label="Height (ft)" required>
+                <select
+                  className={inputClass}
+                  value={form.heightFt}
+                  onChange={(e) => set("heightFt", e.target.value)}
+                >
+                  <option value="">Ft</option>
+                  {["3", "4", "5", "6", "7"].map((ft) => (
+                    <option key={ft} value={ft}>
+                      {ft}&apos;
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Height (in)" required>
+                <select
+                  className={inputClass}
+                  value={form.heightIn}
+                  onChange={(e) => set("heightIn", e.target.value)}
+                >
+                  <option value="">In</option>
+                  {Array.from({ length: 12 }, (_, i) => String(i)).map((inch) => (
+                    <option key={inch} value={inch}>
+                      {inch}&quot;
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Weight (lbs)" required className="sm:col-span-2">
+                <input
+                  className={inputClass}
+                  inputMode="numeric"
+                  value={form.weightPounds}
+                  onChange={(e) => set("weightPounds", digitsOnly(e.target.value).slice(0, 3))}
+                />
+              </Field>
+            </div>
+
+            <SectionHeading>Residential address information</SectionHeading>
+            <div className="mt-3 grid gap-3">
+              <Field label="Street address" required>
+                <input
+                  className={inputClass}
+                  value={form.street}
+                  onChange={(e) => set("street", e.target.value)}
+                />
+              </Field>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="City" required>
+                  <input
+                    className={inputClass}
+                    value={form.city}
+                    onChange={(e) => set("city", e.target.value)}
+                  />
+                </Field>
+                <Field label="ZIP Code" required>
+                  <input
+                    className={inputClass}
+                    value={form.zip}
+                    onChange={(e) => set("zip", digitsOnly(e.target.value).slice(0, 5))}
+                  />
+                </Field>
+              </div>
+            </div>
+
+            <SectionHeading>Contact information</SectionHeading>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Email address" required>
+                <input
+                  className={inputClass}
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => set("email", e.target.value)}
+                />
+              </Field>
+              <Field label="Phone number" required>
+                <input
+                  className={inputClass}
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => set("phone", e.target.value)}
+                />
+              </Field>
+            </div>
+
+            <SectionHeading>Declaration &amp; Consent</SectionHeading>
+            <div className="mt-3">
+              <label className="flex items-start gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={form.consent}
+                  onChange={(e) => set("consent", e.target.checked)}
+                />
+                <span>
+                  I confirm that all information provided is accurate and I agree to the terms and
+                  conditions.{" "}
+                  <button
+                    type="button"
+                    className="font-semibold text-navy underline"
+                    onClick={() => setShowConsentTerms((v) => !v)}
+                  >
+                    {showConsentTerms ? "Show less" : "Read More"}
+                  </button>
+                </span>
+              </label>
+              {showConsentTerms && (
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  {NON_AFFILIATION_DISCLAIMER} By submitting, you authorize AnglerPermit to assist
+                  with your Texas fishing license application and to process payment for the
+                  selected license.
+                </p>
+              )}
+            </div>
+
+            <div className="mt-8 flex gap-3">
+              <button
+                type="button"
+                className="rounded border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={() => {
+                  setStep(0);
+                  setErrors([]);
+                }}
+              >
+                ← Back
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded bg-navy px-4 py-3 text-sm font-semibold text-white hover:bg-navy/90"
+                onClick={() => {
+                  const e = validateStep1();
+                  setErrors(e);
+                  if (e.length === 0) {
+                    setStep(2);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+              >
+                Continue to Payment
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === 2 && selectedLicense && (
+          <>
+            <h2 className="text-xl font-bold text-slate-900">Payment</h2>
+            <div className="mt-4">
+              <PaymentStep
+                total={total}
+                stateName={config.stateName}
+                processing={processing}
+                error={paymentError}
+                onPay={handlePay}
+                compact
+                licenseSummary={{
+                  name: LICENSE_LABELS[selectedLicense.id] ?? selectedLicense.name,
+                  price: displayPrice(selectedLicense.price),
+                }}
+              />
+              <button
+                type="button"
+                className="mt-4 w-full rounded border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={() => {
+                  setStep(1);
+                  setPaymentError(null);
+                }}
+              >
+                Back
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
