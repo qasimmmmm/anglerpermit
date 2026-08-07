@@ -8,6 +8,7 @@ import { FloridaCompetitorApply } from "@/components/FloridaCompetitorApply";
 import { MichiganCompetitorApply } from "@/components/MichiganCompetitorApply";
 import { NorthCarolinaCompetitorApply } from "@/components/NorthCarolinaCompetitorApply";
 import { SouthCarolinaCompetitorApply } from "@/components/SouthCarolinaCompetitorApply";
+import { TexasCompetitorApply } from "@/components/TexasCompetitorApply";
 
 const COMPETITOR_WIZARDS: Record<
   string,
@@ -28,6 +29,7 @@ const COMPETITOR_WIZARDS: Record<
       "Complete the form below and our advisors will handle your application.",
   },
   "south-carolina": { label: "South Carolina", Wizard: SouthCarolinaCompetitorApply },
+  texas: { label: "Texas", Wizard: TexasCompetitorApply },
 };
 
 /**
