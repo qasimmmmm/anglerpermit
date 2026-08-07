@@ -537,7 +537,9 @@ export async function updateApplicationApplicantData(
     );
     if (updated.rows[0]) {
       const app = rowToRecord(updated.rows[0]);
-      void mongoUpsertApp(app).catch(() => undefined);
+      // Await the Mongo mirror — a fire-and-forget upsert can race with
+      // markApplicationPaid and overwrite status back to pending_payment.
+      await mongoUpsertApp(app).catch(() => undefined);
       return app;
     }
   }
