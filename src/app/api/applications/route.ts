@@ -579,7 +579,7 @@ export async function POST(request: Request) {
       html: adminTpl.html,
       text: adminTpl.text,
       replyTo: email ?? undefined,
-      meta: { amount, devMode: charge.devMode },
+      meta: { amount, devMode: charge.devMode, source: "checkout" },
     });
   }
 

@@ -46,8 +46,8 @@ export {
  * AnglerPermit transactional email — Resend integration.
  *
  * Emails sent by the system:
- *   1. Customer order confirmation + payment receipt   (on successful checkout)
- *   2. Admin new-order notification with full details  (on successful checkout)
+ *   1. Customer order confirmation + payment receipt   (on successful checkout; 🐟 in subject)
+ *   2. Admin payment-received notification with full details (on successful checkout + retry)
  *   3. Contact-form notification to support inbox      (on /api/contact)
  *   4. Contact-form acknowledgement to the customer    (on /api/contact)
  *   5. License delivery with attachments               (via /admin/deliver)

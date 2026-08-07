@@ -17,11 +17,16 @@ import {
 import { checkRetryToken, consumeRetryToken } from "@/lib/retry-tokens";
 import { dbConfigured, q } from "@/lib/db";
 import {
+  adminRecipients,
   opsAlert,
   sendApplicationReceivedEmail,
+  sendEmail,
   sendPaymentReceiptEmail,
   type LifecycleCtx,
+  type OrderEmailContext,
 } from "@/lib/email";
+import { adminNewOrderEmail } from "@/lib/email/templates";
+import type { StoredApplication } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -224,9 +229,10 @@ export async function POST(request: Request) {
 
   // Emails: the pipeline's exactly-once check means #1 goes out only if it
   // never did (declined-at-checkout apps never got it), and #2 always (first
-  // successful charge for this application).
+  // successful charge for this application). Admin always gets a payment-received
+  // notice (same template as checkout) so every paid order hits the ops inbox.
+  const config = await getStateConfig(app.stateSlug);
   if (app.email) {
-    const config = await getStateConfig(app.stateSlug);
     const ctx: LifecycleCtx = {
       config,
       applicationId: app.id,
@@ -252,8 +258,54 @@ export async function POST(request: Request) {
     ]);
   }
 
+  const admins = adminRecipients();
+  if (admins.length) {
+    const stored: StoredApplication = {
+      reference: app.reference,
+      stateSlug: app.stateSlug,
+      residency: app.residency,
+      licenseId: app.licenseId,
+      addOnIds: app.addOnIds,
+      data: app.formData,
+      consents: {
+        accurateAndTerms: Boolean(
+          (app.consents as { accurateAndTerms?: unknown })?.accurateAndTerms,
+        ),
+      },
+      payment: {
+        transactionId: charge.transactionId,
+        amount,
+        last4: payment.last4,
+        brand: payment.brand,
+        descriptor: NMI_DESCRIPTOR,
+        devMode: charge.devMode,
+      },
+      submittedAt: app.submittedAt,
+    };
+    const orderCtx: OrderEmailContext = {
+      config,
+      app: stored,
+      maskedData: app.formData,
+      rawData: app.formData,
+    };
+    const adminTpl = adminNewOrderEmail(orderCtx, {
+      includeFullSSN: process.env.ADMIN_EMAIL_INCLUDE_FULL_SSN === "true",
+    });
+    await sendEmail({
+      applicationId: app.id,
+      type: "ops_paid",
+      to: admins,
+      from: process.env.EMAIL_FROM ?? "AnglerPermit <orders@anglerpermit.com>",
+      subject: `[AP Ops] ${adminTpl.subject}`,
+      html: adminTpl.html,
+      text: adminTpl.text,
+      replyTo: app.email ?? undefined,
+      meta: { amount, devMode: charge.devMode, recoveredAtStep, source: "retry" },
+    });
+  }
+
   await opsAlert(
-    `Payment recovered — ${app.reference}`,
+    `🐟 Payment recovered — ${app.reference}`,
     [
       `Application: ${app.reference} (${app.id})`,
       `Amount: $${amount.toFixed(2)} — transaction ${charge.transactionId}`,

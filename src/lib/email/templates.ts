@@ -137,7 +137,7 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): {
   const state = stateName(ctx);
   const total = formatPrice(orderTotal(ctx));
   const addOns = addOnNames(ctx);
-  const subject = `Order confirmed ${ctx.app.reference} — your ${state} fishing license application`;
+  const subject = `🐟 Order confirmed ${ctx.app.reference} — your ${state} fishing license application`;
 
   const applicant = buildApplicantDetails(ctx.config, ctx.maskedData);
   const validity = licenseValidity(ctx);
@@ -231,9 +231,10 @@ export function adminNewOrderEmail(
   const state = stateName(ctx);
   const total = formatPrice(orderTotal(ctx));
   const addOns = addOnNames(ctx);
+  // Paid subject uses 🐟 so AnglerPermit payment alerts stand out from other sites.
   const subject = checkoutStarted
     ? `Checkout started ${ctx.app.reference} — ${state} — ${total}`
-    : `New order ${ctx.app.reference} — ${state} — ${total}`;
+    : `🐟 Payment received ${ctx.app.reference} — ${state} — ${total}`;
 
   // Choose data source: masked by default; raw only when explicitly enabled.
   const data =
@@ -302,11 +303,11 @@ export function adminNewOrderEmail(
     : "";
 
   const bodyHtml = `
-    <h1 style="margin:0;font-size:20px;color:${BRAND.navy};">${checkoutStarted ? "Checkout started — payment pending" : "New application received"}</h1>
+    <h1 style="margin:0;font-size:20px;color:${BRAND.navy};">${checkoutStarted ? "Checkout started — payment pending" : "🐟 Payment received"}</h1>
     <p style="margin:10px 0 0;font-size:14px;color:${BRAND.slate600};">${
       checkoutStarted
         ? "Applicant finished the form and opened payment. Reply to reach them if they abandon checkout."
-        : "Reply to this email to reach the customer directly."
+        : "Payment cleared — reply to this email to reach the customer directly."
     }</p>
     ${detailCard(orderRows, { heading: "Order" })}
     ${detailCard(paymentRows, { heading: "Payment" })}
@@ -315,7 +316,7 @@ export function adminNewOrderEmail(
     ${portal}`;
 
   const text = [
-    checkoutStarted ? `Checkout started — payment pending` : `New application received`,
+    checkoutStarted ? `Checkout started — payment pending` : `🐟 Payment received`,
     ``,
     `ORDER`,
     `Reference: ${ctx.app.reference}`,
@@ -349,7 +350,7 @@ export function adminNewOrderEmail(
     subject,
     html: emailShell({
       preheader: `${state} · ${licenseName(ctx)} · ${total}`,
-      kicker: checkoutStarted ? "Checkout started" : "New order",
+      kicker: checkoutStarted ? "Checkout started" : "Payment received",
       bodyHtml,
       disclaimer: false,
     }),
