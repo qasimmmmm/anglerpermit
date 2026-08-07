@@ -1331,11 +1331,11 @@ export const config: StateConfig = {
   residencyOptions: [
     {
       value: "resident",
-      label: "Michigan resident"
+      label: "Yes, MI Resident"
     },
     {
       value: "nonresident",
-      label: "Nonresident"
+      label: "No, Non-Resident"
     }
   ],
   licenseYearNote: "Annual licenses are valid from March 1 of a given year through March 31 of the following year. Current license year: March 1, 2026 - March 31, 2027 (2026 fishing regulation season applies April 1, 2026 - March 31, 2027). Daily license is valid 24 hours from the date/time the purchaser selects.",
@@ -1625,6 +1625,7 @@ export const config: StateConfig = {
       label: "Suffix",
       type: "select",
       required: false,
+      hidden: true,
       options: [
         {
           value: "JR",
@@ -1839,6 +1840,7 @@ export const config: StateConfig = {
       label: "Driver's License",
       type: "text",
       required: false,
+      hidden: true,
       step: 2,
       officialNote: "Optional free-text field in the portal's Customer Detail section (no asterisk).",
     },
@@ -1851,6 +1853,7 @@ export const config: StateConfig = {
       label: "I wish to receive DNR updates: via email",
       type: "checkbox",
       required: false,
+      hidden: true,
       step: 2,
       officialNote: "Checkbox group label 'I wish to receive DNR updates:' with 'via email' option; checked by default on the portal.",
     },
@@ -1860,6 +1863,7 @@ export const config: StateConfig = {
       label: "via text message",
       type: "checkbox",
       required: false,
+      hidden: true,
       step: 2,
       officialNote: "Second option of the 'I wish to receive DNR updates:' group; checked by default on the portal.",
     },
@@ -1877,7 +1881,7 @@ export const config: StateConfig = {
       section: "Personal details",
       label: "Primary Phone",
       type: "tel",
-      required: true,
+      required: false,
       mask: "phone",
       autocomplete: "tel",
       step: 2,
@@ -1888,6 +1892,7 @@ export const config: StateConfig = {
       label: "Secondary Phone",
       type: "tel",
       required: false,
+      hidden: true,
       mask: "phone",
       step: 2,
     },
@@ -1896,7 +1901,8 @@ export const config: StateConfig = {
       section: "Residence",
       label: "Street 1",
       type: "text",
-      required: true,
+      // Competitor applicant step marks street/city/ZIP optional.
+      required: false,
       helpText: "Residence Address",
       autocomplete: "address-line1",
       step: 2,
@@ -1907,6 +1913,7 @@ export const config: StateConfig = {
       label: "Street 2",
       type: "text",
       required: false,
+      hidden: true,
       autocomplete: "address-line2",
       step: 2,
     },
@@ -1915,7 +1922,7 @@ export const config: StateConfig = {
       section: "Residence",
       label: "City",
       type: "text",
-      required: true,
+      required: false,
       autocomplete: "address-level2",
       step: 2,
     },
@@ -1934,7 +1941,7 @@ export const config: StateConfig = {
       section: "Residence",
       label: "Zip/Postal Code",
       type: "zip",
-      required: true,
+      required: false,
       mask: "zip",
       autocomplete: "postal-code",
       step: 2,
@@ -2042,7 +2049,8 @@ export const config: StateConfig = {
       section: "License start date",
       label: "License start date",
       type: "date",
-      required: true,
+      // Competitor does not collect this on Applicant Info; wizard defaults it.
+      required: false,
       conditional: {
         field: "licenseId",
         oneOf: [

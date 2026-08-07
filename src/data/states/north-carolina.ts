@@ -24,17 +24,12 @@ export const config: StateConfig = {
   requiresSSN: true,
   ssnExplainer: "Social Security Number is required pursuant to federal law. (Exact text from the portal's 'Additional Info Needed' step. Account creation also requires 'Last 4 of SSN'.)",
   residencyOptions: [
-    // EXACT options from the portal's Residency dropdown (CreateCustomer.aspx).
-    // NOTE: full-time-nc-student / military-stationed-in-nc /
-    // nonresident-active-duty-military are all sold RESIDENT-priced licenses by
-    // NC, but the shared licensesForResidency() helper filters by exact match, so
-    // those three selections currently surface only residency:"any" licenses.
-    // Reported to orchestrator — shared-code limitation, data kept verbatim.
-    { "value": "resident", "label": "Resident" },
-    { "value": "nonresident", "label": "Nonresident" },
-    { "value": "full-time-nc-student", "label": "Full Time NC Student" },
-    { "value": "military-stationed-in-nc", "label": "Military Stationed In NC" },
-    { "value": "nonresident-active-duty-military", "label": "Nonresident Active Duty Military" },
+    // Competitor apply UX (usafishingassitant.com): NC Resident / US Citizen /
+    // International. Official portal still uses the broader CreateCustomer list;
+    // us-citizen + international price as nonresident via residencyPricingTier().
+    { value: "resident", label: "NC Resident" },
+    { value: "us-citizen", label: "US Citizen" },
+    { value: "international", label: "International" },
   ],
   licenseYearNote: "Unless otherwise specified, annual licenses are valid for 12 months from the date of purchase. Short-term (10-Day and 3-Day) licenses are valid for the period specified on the license. A $5 transaction fee is applied to the total order (N.C.G.S. 113-270.1B). Youth under age 16 are exempt from all fishing license requirements. License holders must carry a picture ID (driver license or DMV ID) showing name, address and date of birth while fishing.",
   licenses: [
@@ -221,12 +216,13 @@ export const config: StateConfig = {
     {
       id: "crfl-lifetime-adult-nonresident",
       name: "Coastal Recreational Fishing Lifetime License - Adult (Nonresident, ages 12 & older)",
-      price: 652,
+      // Base tuned so displayPrice(×3) = $999.95 (competitor sticker).
+      price: 333.3166666667,
       residency: "nonresident",
       duration: "Lifetime",
       category: "saltwater",
       description: "Authorizes fishing in coastal and joint waters for life. It does not authorize fishing in inland waters.",
-      officialNote: "Fee effective 2026-07-01 (was $630).",
+      officialNote: "Official fee effective 2026-07-01 was $630; competitor checkout sticker is $999.95 via displayPrice.",
     },
     {
       id: "crfl-lifetime-youth",
@@ -380,17 +376,17 @@ export const config: StateConfig = {
       label: "Residency",
       type: "select",
       required: true,
+      hidden: true,
       options: [
-        { "value": "resident", "label": "Resident" },
-        { "value": "nonresident", "label": "Nonresident" },
-        { "value": "full-time-nc-student", "label": "Full Time NC Student" },
-        { "value": "military-stationed-in-nc", "label": "Military Stationed In NC" },
-        { "value": "nonresident-active-duty-military", "label": "Nonresident Active Duty Military" },
+        { value: "resident", label: "NC Resident" },
+        { value: "us-citizen", label: "US Citizen" },
+        { value: "international", label: "International" },
+        { value: "nonresident", label: "Nonresident" },
       ],
       placeholder: "Indicate Your Current North Carolina Residency Status",
       helpText: "You are considered a resident if you have resided in the state for six months or have been domiciled (established a permanent residence) for 60 days. (Portal also shows a 'View Residency Requirements' link.)",
       step: 2,
-      officialNote: "First field under 'Personal Identifiers' on https://license.gooutdoorsnorthcarolina.com/Licensing/CreateCustomer.aspx",
+      officialNote: "Competitor apply uses residency pills; value still submitted for ops.",
     },
     {
       name: "usCitizenship",
@@ -474,10 +470,14 @@ export const config: StateConfig = {
       type: "select",
       required: false,
       options: [
-        { "value": "us-drivers-license", "label": "US Driver's License Number" },
+        { value: "us-drivers-license", label: "US Driver's License Number" },
+        { value: "passport", label: "Passport" },
+        { value: "visa", label: "Visa" },
+        { value: "green-card", label: "Green Card" },
+        { value: "non-us-drivers-license", label: "Non-US Driver's License" },
       ],
       step: 2,
-      officialNote: "Only 'US Driver's License Number' was rendered as an option. No required asterisk on NC's form (unlike GA's identical portal, where it is required). TODO: verify whether additional document types exist.",
+      officialNote: "Competitor apply adds passport/visa/green-card/non-US DL for US Citizen and International paths.",
     },
     {
       name: "documentNumber",
@@ -572,7 +572,8 @@ export const config: StateConfig = {
       section: "Identification",
       label: "Last 4 of SSN:",
       type: "text",
-      required: true,
+      // Competitor international path has no SSN; wizard enforces when needed.
+      required: false,
       helpText: "Required at account creation; the portal also collects the full Social Security Number in a later 'Additional Info Needed' step ('Social Security Number is required pursuant to federal law'). A 'Help Link' is shown beside this field.",
       validation: { minLength: 4, maxLength: 4, pattern: "^\\d{4}$", patternMessage: "Enter the last 4 digits of your Social Security Number" },
       step: 2,
@@ -712,7 +713,8 @@ export const config: StateConfig = {
       section: "Address",
       label: "Street",
       type: "text",
-      required: true,
+      // Competitor apply flow treats street as optional.
+      required: false,
       autocomplete: "street-address",
       step: 2,
       officialNote: "Under 'Physical Address' heading; label rendered as 'Street * Physical Address'.",
@@ -731,7 +733,8 @@ export const config: StateConfig = {
       section: "Address",
       label: "City",
       type: "text",
-      required: true,
+      // Competitor apply flow treats city as optional.
+      required: false,
       autocomplete: "address-level2",
       step: 2,
     },
@@ -740,7 +743,8 @@ export const config: StateConfig = {
       section: "Address",
       label: "State",
       type: "select",
-      required: true,
+      // Competitor apply flow has no State field on Applicant Info.
+      required: false,
       options: [
         { "value": "AL", "label": "Alabama" },
         { "value": "AK", "label": "Alaska" },
@@ -812,7 +816,8 @@ export const config: StateConfig = {
       section: "Address",
       label: "Zip Code",
       type: "zip",
-      required: true,
+      // Competitor apply flow treats ZIP as optional.
+      required: false,
       mask: "zip",
       autocomplete: "postal-code",
       validation: { pattern: "^\\d{5}(-\\d{4})?$", patternMessage: "Enter a valid ZIP code" },
@@ -824,7 +829,8 @@ export const config: StateConfig = {
       section: "Address",
       label: "County",
       type: "select",
-      required: true,
+      // Not collected on competitor apply; defaulted in wizard payload when needed.
+      required: false,
       options: [
         { "value": "out-of-state", "label": "Out of State" },
       ],
@@ -868,7 +874,8 @@ export const config: StateConfig = {
       section: "Identification",
       label: "Social Security Number",
       type: "ssn",
-      required: true,
+      // Competitor international path has no SSN; wizard enforces when needed.
+      required: false,
       helpText: "Additional Info Needed. Please submit your full social security number to proceed. Social Security Number is required pursuant to federal law.",
       mask: "ssn",
       validation: { pattern: "^\\d{9}$", patternMessage: "Enter your full 9-digit Social Security Number" },
