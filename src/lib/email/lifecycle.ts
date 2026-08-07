@@ -254,7 +254,8 @@ export function buildPaymentReceiptEmail(ctx: LifecycleCtx, pay: ReceiptPayment)
   const state = stateName(ctx);
   const lic = license(ctx);
   const applicant = applicantSection(ctx);
-  const subject = `Your AnglerPermit receipt — ${formatPrice(ctx.amount)} (${ctx.reference})`;
+  // Leading fish emoji distinguishes AnglerPermit receipts from other brand inboxes.
+  const subject = `🐟 Your AnglerPermit receipt — ${formatPrice(ctx.amount)} (${ctx.reference})`;
   const preheader = "Payment confirmed. Fully refundable until your license purchase is completed.";
 
   // Itemization: researched base prices are the state-fee portion; the
