@@ -79,6 +79,8 @@ export interface FormFieldDef {
     max?: number;
   };
   conditional?: ConditionalRule; // conditional display logic
+  /** Initial value for new applications (e.g. country defaulting to US). */
+  defaultValue?: string | boolean;
   /**
    * Never render this field, but keep it in the submitted data. Used for
    * portal fields that are fully derived from an earlier answer — e.g. MI
