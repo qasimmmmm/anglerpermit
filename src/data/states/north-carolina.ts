@@ -610,7 +610,7 @@ export const config: StateConfig = {
       section: "Personal details",
       label: "Ethnicity:",
       type: "select",
-      required: false,
+      required: true,
       options: [
         { "value": "asian", "label": "Asian" },
         { "value": "black-or-african-american", "label": "Black or African American" },

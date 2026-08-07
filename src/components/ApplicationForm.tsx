@@ -66,7 +66,34 @@ const STEP_TITLES = ["Choose license", "Applicant details", "Review", "Payment"]
 function defaultData(fields: FormFieldDef[]): Record<string, unknown> {
   const data: Record<string, unknown> = {};
   for (const f of fields) {
-    data[f.name] = f.type === "checkbox" ? false : "";
+    if (f.defaultValue !== undefined) {
+      data[f.name] = f.defaultValue;
+    } else {
+      data[f.name] = f.type === "checkbox" ? false : "";
+    }
+  }
+  return data;
+}
+
+/** Merge saved draft values onto field defaults without wiping intentional defaults. */
+function mergeApplicantData(
+  fields: FormFieldDef[],
+  saved: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const data = { ...defaultData(fields), ...(saved ?? {}) };
+  for (const f of fields) {
+    if (f.defaultValue === undefined) continue;
+    const current = data[f.name];
+    if (current === "" || current == null) {
+      data[f.name] = f.defaultValue;
+    }
+    // Legacy free-text country drafts used "United States" instead of "us".
+    if (f.name === "country" && typeof current === "string") {
+      const normalized = current.trim().toLowerCase();
+      if (normalized === "united states" || normalized === "usa" || normalized === "u.s.") {
+        data[f.name] = "us";
+      }
+    }
   }
   return data;
 }
@@ -578,7 +605,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
             addOnIds:
               saved.values.addOnIds ??
               config.addOns.filter((a) => a.required && !a.appliesTo).map((a) => a.id),
-            data: { ...defaultData(config.formFields), ...(saved.values.data ?? {}) },
+            data: mergeApplicantData(config.formFields, saved.values.data),
             consents: { accurateAndTerms: false },
             payment: { token: "" },
           });

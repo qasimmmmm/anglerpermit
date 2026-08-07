@@ -721,12 +721,16 @@ export const config: StateConfig = {
       name: "country",
       section: "Residence",
       label: "Country:",
-      type: "text",
+      type: "select",
       required: true,
-      placeholder: "United States",
+      defaultValue: "us",
+      options: [
+        { value: "us", label: "United States" },
+        { value: "other", label: "Other" },
+      ],
       autocomplete: "country-name",
       step: 2,
-      officialNote: "Official control is a COUNTRY DROPDOWN defaulting to United States (populated via Address/FindCountries); rendered as text here because the option list is data-driven/unverified. Switching country toggles US ZIP/City/State vs International Province (portal Bootstrap-AddressControl.js). TODO: verify exact label — https://www.licenses.wildlife.ca.gov/internetsales/CustomerSearch/Begin"
+      officialNote: "Defaults to United States. US addresses require Postal Code, City, and State; other countries require International Province.",
     },
     {
       name: "address",
@@ -739,24 +743,33 @@ export const config: StateConfig = {
       officialNote: "TODO: verify exact label on Create New Customer Record form — CDFW FAQ confirms 'residence address' is required — https://wildlife.ca.gov/Licensing/Online-Sales/Frequently-Asked-Questions"
     },
     {
+      name: "attentionLine",
+      section: "Residence",
+      label: "Attention Line",
+      type: "text",
+      required: false,
+      helpText: 'Only use if needed for "care of" or required delivery information.',
+      autocomplete: "address-line2",
+      step: 2,
+    },
+    {
       name: "zipCode",
       section: "Residence",
-      label: "Zip Code:",
+      label: "Postal Code:",
       type: "zip",
       required: true,
-      helpText: "Entering a valid ZIP code auto-populates City and State. Shown for United States addresses.",
       mask: "zip",
       autocomplete: "postal-code",
       validation: {
         pattern: "^\\d{5}(-\\d{4})?$",
-        patternMessage: "Enter a valid 5-digit ZIP code"
+        patternMessage: "Enter a valid 5-digit postal code"
       },
       conditional: {
         field: "country",
         equals: "us"
       },
       step: 2,
-      officialNote: "ZIP drives City dropdown + State auto-fill via Address/FindCities (portal Bootstrap-AddressControl.js). TODO: verify exact label"
+      officialNote: "Required for United States addresses.",
     },
     {
       name: "city",
@@ -770,7 +783,7 @@ export const config: StateConfig = {
         equals: "us"
       },
       step: 2,
-      officialNote: "Official control is a DROPDOWN populated from the entered ZIP code via Address/FindCities (portal Bootstrap-AddressControl.js); rendered as text here because option values are data-driven. TODO: verify exact label"
+      officialNote: "Required for United States addresses.",
     },
     {
       name: "state",
@@ -785,7 +798,7 @@ export const config: StateConfig = {
         equals: "us"
       },
       step: 2,
-      officialNote: "State abbreviation auto-fills from ZIP code (portal Bootstrap-AddressControl.js). Rendered as a standard 50-state + DC dropdown here. TODO: verify exact label and whether read-only"
+      officialNote: "Required for United States addresses.",
     },
     {
       name: "internationalProvince",
@@ -795,10 +808,10 @@ export const config: StateConfig = {
       required: true,
       conditional: {
         field: "country",
-        equals: "__not-us__"
+        equals: "other"
       },
       step: 2,
-      officialNote: "Shown when Country is not United States (replaces ZIP/City/State; model field 'InternationalProvince' in portal Bootstrap-AddressControl.js). Conditional marker '__not-us__' = show when country is not US. TODO: verify exact label"
+      officialNote: "Shown when Country is Other (replaces Postal Code / City / State).",
     },
     {
       name: "phone",
