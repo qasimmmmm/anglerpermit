@@ -321,7 +321,6 @@ export function NorthCarolinaCompetitorApply({ config }: { config: StateConfig }
   const selectedLicense = config.licenses.find((l) => l.id === form.licenseId);
   const total = form.licenseId ? computeOrderTotal(config, form.licenseId, []) : 0;
   const needsStartDate = SHORT_TERM_IDS.has(form.licenseId);
-  const needsSsn = form.residency === "resident" || form.residency === "us-citizen";
   const needsExpiration = form.residency === "resident" && form.residentId === "nc-dl";
 
   function selectResidency(value: string) {
