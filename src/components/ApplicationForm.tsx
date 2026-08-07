@@ -879,6 +879,8 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
 
   /* ------------------------- payment + submission ------------------------- */
 
+  const promoCodeRef = useRef<string | null>(null);
+
   const submitApplication = handleSubmit(async (values) => {
     setSubmitError(null);
     setPaymentError(null);
@@ -889,6 +891,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
         body: JSON.stringify({
           ...values,
           ...(applicationIdRef.current ? { applicationId: applicationIdRef.current } : {}),
+          ...(promoCodeRef.current ? { promoCode: promoCodeRef.current } : {}),
         }),
       });
       const json = (await res.json()) as {
@@ -950,7 +953,8 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
   });
 
   /** PaymentStep hands us a tokenized card (never raw card data). */
-  function handleTokenized(payment: TokenizedPayment) {
+  function handleTokenized(payment: TokenizedPayment, promoCode?: string | null) {
+    promoCodeRef.current = promoCode ?? null;
     setValue("payment", payment, { shouldValidate: true });
     // Tokens are single-use; submit immediately with this token.
     void submitApplication();

@@ -9,6 +9,7 @@ import {
   type TokenizedPayment,
 } from "@/lib/state-config";
 import { chargeSale, vaultEnabled, NMI_DESCRIPTOR } from "@/lib/nmi";
+import { applyPromoCode } from "@/lib/promo";
 import {
   createOrReuseApplication,
   getApplicationById,
@@ -164,9 +165,10 @@ export async function POST(request: Request) {
 
   /* ------------------------- server-authoritative price ------------------------- */
 
-  const amount = config
+  const baseAmount = config
     ? computeOrderTotal(config, submission.licenseId, submission.addOnIds)
     : 0;
+  const { amount, applied: promoApplied } = applyPromoCode(baseAmount, rawBody.promoCode);
 
   if (amount <= 0) {
     return NextResponse.json(
@@ -220,6 +222,7 @@ export async function POST(request: Request) {
               lastName,
               phone,
               addOnIds: submission.addOnIds,
+              amountCents,
             })) ?? existing;
         }
       }
@@ -275,7 +278,11 @@ export async function POST(request: Request) {
     applicationId: appRecord?.id,
     source: "checkout",
     eventType: "charge_attempt",
-    detail: { amountCents, tokenFp: tokenFingerprint },
+    detail: {
+      amountCents,
+      tokenFp: tokenFingerprint,
+      ...(promoApplied ? { promoCode: promoApplied, baseAmountCents: Math.round(baseAmount * 100) } : {}),
+    },
   });
 
   const charge = await chargeSale({

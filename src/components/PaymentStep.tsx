@@ -23,6 +23,12 @@ import {
   type CardBrand,
 } from "@/lib/card";
 import { formatPrice } from "@/lib/format";
+import {
+  applyPromoCode,
+  isTestPromoUiEnabled,
+  normalizePromoCode,
+  TEST_PROMO_AMOUNT,
+} from "@/lib/promo";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -154,13 +160,19 @@ export function PaymentStep({
   stateName: string;
   processing: boolean;
   error: string | null;
-  onPay: (payment: TokenizedPayment) => void;
+  /** Called with tokenized card + optional promo code applied at checkout. */
+  onPay: (payment: TokenizedPayment, promoCode?: string | null) => void;
 }) {
   const liveNmi = nmiBrowserConfigured();
+  const showPromo = isTestPromoUiEnabled();
   const [number, setNumber] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
   const [zip, setZip] = useState("");
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
+  const [promoMessage, setPromoMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [tokenizing, setTokenizing] = useState(false);
   const [tokenizeError, setTokenizeError] = useState<string | null>(null);
@@ -178,9 +190,12 @@ export function PaymentStep({
   onPayRef.current = onPay;
   const zipRef = useRef(zip);
   zipRef.current = zip;
+  const appliedPromoRef = useRef(appliedPromo);
+  appliedPromoRef.current = appliedPromo;
 
   const brand = useMemo(() => detectBrand(number), [number]);
   const busy = processing || tokenizing;
+  const { amount: chargeTotal } = applyPromoCode(total, appliedPromo);
 
   useEffect(() => {
     if (!liveNmi) return;
@@ -202,12 +217,15 @@ export function PaymentStep({
       onToken: (card) => {
         if (cancelled) return;
         setTokenizing(false);
-        onPayRef.current({
-          token: card.token,
-          last4: card.last4,
-          brand: card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : "",
-          billingZip: zipRef.current.trim(),
-        });
+        onPayRef.current(
+          {
+            token: card.token,
+            last4: card.last4,
+            brand: card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : "",
+            billingZip: zipRef.current.trim(),
+          },
+          appliedPromoRef.current,
+        );
       },
       onError: (message) => {
         if (cancelled) return;
@@ -305,18 +323,38 @@ export function PaymentStep({
         expYear: `20${yy}`,
         cvv,
       });
-      onPay({
-        token: tokenized.token,
-        last4: tokenized.last4,
-        brand: BRAND_LABELS[brand],
-        billingZip: zip.trim(),
-      });
+      onPay(
+        {
+          token: tokenized.token,
+          last4: tokenized.last4,
+          brand: BRAND_LABELS[brand],
+          billingZip: zip.trim(),
+        },
+        appliedPromo,
+      );
     } catch (err) {
       setTokenizeError(
         err instanceof Error ? err.message : "We couldn't process your card. Please try again.",
       );
     } finally {
       setTokenizing(false);
+    }
+  }
+
+  function handleApplyPromo() {
+    const normalized = normalizePromoCode(promoInput);
+    if (!normalized) {
+      setAppliedPromo(null);
+      setPromoMessage(null);
+      return;
+    }
+    const { applied } = applyPromoCode(total, normalized);
+    if (applied) {
+      setAppliedPromo(applied);
+      setPromoMessage(`Promo ${applied} applied — test charge of ${formatPrice(TEST_PROMO_AMOUNT)}.`);
+    } else {
+      setAppliedPromo(null);
+      setPromoMessage("That promo code is not valid.");
     }
   }
 
@@ -533,7 +571,7 @@ export function PaymentStep({
           ) : (
             <>
               <Lock className="h-4 w-4" aria-hidden="true" />
-              Pay {formatPrice(total)} securely
+              Pay {formatPrice(chargeTotal)} securely
             </>
           )}
         </Button>
@@ -541,6 +579,67 @@ export function PaymentStep({
           <Lock className="h-3.5 w-3.5" aria-hidden="true" />
           Your card is charged once, and your receipt shows &ldquo;ANGLER PERMIT&rdquo;.
         </p>
+
+        {showPromo && (
+          <div className="mt-4">
+            {!promoOpen && !appliedPromo ? (
+              <p className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setPromoOpen(true)}
+                  disabled={busy}
+                  className="text-sm font-medium text-forest-700 underline decoration-forest-300 underline-offset-2 hover:text-forest-800 disabled:opacity-50"
+                >
+                  Have a promo code?
+                </button>
+              </p>
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <div className="flex-1">
+                    <Input
+                      label="Promo code"
+                      name="promoCode"
+                      type="text"
+                      autoComplete="off"
+                      placeholder="Enter code"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleApplyPromo();
+                        }
+                      }}
+                      disabled={busy}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleApplyPromo}
+                    disabled={busy}
+                  >
+                    Apply
+                  </Button>
+                </div>
+                {promoMessage && (
+                  <p
+                    className={`mt-2 text-xs font-medium ${appliedPromo ? "text-forest-700" : "text-red-600"}`}
+                    role="status"
+                  >
+                    {promoMessage}
+                  </p>
+                )}
+                {appliedPromo && chargeTotal !== total && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Original total {formatPrice(total)} → {formatPrice(chargeTotal)}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );

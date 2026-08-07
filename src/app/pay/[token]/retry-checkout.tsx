@@ -31,14 +31,18 @@ export function RetryCheckout({
   const [done, setDone] = useState<null | { reference: string; alreadyPaid?: boolean }>(null);
   const [linkDead, setLinkDead] = useState(false);
 
-  async function handlePay(payment: TokenizedPayment) {
+  async function handlePay(payment: TokenizedPayment, promoCode?: string | null) {
     setProcessing(true);
     setError(null);
     try {
       const res = await fetch("/api/payments/retry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: retryToken, payment }),
+        body: JSON.stringify({
+          token: retryToken,
+          payment,
+          ...(promoCode ? { promoCode } : {}),
+        }),
       });
       const json = (await res.json()) as {
         ok?: boolean;
