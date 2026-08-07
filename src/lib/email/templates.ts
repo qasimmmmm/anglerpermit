@@ -71,9 +71,15 @@ function stateName(ctx: OrderEmailContext): string {
 }
 
 function orderTotal(ctx: OrderEmailContext): number {
+  // Prefer the actual charged/stored amount so promo codes and overrides match
+  // what the gateway charged and what the customer receipt shows. Fall back to
+  // catalog pricing only when no payment amount is available yet (e.g. checkout started).
+  if (typeof ctx.app.payment?.amount === "number" && ctx.app.payment.amount > 0) {
+    return ctx.app.payment.amount;
+  }
   return ctx.config
     ? computeOrderTotal(ctx.config, ctx.app.licenseId, ctx.app.addOnIds)
-    : ctx.app.payment.amount;
+    : 0;
 }
 
 function customerFirstName(ctx: OrderEmailContext): string {

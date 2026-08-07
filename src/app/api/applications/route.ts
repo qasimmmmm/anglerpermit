@@ -415,9 +415,13 @@ export async function POST(request: Request) {
     }
   }
 
+  const paidAt = new Date();
+  let paymentRecorded = false;
+
   if (appRecord) {
-    // Ensure Mongo/Postgres have the full applicant payload (not a masked
-    // checkout-started draft) before we mark paid for admin fulfillment.
+    // Ensure Mongo/Postgres have the full applicant payload + charged amount
+    // before we mark paid. Must await (no fire-and-forget) so a late mirror
+    // write cannot overwrite status back to pending_payment.
     const synced = await updateApplicationApplicantData(appRecord.id, {
       formData,
       consents: submission.consents,
@@ -427,6 +431,7 @@ export async function POST(request: Request) {
       lastName,
       phone,
       addOnIds: submission.addOnIds,
+      amountCents,
     }).catch(() => null);
     if (synced) appRecord = synced;
 
@@ -445,39 +450,47 @@ export async function POST(request: Request) {
       rawResponse: charge.gateway?.raw,
       idempotencyKey: `sale/${appRecord.id}/${tokenFingerprint}`,
     }).catch(() => null);
-    await markApplicationPaid(appRecord.id, {
-      customerVaultId: charge.customerVaultId,
-    }).catch((err) => {
+
+    try {
+      await markApplicationPaid(appRecord.id, {
+        customerVaultId: charge.customerVaultId,
+      });
+    } catch (err) {
       // eslint-disable-next-line no-console
       console.error(
         `[api/applications] markApplicationPaid failed for ${reference}: ${err instanceof Error ? err.message : "unknown"}`,
       );
-    });
-    // Force a full Mongo upsert with payment meta so admin always shows the
-    // paid order even when Postgres is absent / payment rows aren't mirrored.
-    const paidAt = new Date().toISOString();
-    await mongoUpsertApp(
-      {
-        ...appRecord,
-        formData,
-        status: "received",
-        paidAt,
-        statusReason: null,
-        nmiCustomerVaultId: charge.customerVaultId ?? appRecord.nmiCustomerVaultId,
-      },
-      {
-        transactionId: charge.transactionId,
-        last4: submission.payment.last4,
-        brand: submission.payment.brand,
-        descriptor: NMI_DESCRIPTOR,
-        devMode: charge.devMode,
-      },
-    ).catch((err) => {
+    }
+
+    // Authoritative paid write (status + payment meta). Do this before emails
+    // so admin never shows pending_payment for a charged order.
+    try {
+      await mongoUpsertApp(
+        {
+          ...appRecord,
+          formData,
+          amountCents,
+          status: "received",
+          paidAt: paidAt.toISOString(),
+          statusReason: null,
+          nmiCustomerVaultId: charge.customerVaultId ?? appRecord.nmiCustomerVaultId,
+        },
+        {
+          transactionId: charge.transactionId,
+          last4: submission.payment.last4,
+          brand: submission.payment.brand,
+          descriptor: NMI_DESCRIPTOR,
+          devMode: charge.devMode,
+        },
+      );
+      paymentRecorded = true;
+    } catch (err) {
       // eslint-disable-next-line no-console
       console.error(
         `[api/applications] mongoUpsertApp after pay failed for ${reference}: ${err instanceof Error ? err.message : "unknown"}`,
       );
-    });
+    }
+
     await logPaymentEvent({
       applicationId: appRecord.id,
       paymentId,
@@ -501,11 +514,23 @@ export async function POST(request: Request) {
     ).catch(() => undefined);
   }
 
-  /* ------------------------- notify (emails #1 + #2 + ops) ------------------------- */
+  /* ------------------------- notify (after paid status is written) ------------------------- */
 
-  // Email failures never fail the order — the card is already charged. All
-  // sends go through the idempotent pipeline (email_log + Resend keys), so
-  // replays/double-fires can never duplicate them.
+  // Emails run only after the paid write above so admin status is "received"
+  // (not pending_payment) when the payment-received mail arrives. If the DB
+  // write failed, still email — the card is already charged — and alert ops.
+  if (!paymentRecorded && appRecord) {
+    await opsAlert(
+      `PAYMENT STATUS NOT RECORDED — ${reference}`,
+      [
+        `NMI approved txn ${charge.transactionId} for ${formatPrice(amount)} but the application may still show pending_payment.`,
+        `Application id: ${appRecord.id}`,
+        `Customer: ${email ?? "(no email)"}`,
+        `Mark the order received in admin and confirm amountCents=${amountCents}.`,
+      ].join("\n"),
+    ).catch(() => undefined);
+  }
+
   const lifecycleCtx: LifecycleCtx = {
     config,
     applicationId: appRecord?.id ?? null,
@@ -529,7 +554,7 @@ export async function POST(request: Request) {
         brand: submission.payment.brand,
         last4: submission.payment.last4,
         transactionId: charge.transactionId,
-        paidAt: new Date(),
+        paidAt,
       }),
     ]);
     customerEmailed = received.status === "sent" || receipt.status === "sent";
@@ -544,8 +569,7 @@ export async function POST(request: Request) {
     console.warn(`[api/applications] ${reference}: no customer email — #1/#2 skipped`);
   }
 
-  // [AP Ops] rich admin notification. Email body masks SSN unless
-  // ADMIN_EMAIL_INCLUDE_FULL_SSN=true; full data remains in admin console DB.
+  // [AP Ops] payment-received notification — uses charged amount (incl. promos).
   const admins = adminRecipients();
   if (admins.length) {
     const app: StoredApplication = {
@@ -564,7 +588,7 @@ export async function POST(request: Request) {
         descriptor: NMI_DESCRIPTOR,
         devMode: charge.devMode,
       },
-      submittedAt: appRecord?.submittedAt ?? new Date().toISOString(),
+      submittedAt: appRecord?.submittedAt ?? paidAt.toISOString(),
     };
     const orderCtx: OrderEmailContext = { config, app, maskedData, rawData: formData };
     const adminTpl = adminNewOrderEmail(orderCtx, {
@@ -579,7 +603,7 @@ export async function POST(request: Request) {
       html: adminTpl.html,
       text: adminTpl.text,
       replyTo: email ?? undefined,
-      meta: { amount, devMode: charge.devMode, source: "checkout" },
+      meta: { amount, amountCents, devMode: charge.devMode, source: "checkout" },
     });
   }
 
