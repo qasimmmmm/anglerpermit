@@ -37,7 +37,9 @@ export const config: StateConfig = {
   requiresSSN: true,
   ssnExplainer: "Pursuant to s. 379.352, F.S. and 42 U.S.C. 666, every applicant for a Florida recreational license, permit or authorization number must provide their Social Security number. FWC collects SSNs for administration of the Title IV-D child support enforcement program; disclosure is limited by law and SSNs are exempt from Florida public-records release.",
   residencyOptions: [
-    { value: "resident", label: "Resident" }, { value: "nonresident", label: "Nonresident" }
+    { value: "resident", label: "Florida Resident" },
+    { value: "us-citizen", label: "U.S. Citizen" },
+    { value: "international", label: "International Customer" },
   ],
   licenseYearNote: "Florida annual fishing licenses are valid 12 months from the specified start date chosen at purchase (NOT a fixed season/calendar year). Five-year licenses are valid 5 years from the specified start date. Nonresident 3-day and 7-day licenses are valid for consecutive days from the specified start date. Licenses cannot be renewed/issued more than 60 days in advance. Online/phone sales carry additional handling fees (e.g., $2.31 online convenience fee at gooutdoorsflorida.com, $3.33 by phone per county tax collector pages).",
   licenses: [
@@ -209,12 +211,13 @@ export const config: StateConfig = {
     {
       id: "freshwater-saltwater-hunting-combo-1-year-resident",
       name: "Freshwater/Saltwater/Hunting - 1 year",
-      price: 48,
+      // Competitor "Annual Sportsman's License" sticker $149.95 (displayPrice ×3).
+      price: 49.9833333333,
       residency: "resident",
       duration: "Annual (12 months from specified start date)",
       category: "combo",
-      description: "Annual resident combination freshwater + saltwater fishing + hunting license.",
-      officialNote: "Name/price per Go Outdoors Florida Guest Catalog and myfwc.com ('Annual Resident Saltwater Fishing|Freshwater Fishing|Hunting Combination $48.00').",
+      description: "Annual resident combination freshwater + saltwater fishing + hunting license (Sportsman's).",
+      officialNote: "FWC combo base ~$48; bundled checkout sticker matched to competitor Sportsman's at $149.95 via displayPrice.",
     },
     {
       id: "gold-sportsman-1-year-resident",
@@ -451,26 +454,28 @@ export const config: StateConfig = {
       type: "select",
       required: true,
       options: [
-        { value: "resident", label: "Resident" },
-        { value: "nonresident", label: "Nonresident" }
+        { value: "resident", label: "Florida Resident" },
+        { value: "us-citizen", label: "U.S. Citizen" },
+        { value: "international", label: "International Customer" },
       ],
       placeholder: "Indicate Your Current Florida Residency Status",
-      helpText: "For the purposes of fishing or hunting in Florida, a resident is defined as: Any person who has declared Florida as his or her only state of residence as evidenced by a valid Florida driver license or identification card with both a Florida address and a Florida residency verified by the Department of Highway Safety and Motor Vehicles (DHSMV). Active duty United States military personnel stationed in Florida, including spouses and dependent children residing in the household, with military orders.",
+      helpText: "A Florida resident is defined as any person who has continuously resided in Florida for more than six (6) consecutive months.",
       step: 2,
-      officialNote: "First field on https://license.gooutdoorsflorida.com/Licensing/CreateCustomer.aspx. Drives catalog filtering (Guest Catalog filter labels: 'Resident' / 'Non-Resident').",
+      officialNote: "Competitor apply uses Florida Resident / U.S. Citizen / International Customer. Pricing tier: us-citizen and international → nonresident.",
     },
     {
       name: "customerType",
       section: "Eligibility",
       label: "U.S. Customer / International Customer",
       type: "radio",
-      required: true,
+      required: false,
+      hidden: true,
       options: [
         { value: "us", label: "U.S. Customer" },
         { value: "international", label: "International Customer" }
       ],
       step: 2,
-      officialNote: "Radio pair shown under Personal Identifiers with no visible group label. Selecting 'International Customer' changes the Document Type options (passport, non-U.S. driver license, green card, U.S. travel visa, tax ID per official lookup help) and enables international phone/address variants. TODO: verify exact international Document Type option labels — https://license.gooutdoorsflorida.com/Licensing/CreateCustomer.aspx",
+      officialNote: "Hidden on competitor apply — residency pills cover this.",
     },
     {
       name: "firstName",
@@ -505,6 +510,7 @@ export const config: StateConfig = {
       label: "Suffix",
       type: "select",
       required: false,
+      hidden: true,
       // AUDIT FIX (form-audit): restored the official portal's alphabetical
       // option order per florida.md ("Suffix (select: DR, ESQ, I, II, III, IV,
       // IX, JR, MD, SR, V, VI, VII, VIII, X)") and florida.json — the build had
@@ -539,13 +545,14 @@ export const config: StateConfig = {
       type: "select",
       required: false,
       options: [
-        { value: "us-drivers-license", label: "US Driver's License Number" }
+        { value: "us-drivers-license", label: "US Driver's License Number" },
+        { value: "passport", label: "Passport" },
+        { value: "visa", label: "Visa" },
+        { value: "green-card", label: "Green Card" },
+        { value: "non-us-drivers-license", label: "Non-US Driver's License" },
       ],
-      conditional: { field: "residency", equals: "resident" },
-      helpText:
-        "A Florida driver license or ID card may be used for resident verification.",
       step: 2,
-      officialNote: "For U.S. Customers the dropdown shows 'US Driver's License Number'. International Customers see alternate document options (passport/visa/green card etc.). TODO: verify full option list for both customer types — https://license.gooutdoorsflorida.com/Licensing/CreateCustomer.aspx",
+      officialNote: "Competitor: US DL for resident/US citizen; Passport/Visa/Green Card/Non-US DL for international.",
     },
     {
       name: "documentNumber",
@@ -553,7 +560,6 @@ export const config: StateConfig = {
       label: "Number:",
       type: "text",
       required: false,
-      conditional: { field: "residency", equals: "resident" },
       step: 2,
       officialNote: "Driver's license / ID number paired with Document Type.",
     },
@@ -563,7 +569,6 @@ export const config: StateConfig = {
       label: "DL Expiration Date",
       type: "date",
       required: false,
-      conditional: { field: "residency", equals: "resident" },
       step: 2,
     },
     {
@@ -572,7 +577,6 @@ export const config: StateConfig = {
       label: "Issuing State:",
       type: "select",
       required: false,
-      conditional: { field: "residency", equals: "resident" },
       options: [
         { value: "AL", label: "Alabama" }, { value: "AK", label: "Alaska" },
         { value: "AS", label: "American Samoa" }, { value: "AZ", label: "Arizona" },
@@ -615,7 +619,8 @@ export const config: StateConfig = {
       section: "Identification",
       label: "SSN:",
       type: "ssn",
-      required: true,
+      // Competitor: required for FL Resident / U.S. Citizen; not for International.
+      required: false,
       mask: "ssn",
       helpText: "Required pursuant to s. 379.352, F.S. and 42 U.S.C. 666. FWC collects SSNs for issuance of recreational and professional fishing/hunting licenses or permits for administration of the Title IV-D child support enforcement program; SSNs are not subject to public-records disclosure.",
       validation: {
@@ -623,7 +628,7 @@ export const config: StateConfig = {
         patternMessage: "Enter a 9-digit Social Security number",
       },
       step: 2,
-      officialNote: "Starred (required) field with a 'Help Link' to myfwc.com. Go Outdoors sign-up path states: 'Please submit your full social security number to proceed. Social Security Number is required pursuant to federal law.'",
+      officialNote: "Competitor wizard enforces SSN for resident/us-citizen; international uses alternate ID.",
     },
     {
       name: "gender",
@@ -632,8 +637,9 @@ export const config: StateConfig = {
       type: "select",
       required: true,
       options: [
-        { value: "female", label: "Female" }, { value: "male", label: "Male" },
-        { value: "undisclosed", label: "Undisclosed" }
+        { value: "male", label: "Male" },
+        { value: "female", label: "Female" },
+        { value: "prefer-not-to-say", label: "Prefer not to say" },
       ],
       step: 2,
     },
@@ -693,13 +699,14 @@ export const config: StateConfig = {
       section: "Contact",
       label: "Phone Type",
       type: "select",
-      required: true,
+      required: false,
+      hidden: true,
       options: [
         { value: "home", label: "Home" }, { value: "mobile", label: "Mobile" },
         { value: "other", label: "Other" }
       ],
       step: 2,
-      officialNote: "Phone Type dropdown rendered inside the required 'Primary Phone:' field group.",
+      officialNote: "Hidden on competitor apply.",
     },
     {
       name: "primaryPhone",
@@ -710,7 +717,7 @@ export const config: StateConfig = {
       mask: "phone",
       autocomplete: "tel",
       step: 2,
-      officialNote: "Rendered as two adjacent inputs separated by '-' (area code block + number). An 'International Phone Number' checkbox toggles an international format.",
+      officialNote: "Competitor single phone field.",
     },
     {
       name: "secondaryPhoneType",
@@ -718,12 +725,12 @@ export const config: StateConfig = {
       label: "Phone Type",
       type: "select",
       required: false,
+      hidden: true,
       options: [
         { value: "home", label: "Home" }, { value: "mobile", label: "Mobile" },
         { value: "other", label: "Other" }
       ],
       step: 2,
-      officialNote: "Part of the optional 'Secondary Phone:' group.",
     },
     {
       name: "secondaryPhone",
@@ -731,6 +738,7 @@ export const config: StateConfig = {
       label: "Secondary Phone:",
       type: "tel",
       required: false,
+      hidden: true,
       mask: "phone",
       step: 2,
     },
@@ -740,6 +748,7 @@ export const config: StateConfig = {
       label: "International Phone Number",
       type: "checkbox",
       required: false,
+      hidden: true,
       step: 2,
     },
     {
@@ -747,12 +756,13 @@ export const config: StateConfig = {
       section: "Address",
       label: "Is this a non-U.S. Address?",
       type: "radio",
-      required: true,
+      required: false,
+      hidden: true,
       options: [
         { value: "no", label: "No" }, { value: "yes", label: "Yes" }
       ],
       step: 2,
-      officialNote: "Radio in the Physical Address block (default No). 'Yes' switches address fields to international variants. TODO: capture exact international address field labels — https://license.gooutdoorsflorida.com/Licensing/CreateCustomer.aspx",
+      officialNote: "Hidden on competitor apply.",
     },
     {
       name: "street",
@@ -771,6 +781,7 @@ export const config: StateConfig = {
       label: "Apt / Suite / Other",
       type: "text",
       required: false,
+      hidden: true,
       autocomplete: "address-line2",
       step: 2,
     },
@@ -846,9 +857,10 @@ export const config: StateConfig = {
       section: "Address",
       label: "County",
       type: "select",
-      required: true,
+      required: false,
+      hidden: true,
       step: 2,
-      officialNote: "Required dropdown of Florida counties; 'Out of State' appears as an option (observed in render). TODO: capture full 67-county option list — https://license.gooutdoorsflorida.com/Licensing/CreateCustomer.aspx",
+      officialNote: "Hidden on competitor apply (not collected).",
     },
     {
       name: "differentMailingAddress",
@@ -856,8 +868,9 @@ export const config: StateConfig = {
       label: "Different Mailing Address",
       type: "checkbox",
       required: false,
+      hidden: true,
       step: 2,
-      officialNote: "Checkbox at the end of the address block; reveals a mailing-address field group when checked. TODO: capture exact mailing address field labels — https://license.gooutdoorsflorida.com/Licensing/CreateCustomer.aspx",
+      officialNote: "Hidden on competitor apply.",
     },
     {
       name: "licenseStartDate",

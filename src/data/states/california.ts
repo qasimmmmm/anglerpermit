@@ -24,8 +24,12 @@ export const config: StateConfig = {
       label: "California Resident"
     },
     {
-      value: "nonresident",
-      label: "Nonresident"
+      value: "us-citizen",
+      label: "U.S. Citizen"
+    },
+    {
+      value: "international",
+      label: "International Customer"
     }
   ],
   licenseYearNote: "Annual '365-Day' sport fishing licenses are valid 365 days from the date of purchase (NOT calendar year, since Jan 1, 2023 per AB 817). Short-term licenses are valid for the specified day(s). Report cards keep season/calendar-based validity. A resident is any person who has resided continuously in California for 6+ months immediately prior to application, any person on active military duty (US Armed Forces or auxiliary), or any Job Corps enrollee (FGC Section 70).",
@@ -46,7 +50,8 @@ export const config: StateConfig = {
     {
       id: "nonresident-sport-fishing-365-day",
       name: "Nonresident Sport Fishing",
-      price: 174.14,
+      // Base set so displayPrice(×3) = $249.95 (competitor nonresident/international sticker).
+      price: 83.3166666667,
       residency: "nonresident",
       duration: "365-Day",
       category: "all-water",
@@ -54,23 +59,40 @@ export const config: StateConfig = {
       suggestedAddOns: [
         "second-rod-validation",
         "ocean-enhancement-validation"
-      ]
+      ],
+      officialNote: "CDFW 2026 nonresident 365-day agent fee is $174.14; bundled checkout sticker matched to competitor at $249.95 via displayPrice.",
     },
     {
       id: "one-day-sport-fishing-license",
       name: "One-day Sport Fishing License",
+      // displayPrice(×3) = $44.95 — CA resident short-term sticker.
       price: 14.9833333333,
-      residency: "any",
+      residency: "resident",
       duration: "1-Day",
       category: "all-water",
-      description: "Allows a resident or nonresident to fish for one specified day. One-day sport fishing licenses are exempt from the Ocean Enhancement Validation requirement.",
+      description: "Allows a resident to fish for one specified day. One-day sport fishing licenses are exempt from the Ocean Enhancement Validation requirement.",
       suggestedAddOns: [
         "second-rod-validation"
       ]
     },
     {
+      id: "nonresident-one-day-sport-fishing-license",
+      name: "One-day Sport Fishing License",
+      // displayPrice(×3) = $49.95 — competitor nonresident/international 1-Day sticker.
+      price: 16.65,
+      residency: "nonresident",
+      duration: "1-Day",
+      category: "all-water",
+      description: "Allows a nonresident to fish for one specified day. One-day sport fishing licenses are exempt from the Ocean Enhancement Validation requirement.",
+      suggestedAddOns: [
+        "second-rod-validation"
+      ],
+      officialNote: "Split from shared 1-Day SKU so nonresident checkout can show $49.95 while residents keep $44.95 (competitor parity).",
+    },
+    {
       id: "two-day-sport-fishing-license",
       name: "Two-day Sport Fishing License",
+      // displayPrice(×3) = $59.95 — same sticker for resident and nonresident.
       price: 19.9833333333,
       residency: "any",
       duration: "2-Day",
@@ -83,7 +105,8 @@ export const config: StateConfig = {
     {
       id: "ten-day-nonresident-sport-fishing-license",
       name: "Ten-day Nonresident Sport Fishing License",
-      price: 64.54,
+      // Base set so displayPrice(×3) = $99.95 (competitor nonresident/international sticker).
+      price: 33.3166666667,
       residency: "nonresident",
       duration: "10-Day",
       category: "all-water",
@@ -91,7 +114,8 @@ export const config: StateConfig = {
       suggestedAddOns: [
         "second-rod-validation",
         "ocean-enhancement-validation"
-      ]
+      ],
+      officialNote: "CDFW 2026 10-day nonresident agent fee is $64.54; bundled checkout sticker matched to competitor at $99.95 via displayPrice.",
     },
     {
       id: "reduced-fee-sport-fishing-disabled-veteran",
@@ -291,6 +315,7 @@ export const config: StateConfig = {
       label: "Suffix:",
       type: "text",
       required: false,
+      hidden: true,
       autocomplete: "honorific-suffix",
       step: 2,
       officialNote: "TODO: verify presence/label — portal instructs not to enter suffix in the Last Name field, implying a separate suffix element — https://www.licenses.wildlife.ca.gov/internetsales/CustomerSearch/Begin"
@@ -315,12 +340,8 @@ export const config: StateConfig = {
       required: true,
       options: [
         {
-          value: "go-id",
-          label: "GO ID"
-        },
-        {
           value: "state-id",
-          label: "State ID"
+          label: "State ID / Driver's License"
         },
         {
           value: "passport",
@@ -331,15 +352,11 @@ export const config: StateConfig = {
           label: "Green Card"
         },
         {
-          value: "military-id",
-          label: "Military ID"
-        },
-        {
           value: "foreign-government-id",
-          label: "Foreign Government ID"
+          label: "Foreign Gov. ID"
         }
       ],
-      helpText: "Acceptable Identity Types: State ID (Driver's License or Identification Card), Passport, Military ID, Green Card, Foreign Government ID. Existing customers may use their GO ID (printed on existing CDFW license above the customer name).",
+      helpText: "Acceptable Identity Types: State ID (Driver's License or Identification Card), Passport, Green Card, Foreign Government ID.",
       step: 2,
       officialNote: "'Select Official Document ID Type' step — verified live on portal 2026-07-18; dropdown placeholder is '[Select One]'"
     },
@@ -575,20 +592,38 @@ export const config: StateConfig = {
     {
       name: "countryIssued",
       section: "Identification",
-      label: "Country Issued:",
-      type: "text",
+      label: "Passport Country:",
+      type: "select",
       required: true,
+      options: [
+        { value: "United States", label: "United States" },
+        { value: "Canada", label: "Canada" },
+        { value: "Mexico", label: "Mexico" },
+        { value: "United Kingdom", label: "United Kingdom" },
+        { value: "Germany", label: "Germany" },
+        { value: "France", label: "France" },
+        { value: "Australia", label: "Australia" },
+        { value: "Japan", label: "Japan" },
+        { value: "Brazil", label: "Brazil" },
+        { value: "India", label: "India" },
+        { value: "China", label: "China" },
+        { value: "South Korea", label: "South Korea" },
+        { value: "Italy", label: "Italy" },
+        { value: "Spain", label: "Spain" },
+        { value: "Netherlands", label: "Netherlands" },
+        { value: "Sweden", label: "Sweden" },
+        { value: "Norway", label: "Norway" },
+        { value: "Denmark", label: "Denmark" },
+        { value: "Finland", label: "Finland" },
+        { value: "Switzerland", label: "Switzerland" },
+        { value: "Other", label: "Other" },
+      ],
       conditional: {
         field: "identityType",
-        oneOf: [
-          "passport",
-          "green-card",
-          "military-id",
-          "foreign-government-id"
-        ]
+        equals: "passport",
       },
       step: 2,
-      officialNote: "Official control is a COUNTRY DROPDOWN (populated via Address/FindCountries per portal identitycontrol.js); rendered as text here because the exact option list is unverified. TODO: verify option list — https://www.licenses.wildlife.ca.gov/internetsales/CustomerSearch/Begin"
+      officialNote: "Passport country dropdown — competitor-aligned option list."
     },
     {
       name: "youthFirstName",
@@ -641,6 +676,10 @@ export const config: StateConfig = {
         {
           value: "female",
           label: "Female"
+        },
+        {
+          value: "other",
+          label: "Other"
         }
       ],
       step: 2,
@@ -675,19 +714,40 @@ export const config: StateConfig = {
       name: "eyeColor",
       section: "Personal details",
       label: "Eye Color:",
-      type: "text",
+      type: "select",
       required: true,
+      options: [
+        { value: "Blue", label: "Blue" },
+        { value: "Brown", label: "Brown" },
+        { value: "Green", label: "Green" },
+        { value: "Pink", label: "Pink" },
+        { value: "Black", label: "Black" },
+        { value: "Gray", label: "Gray" },
+        { value: "Hazel", label: "Hazel" },
+        { value: "Other", label: "Other" },
+      ],
       step: 2,
-      officialNote: "Official control is a DROPDOWN (profile example value 'Blue'); rendered as text here because the exact option list is unverified. Required per CDFW FAQ. TODO: verify dropdown options — https://wildlife.ca.gov/Licensing/Online-Sales/Frequently-Asked-Questions"
+      officialNote: "Dropdown options aligned to competitor checkout UX."
     },
     {
       name: "hairColor",
       section: "Personal details",
       label: "Hair Color:",
-      type: "text",
+      type: "select",
       required: true,
+      options: [
+        { value: "Bald", label: "Bald" },
+        { value: "Black", label: "Black" },
+        { value: "Blonde", label: "Blonde" },
+        { value: "Brown", label: "Brown" },
+        { value: "Gray", label: "Gray" },
+        { value: "White", label: "White" },
+        { value: "Sandy", label: "Sandy" },
+        { value: "Red/Auburn", label: "Red/Auburn" },
+        { value: "Other", label: "Other" },
+      ],
       step: 2,
-      officialNote: "Official control is a DROPDOWN (profile example value 'Grey'); rendered as text here because the exact option list is unverified. Required per CDFW FAQ. TODO: verify dropdown options — https://wildlife.ca.gov/Licensing/Online-Sales/Frequently-Asked-Questions"
+      officialNote: "Dropdown options aligned to competitor checkout UX."
     },
     {
       name: "residency",
@@ -695,6 +755,7 @@ export const config: StateConfig = {
       label: "Residency:",
       type: "select",
       required: true,
+      hidden: true,
       options: [
         {
           value: "resident",
@@ -715,7 +776,7 @@ export const config: StateConfig = {
       ],
       helpText: "A resident is any person who has resided continuously in the State of California for six months or more immediately prior to the date of application, any person on active military duty with the Armed Forces of the United States or auxiliary branch thereof, or any person enrolled in the Job Corps.",
       step: 2,
-      officialNote: "CDFW FAQ confirms 'residency status' is required; 'Active Military' is an observed value in Customer Profile Info (https://wildlife.ca.gov/Hunter-Education/GetGOID). TODO: verify exact option labels — https://www.licenses.wildlife.ca.gov/internetsales/CustomerSearch/Begin"
+      officialNote: "Collected on step 1 (Primary Residence Type); synced into applicant data for CDFW."
     },
     {
       name: "country",
@@ -748,6 +809,7 @@ export const config: StateConfig = {
       label: "Attention Line",
       type: "text",
       required: false,
+      hidden: true,
       helpText: 'Only use if needed for "care of" or required delivery information.',
       autocomplete: "address-line2",
       step: 2,
@@ -830,11 +892,11 @@ export const config: StateConfig = {
       section: "Contact",
       label: "Email Address:",
       type: "email",
-      required: false,
-      helpText: "Optional. Used for purchase confirmation emails and required if enrolling in Auto-Renewal. CDFW will not share customer contact information with outside entities pursuant to Fish and Game Code 1050.6.",
+      required: true,
+      helpText: "Used for purchase confirmation emails and required if enrolling in Auto-Renewal. CDFW will not share customer contact information with outside entities pursuant to Fish and Game Code 1050.6.",
       autocomplete: "email",
       step: 2,
-      officialNote: "CDFW FAQ: email optional at checkout for confirmation; required for Auto-Renewal enrollment. TODO: verify exact label on create form"
+      officialNote: "Required on AnglerPermit checkout (competitor-aligned). CDFW portal treats email as optional except for Auto-Renewal."
     },
     {
       name: "emailPreference",
@@ -842,6 +904,7 @@ export const config: StateConfig = {
       label: "Email Preferences",
       type: "radio",
       required: false,
+      hidden: true,
       options: [
         {
           value: "all",
@@ -869,6 +932,7 @@ export const config: StateConfig = {
       label: "Allow text messages for the above CDFW communications.",
       type: "checkbox",
       required: false,
+      hidden: true,
       step: 2,
       officialNote: "Verified on CDFW Contact Preferences page (2022 archived). Placement TODO: verify — https://www.licenses.wildlife.ca.gov/internetsales/"
     },
@@ -878,6 +942,7 @@ export const config: StateConfig = {
       label: "Password:",
       type: "text",
       required: false,
+      hidden: true,
       helpText: "Optional password protects your customer record and is required to enroll in Auto-Renewal and to access certain customer-record features (e.g., Upload File).",
       step: 2,
       officialNote: "TODO: verify label, rules and placement — see 'Password Protection (through Customer Record Security Settings)' at https://wildlife.ca.gov/Licensing/Online-Sales/Frequently-Asked-Questions"
@@ -892,6 +957,7 @@ export const config: StateConfig = {
         field: "licenseId",
         oneOf: [
           "one-day-sport-fishing-license",
+          "nonresident-one-day-sport-fishing-license",
           "two-day-sport-fishing-license",
           "ten-day-nonresident-sport-fishing-license",
         ],

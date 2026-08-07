@@ -168,7 +168,16 @@ export interface StateConfig {
  */
 export function residencyPricingTier(residency: string): "resident" | "nonresident" {
   const normalized = residency.trim().toLowerCase().replace(/[^a-z]/g, "");
-  return normalized === "nonresident" ? "nonresident" : "resident";
+  // CA competitor-style options (U.S. Citizen / International) price as nonresident.
+  if (
+    normalized === "nonresident" ||
+    normalized === "uscitizen" ||
+    normalized === "international" ||
+    normalized === "internationalcustomer"
+  ) {
+    return "nonresident";
+  }
+  return "resident";
 }
 
 /**

@@ -101,8 +101,9 @@ export const config: StateConfig = {
   ssnExplainer:
     "South Carolina law (S.C. Code Section 63-17-1080) and federal law (42 USCA 666(a)(13)) require disclosure of your Social Security Number or alien identification number to obtain SC hunting and fishing licenses; it is provided to the Child Support Enforcement Unit of the SC Department of Social Services. First-time purchasers must provide their full SSN. International customers may purchase with a passport instead of an SSN (nonresident fees apply).",
   residencyOptions: [
-    { value: "resident", label: "South Carolina Resident" },
-    { value: "nonresident", label: "Non-Resident" },
+    { value: "resident", label: "SC Resident" },
+    { value: "us-citizen", label: "US Citizen" },
+    { value: "international", label: "International" },
   ],
   licenseYearNote:
     "Annual recreational hunting and fishing licenses are valid 1 year from date of purchase; 3-year licenses are valid 3 years from date of purchase (anniversary-based, no fixed license year). 14-day / 7-day / 1-day licenses are valid for consecutive days. Nongame fish tags, shrimp baiting licenses, and commercial licenses expire June 30 each year.",
@@ -699,7 +700,8 @@ export const config: StateConfig = {
       section: "Identification",
       label: "Social Security #",
       type: "ssn",
-      required: true,
+      // Competitor international path has no SSN; wizard enforces when needed.
+      required: false,
       helpText:
         "Required by SC Code Section 63-17-1080 and federal law 42 USCA 666(a)(13) for child support enforcement. First-time purchasers must provide their full SSN; it is not printed on your license. International customers may use a passport / alien identification number instead.",
       mask: "ssn",
@@ -813,6 +815,45 @@ export const config: StateConfig = {
       step: 2,
       officialNote:
         "Field appears on official SCDNR application; online option list not observable (CAPTCHA). Standard U.S. Census/OMB race categories used - https://license.gooutdoorssouthcarolina.com/Licensing/CustomerLookup.aspx",
+    },
+    {
+      name: "heightFt",
+      section: "Personal details",
+      label: "Height (ft)",
+      type: "select",
+      required: true,
+      options: [
+        { value: "3", label: "3'" },
+        { value: "4", label: "4'" },
+        { value: "5", label: "5'" },
+        { value: "6", label: "6'" },
+        { value: "7", label: "7'" },
+      ],
+      step: 2,
+      officialNote: "Collected on competitor apply demographics step.",
+    },
+    {
+      name: "heightIn",
+      section: "Personal details",
+      label: "Height (in)",
+      type: "select",
+      required: true,
+      options: [
+        { value: "0", label: '0"' },
+        { value: "1", label: '1"' },
+        { value: "2", label: '2"' },
+        { value: "3", label: '3"' },
+        { value: "4", label: '4"' },
+        { value: "5", label: '5"' },
+        { value: "6", label: '6"' },
+        { value: "7", label: '7"' },
+        { value: "8", label: '8"' },
+        { value: "9", label: '9"' },
+        { value: "10", label: '10"' },
+        { value: "11", label: '11"' },
+      ],
+      step: 2,
+      officialNote: "Collected on competitor apply demographics step.",
     },
     {
       name: "homeStreet",
