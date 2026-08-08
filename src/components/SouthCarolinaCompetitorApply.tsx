@@ -10,6 +10,7 @@ import {
 import { formatPrice } from "@/lib/format";
 import { PaymentStep } from "@/components/PaymentStep";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
+import { useLocale } from "@/i18n/LocaleProvider";
 
 const RESIDENT_LICENSE_GROUPS: { heading: string; ids: readonly string[] }[] = [
   {
@@ -277,6 +278,7 @@ function licenseLabel(lic: LicenseOption): string {
 }
 
 export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }) {
+  const { t } = useLocale();
   const [step, setStep] = useState<Step>(0);
   const [form, setForm] = useState<FormState>(INITIAL);
   const [errors, setErrors] = useState<string[]>([]);
@@ -474,20 +476,20 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
   if (reference) {
     return (
       <div className="mx-auto max-w-xl rounded border border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
-        <h2 className="text-2xl font-bold text-navy">Application received</h2>
+        <h2 className="text-2xl font-bold text-navy">{t("wizard.applicationReceived")}</h2>
         <p className="mt-2 text-slate-600">
           Thank you — your South Carolina fishing license application and payment have been
           received.
         </p>
         <div className="mt-6 rounded border border-navy/10 bg-slate-50 px-6 py-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Your reference number
+            {t("wizard.referenceNumber")}
           </p>
           <p className="mt-1 font-mono text-xl font-bold text-navy">{reference}</p>
         </div>
         {confirmationEmail && (
           <p className="mt-4 text-sm text-slate-600">
-            A confirmation email is on its way to{" "}
+            {t("wizard.confirmationEmail")}{" "}
             <span className="font-semibold text-navy">{confirmationEmail}</span>.
           </p>
         )}
@@ -495,7 +497,18 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
     );
   }
 
-  const steps = ["Your Information", "Residency & License", "Payment"] as const;
+  const steps = [
+    t("wizard.yourInformation"),
+    t("wizard.residencyLicense"),
+    t("wizard.payment"),
+  ] as const;
+
+  const residencyLabel = (value: string) => {
+    if (value === "resident") return t("sc.resident");
+    if (value === "us-citizen") return t("nc.usCitizen");
+    if (value === "international") return t("nc.international");
+    return config.residencyOptions.find((o) => o.value === value)?.label ?? value;
+  };
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -537,33 +550,33 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
 
         {step === 0 && (
           <>
-            <h2 className="text-xl font-bold text-slate-900">Your Personal Information</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Please provide us with some personal information — this is essential for your SC
-              Fishing License guidance.
-            </p>
+            <h2 className="text-xl font-bold text-slate-900">
+              {t("wizard.yourPersonalInformation")}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">{t("sc.personalIntro")}</p>
 
             <p className="mt-4 text-sm text-slate-600">
-              State: <span className="font-semibold text-slate-900">South Carolina</span>
+              {t("wizard.state")}:{" "}
+              <span className="font-semibold text-slate-900">South Carolina</span>
             </p>
 
-            <SectionHeading>Personal information</SectionHeading>
+            <SectionHeading>{t("wizard.personalInformation")}</SectionHeading>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <Field label="First name" required>
+              <Field label={t("wizard.firstName")} required>
                 <input
                   className={inputClass}
                   value={form.firstName}
                   onChange={(e) => set("firstName", e.target.value)}
                 />
               </Field>
-              <Field label="Middle name">
+              <Field label={t("wizard.middleName")}>
                 <input
                   className={inputClass}
                   value={form.middleName}
                   onChange={(e) => set("middleName", e.target.value)}
                 />
               </Field>
-              <Field label="Last name" required>
+              <Field label={t("wizard.lastName")} required>
                 <input
                   className={inputClass}
                   value={form.lastName}
@@ -572,14 +585,14 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
               </Field>
             </div>
 
-            <Field label="Date of birth" required className="mt-3">
+            <Field label={t("wizard.dob")} required className="mt-3">
               <div className="grid grid-cols-3 gap-2">
                 <select
                   className={inputClass}
                   value={form.dobDay}
                   onChange={(e) => set("dobDay", e.target.value)}
                 >
-                  <option value="">Day</option>
+                  <option value="">{t("wizard.day")}</option>
                   {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
                     <option key={d} value={d}>
                       {d}
@@ -591,10 +604,10 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                   value={form.dobMonth}
                   onChange={(e) => set("dobMonth", e.target.value)}
                 >
-                  <option value="">Month</option>
+                  <option value="">{t("wizard.month")}</option>
                   {MONTHS.map((m) => (
                     <option key={m} value={m}>
-                      {m}
+                      {t(`month.${m}`)}
                     </option>
                   ))}
                 </select>
@@ -603,7 +616,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                   value={form.dobYear}
                   onChange={(e) => set("dobYear", e.target.value)}
                 >
-                  <option value="">Year</option>
+                  <option value="">{t("wizard.year")}</option>
                   {Array.from({ length: 100 }, (_, i) => String(2025 - i)).map((y) => (
                     <option key={y} value={y}>
                       {y}
@@ -613,22 +626,22 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
               </div>
             </Field>
 
-            <SectionHeading>Demographics</SectionHeading>
+            <SectionHeading>{t("wizard.demographics")}</SectionHeading>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Gender" required className="sm:col-span-2">
+              <Field label={t("wizard.gender")} required className="sm:col-span-2">
                 <select
                   className={inputClass}
                   value={form.gender}
                   onChange={(e) => set("gender", e.target.value)}
                 >
-                  <option value="">Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="non-binary">Non-binary</option>
-                  <option value="undisclosed">Prefer not to say</option>
+                  <option value="">{t("wizard.selectGender")}</option>
+                  <option value="male">{t("wizard.male")}</option>
+                  <option value="female">{t("wizard.female")}</option>
+                  <option value="non-binary">{t("wizard.nonBinary")}</option>
+                  <option value="undisclosed">{t("wizard.preferNot")}</option>
                 </select>
               </Field>
-              <Field label="Height (ft)" required>
+              <Field label={t("wizard.heightFt")} required>
                 <select
                   className={inputClass}
                   value={form.heightFt}
@@ -642,7 +655,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                   ))}
                 </select>
               </Field>
-              <Field label="Height (in)" required>
+              <Field label={t("wizard.heightIn")} required>
                 <select
                   className={inputClass}
                   value={form.heightIn}
@@ -672,9 +685,9 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
               </Field>
             </div>
 
-            <SectionHeading>Residential address information</SectionHeading>
+            <SectionHeading>{t("wizard.residentialAddress")}</SectionHeading>
             <div className="mt-3 grid gap-3">
-              <Field label="Street address" required>
+              <Field label={t("wizard.street")} required>
                 <input
                   className={inputClass}
                   value={form.street}
@@ -682,14 +695,14 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                 />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="City" required>
+                <Field label={t("wizard.city")} required>
                   <input
                     className={inputClass}
                     value={form.city}
                     onChange={(e) => set("city", e.target.value)}
                   />
                 </Field>
-                <Field label="ZIP Code" required>
+                <Field label={t("wizard.zipCode")} required>
                   <input
                     className={inputClass}
                     value={form.zip}
@@ -699,9 +712,9 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
               </div>
             </div>
 
-            <SectionHeading>Contact information</SectionHeading>
+            <SectionHeading>{t("wizard.contactInformation")}</SectionHeading>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Email address" required>
+              <Field label={t("wizard.email")} required>
                 <input
                   className={inputClass}
                   type="email"
@@ -709,7 +722,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                   onChange={(e) => set("email", e.target.value)}
                 />
               </Field>
-              <Field label="Phone number" required>
+              <Field label={t("wizard.phone")} required>
                 <input
                   className={inputClass}
                   type="tel"
@@ -732,21 +745,19 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                 }
               }}
             >
-              Continue →
+              {t("wizard.continue")}
             </button>
           </>
         )}
 
         {step === 1 && (
           <>
-            <h2 className="text-xl font-bold text-slate-900">Residency &amp; License Selection</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Tell us about your residency and select your license type.
-            </p>
+            <h2 className="text-xl font-bold text-slate-900">{t("tx.step0Title")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t("tx.step0Sub")}</p>
 
             <div className="mt-6">
               <p className="text-sm font-semibold text-slate-800">
-                Residency Status <span className="text-red-600">*</span>
+                {t("nc.residencyStatus")} <span className="text-red-600">*</span>
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {config.residencyOptions.map((opt) => (
@@ -755,7 +766,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                     selected={form.residency === opt.value}
                     onClick={() => selectResidency(opt.value)}
                   >
-                    {opt.label}
+                    {residencyLabel(opt.value)}
                   </ChoiceButton>
                 ))}
               </div>
@@ -765,7 +776,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
               <>
                 <div className="mt-6">
                   <p className="text-sm font-semibold text-slate-800">
-                    Identification Type <span className="text-red-600">*</span>
+                    {t("wizard.identificationType")} <span className="text-red-600">*</span>
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <ChoiceButton
@@ -775,7 +786,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                         set("documentNumber", "");
                       }}
                     >
-                      SC Driver&apos;s License
+                      SC {t("wizard.driversLicense")}
                     </ChoiceButton>
                     <ChoiceButton
                       selected={form.residentId === "sc-id"}
@@ -797,7 +808,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                       label={
                         form.residentId === "sc-id"
                           ? "ID Card Number"
-                          : "Driver's License Number"
+                          : t("wizard.driversLicense")
                       }
                       required
                     >
@@ -815,10 +826,10 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                             value={form.expMonth}
                             onChange={(e) => set("expMonth", e.target.value)}
                           >
-                            <option value="">Month</option>
+                            <option value="">{t("wizard.month")}</option>
                             {MONTHS.map((m) => (
                               <option key={m} value={m}>
-                                {m}
+                                {t(`month.${m}`)}
                               </option>
                             ))}
                           </select>
@@ -827,7 +838,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                             value={form.expDay}
                             onChange={(e) => set("expDay", e.target.value)}
                           >
-                            <option value="">Day</option>
+                            <option value="">{t("wizard.day")}</option>
                             {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
                               <option key={d} value={d}>
                                 {d}
@@ -839,7 +850,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                             value={form.expYear}
                             onChange={(e) => set("expYear", e.target.value)}
                           >
-                            <option value="">Year</option>
+                            <option value="">{t("wizard.year")}</option>
                             {Array.from({ length: 16 }, (_, i) => String(2026 + i)).map((y) => (
                               <option key={y} value={y}>
                                 {y}
@@ -849,7 +860,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                         </div>
                       </Field>
                     )}
-                    <Field label="Social Security Number" required>
+                    <Field label={t("wizard.ssn")} required>
                       <input
                         className={inputClass}
                         placeholder="XXX-XX-XXXX"
@@ -870,7 +881,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
 
             {form.residency === "us-citizen" && (
               <div className="mt-4 grid gap-3">
-                <Field label="Social Security Number" required>
+                <Field label={t("wizard.ssn")} required>
                   <input
                     className={inputClass}
                     placeholder="XXX-XX-XXXX"
@@ -881,14 +892,14 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                 </Field>
                 <div>
                   <p className="mb-2 text-sm font-medium text-slate-700">
-                    Identification Document <span className="text-red-600">*</span>
+                    {t("wizard.identificationType")} <span className="text-red-600">*</span>
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {(
                       [
-                        ["passport", "Passport"],
+                        ["passport", t("wizard.passport")],
                         ["visa", "Visa"],
-                        ["green-card", "Green Card"],
+                        ["green-card", t("wizard.greenCard")],
                         ["non-us-drivers-license", "Non-US Driver's License"],
                       ] as const
                     ).map(([value, label]) => (
@@ -924,14 +935,14 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
               <div className="mt-4 grid gap-3">
                 <div>
                   <p className="mb-2 text-sm font-medium text-slate-700">
-                    Identification Document <span className="text-red-600">*</span>
+                    {t("wizard.identificationType")} <span className="text-red-600">*</span>
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {(
                       [
-                        ["passport", "Passport"],
+                        ["passport", t("wizard.passport")],
                         ["visa", "Visa"],
-                        ["green-card", "Green Card"],
+                        ["green-card", t("wizard.greenCard")],
                         ["non-us-drivers-license", "Non-US Driver's License"],
                       ] as const
                     ).map(([value, label]) => (
@@ -1008,7 +1019,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                 </div>
               ))}
 
-            <SectionHeading>Declaration &amp; Consent</SectionHeading>
+            <SectionHeading>{t("wizard.declarationConsent")}</SectionHeading>
             <div className="mt-3">
               <label className="flex items-start gap-2 text-sm text-slate-700">
                 <input
@@ -1018,14 +1029,13 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                   onChange={(e) => set("consent", e.target.checked)}
                 />
                 <span>
-                  I confirm that all information provided is accurate and I agree to the terms and
-                  conditions. <span className="text-red-600">*</span>{" "}
+                  {t("wizard.consent")} <span className="text-red-600">*</span>{" "}
                   <button
                     type="button"
                     className="font-semibold text-navy underline"
                     onClick={() => setShowConsentTerms((v) => !v)}
                   >
-                    {showConsentTerms ? "Show less" : "Read More"}
+                    {showConsentTerms ? t("wizard.showLess") : t("wizard.readMore")}
                   </button>
                 </span>
               </label>
@@ -1051,7 +1061,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                   }
                 }}
               >
-                Continue to Payment
+                {t("wizard.continuePayment")}
               </button>
               <button
                 type="button"
@@ -1061,7 +1071,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                   setErrors([]);
                 }}
               >
-                ← Back
+                {t("wizard.back")}
               </button>
             </div>
           </>
@@ -1069,7 +1079,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
 
         {step === 2 && selectedLicense && (
           <>
-            <h2 className="text-xl font-bold text-slate-900">Complete your payment</h2>
+            <h2 className="text-xl font-bold text-slate-900">{t("wizard.payment")}</h2>
             <div className="mt-4">
               <PaymentStep
                 total={total}
@@ -1091,7 +1101,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                   setPaymentError(null);
                 }}
               >
-                Back
+                {t("wizard.backShort")}
               </button>
             </div>
           </>

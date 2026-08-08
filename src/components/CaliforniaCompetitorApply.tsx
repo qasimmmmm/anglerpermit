@@ -12,6 +12,7 @@ import { US_STATE_OPTIONS } from "@/lib/us-states";
 import { formatPrice } from "@/lib/format";
 import { PaymentStep } from "@/components/PaymentStep";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
+import { useLocale } from "@/i18n/LocaleProvider";
 
 /** Core sport licenses shown on the competitor-style CA step 1. */
 const CORE_LICENSE_IDS = new Set([
@@ -335,6 +336,7 @@ function monthIndex(name: string): number {
 }
 
 export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
+  const { t } = useLocale();
   const [step, setStep] = useState<Step>(0);
   const [form, setForm] = useState<FormState>(INITIAL);
   const [errors, setErrors] = useState<string[]>([]);
@@ -494,19 +496,17 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
   if (reference) {
     return (
       <div className="mx-auto max-w-xl rounded border border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
-        <h2 className="text-2xl font-bold text-navy">Application received</h2>
-        <p className="mt-2 text-slate-600">
-          Thank you — your California fishing license application and payment have been received.
-        </p>
+        <h2 className="text-2xl font-bold text-navy">{t("wizard.applicationReceived")}</h2>
+        <p className="mt-2 text-slate-600">{t("ca.received")}</p>
         <div className="mt-6 rounded border border-navy/10 bg-slate-50 px-6 py-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Your reference number
+            {t("wizard.referenceNumber")}
           </p>
           <p className="mt-1 font-mono text-xl font-bold text-navy">{reference}</p>
         </div>
         {confirmationEmail && (
           <p className="mt-4 text-sm text-slate-600">
-            A confirmation email is on its way to{" "}
+            {t("wizard.confirmationEmail")}{" "}
             <span className="font-semibold text-navy">{confirmationEmail}</span>.
           </p>
         )}
@@ -514,7 +514,14 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
     );
   }
 
-  const steps = ["ID & License", "Your Information", "Payment"] as const;
+  const steps = [t("wizard.idLicense"), t("wizard.yourInformation"), t("wizard.payment")] as const;
+
+  function residencyOptionLabel(value: string, fallback: string) {
+    if (value === "resident") return t("ca.resident");
+    if (value === "us-citizen") return t("ca.usCitizen");
+    if (value === "international") return t("ca.international");
+    return fallback;
+  }
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -555,13 +562,13 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
         {step === 0 && (
           <>
             <h2 className="text-center text-xl font-bold text-slate-900">
-              Identification & License Selection
+              {t("ca.step0Title")}
             </h2>
             <p className="mt-1 text-center text-sm text-slate-500">
-              Select your residency, provide identification, then choose your license type.
+              {t("ca.step0Sub")}
             </p>
 
-            <ChoiceGroup label="Primary Residence Type" required>
+            <ChoiceGroup label={t("ca.primaryResidence")} required>
               {config.residencyOptions.map((opt) => (
                 <ChoiceButton
                   key={opt.value}
@@ -572,20 +579,20 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                     setErrors([]);
                   }}
                 >
-                  {opt.label}
+                  {residencyOptionLabel(opt.value, opt.label)}
                 </ChoiceButton>
               ))}
             </ChoiceGroup>
 
-            <ChoiceGroup label="Identification Type" required columns={2}>
+            <ChoiceGroup label={t("wizard.identificationType")} required columns={2}>
               {(
                 [
-                  ["state-id", "State ID / Driver's License"],
-                  ["passport", "Passport"],
-                  ["green-card", "Green Card"],
-                  ["foreign-government-id", "Foreign Gov. ID"],
+                  ["state-id", "wizard.stateIdDrivers"],
+                  ["passport", "wizard.passport"],
+                  ["green-card", "wizard.greenCard"],
+                  ["foreign-government-id", "wizard.foreignGovId"],
                 ] as const
-              ).map(([value, label]) => (
+              ).map(([value, labelKey]) => (
                 <ChoiceButton
                   key={value}
                   solid
@@ -603,14 +610,14 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                     }));
                   }}
                 >
-                  {label}
+                  {t(labelKey)}
                 </ChoiceButton>
               ))}
             </ChoiceGroup>
 
             {form.identityType === "state-id" && (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <Field label="Country" required>
+                <Field label={t("wizard.country")} required>
                   <select
                     className={inputClass}
                     value={form.idCountry}
@@ -623,13 +630,13 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                     ))}
                   </select>
                 </Field>
-                <Field label="Issuing State" required>
+                <Field label={t("wizard.issuingState")} required>
                   <select
                     className={inputClass}
                     value={form.stateIssued}
                     onChange={(e) => set("stateIssued", e.target.value)}
                   >
-                    <option value="">Select issuing state</option>
+                    <option value="">{t("wizard.selectIssuingState")}</option>
                     <option value="CA">CA — California</option>
                     <option disabled>──────────</option>
                     {/* Competitor parity: DC listed last, after the states. */}
@@ -643,10 +650,10 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                     <option value="DC">DC</option>
                   </select>
                 </Field>
-                <Field label="ID / Driver's License Number" required className="sm:col-span-2">
+                <Field label={t("ca.idNumber")} required className="sm:col-span-2">
                   <input
                     className={inputClass}
-                    placeholder="Enter your ID number"
+                    placeholder={t("wizard.enterIdNumber")}
                     value={form.idNumber}
                     onChange={(e) => set("idNumber", e.target.value)}
                   />
@@ -656,7 +663,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
 
             {form.identityType === "passport" && (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <Field label="Passport Country" required>
+                <Field label={`${t("wizard.passport")} ${t("wizard.country")}`} required>
                   <select
                     className={inputClass}
                     value={form.idCountry}
@@ -672,10 +679,10 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                     ))}
                   </select>
                 </Field>
-                <Field label="Passport Number" required>
+                <Field label={t("wizard.passport")} required>
                   <input
                     className={inputClass}
-                    placeholder="Enter your passport number"
+                    placeholder={t("wizard.enterIdNumber")}
                     value={form.idNumber}
                     onChange={(e) => set("idNumber", e.target.value)}
                   />
@@ -685,10 +692,10 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
 
             {form.identityType === "green-card" && (
               <div className="mt-4">
-                <Field label="Green Card Number" required>
+                <Field label={t("wizard.greenCard")} required>
                   <input
                     className={inputClass}
-                    placeholder="Enter your green card number"
+                    placeholder={t("wizard.enterIdNumber")}
                     value={form.idNumber}
                     onChange={(e) => set("idNumber", e.target.value)}
                   />
@@ -698,10 +705,10 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
 
             {form.identityType === "foreign-government-id" && (
               <div className="mt-4">
-                <Field label="Foreign Government ID Number" required>
+                <Field label={t("wizard.foreignGovId")} required>
                   <input
                     className={inputClass}
-                    placeholder="Enter your ID number"
+                    placeholder={t("wizard.enterIdNumber")}
                     value={form.idNumber}
                     onChange={(e) => set("idNumber", e.target.value)}
                   />
@@ -719,8 +726,9 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                 ].join(" ")}
               >
                 <p className="font-semibold">
-                  {qualification.effective === "resident" ? "✓ " : ""}
-                  {qualification.title}
+                  {qualification.effective === "resident"
+                    ? t("ca.qualifyResident")
+                    : qualification.title}
                 </p>
                 {qualification.adjusted && (
                   <p className="mt-1 text-slate-600">
@@ -732,7 +740,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
 
             {form.residency && form.identityType && (
               <div className="mt-6">
-                <h3 className="text-base font-bold text-slate-900">Sport Fishing Licenses</h3>
+                <h3 className="text-base font-bold text-slate-900">{t("ca.sportFishing")}</h3>
                 {annual && (
                   <button
                     type="button"
@@ -759,7 +767,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                 {shortTerm.length > 0 && (
                   <>
                     <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Short-Term Options
+                      {t("ca.shortTerm")}
                     </p>
                     <div className="mt-2 grid gap-2 sm:grid-cols-2">
                       {shortTerm.map((lic) => (
@@ -817,7 +825,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                 }
               }}
             >
-              Continue →
+              {t("wizard.continue")}
             </button>
           </>
         )}
@@ -825,34 +833,35 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
         {/* STEP 2 — Your Information */}
         {step === 1 && (
           <>
-            <h2 className="text-center text-xl font-bold text-slate-900">Your Personal Information</h2>
-            <p className="mt-1 text-center text-sm text-slate-500">
-              Please provide us with some personal information — this is essential for your CA Fishing
-              License guidance.
-            </p>
+            <h2 className="text-center text-xl font-bold text-slate-900">
+              {t("wizard.yourPersonalInformation")}
+            </h2>
+            <p className="mt-1 text-center text-sm text-slate-500">{t("ca.personalIntro")}</p>
 
             <div className="mt-4 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-              <span className="text-slate-500">State</span>
+              <span className="text-slate-500">{t("wizard.state")}</span>
               <p className="font-semibold text-slate-800">California</p>
             </div>
 
-            <h3 className="mt-6 text-base font-bold text-slate-900">Personal information</h3>
+            <h3 className="mt-6 text-base font-bold text-slate-900">
+              {t("wizard.personalInformation")}
+            </h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <Field label="First name" required>
+              <Field label={t("wizard.firstName")} required>
                 <input
                   className={inputClass}
                   value={form.firstName}
                   onChange={(e) => set("firstName", e.target.value)}
                 />
               </Field>
-              <Field label="Middle name">
+              <Field label={t("wizard.middleName")}>
                 <input
                   className={inputClass}
                   value={form.middleName}
                   onChange={(e) => set("middleName", e.target.value)}
                 />
               </Field>
-              <Field label="Last name" required>
+              <Field label={t("wizard.lastName")} required>
                 <input
                   className={inputClass}
                   value={form.lastName}
@@ -862,7 +871,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
             </div>
             <div className="mt-3">
               <p className="mb-1 text-sm font-medium text-slate-700">
-                Date of birth <span className="text-red-600">*</span>
+                {t("wizard.dob")} <span className="text-red-600">*</span>
               </p>
               <div className="grid grid-cols-3 gap-2">
                 <select
@@ -870,7 +879,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                   value={form.dobDay}
                   onChange={(e) => set("dobDay", e.target.value)}
                 >
-                  <option value="">Day</option>
+                  <option value="">{t("wizard.day")}</option>
                   {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
                     <option key={d} value={d}>
                       {d}
@@ -882,10 +891,10 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                   value={form.dobMonth}
                   onChange={(e) => set("dobMonth", e.target.value)}
                 >
-                  <option value="">Month</option>
+                  <option value="">{t("wizard.month")}</option>
                   {MONTHS.map((m) => (
                     <option key={m} value={m}>
-                      {m}
+                      {t(`month.${m}`)}
                     </option>
                   ))}
                 </select>
@@ -894,7 +903,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                   value={form.dobYear}
                   onChange={(e) => set("dobYear", e.target.value)}
                 >
-                  <option value="">Year</option>
+                  <option value="">{t("wizard.year")}</option>
                   {Array.from({ length: 100 }, (_, i) => String(2025 - i)).map((y) => (
                     <option key={y} value={y}>
                       {y}
@@ -904,9 +913,11 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
               </div>
             </div>
 
-            <h3 className="mt-6 text-base font-bold text-slate-900">Residential address information</h3>
+            <h3 className="mt-6 text-base font-bold text-slate-900">
+              {t("wizard.residentialAddress")}
+            </h3>
             <div className="mt-3 grid gap-3">
-              <Field label="Street address" required>
+              <Field label={t("wizard.street")} required>
                 <input
                   className={inputClass}
                   value={form.address}
@@ -914,14 +925,14 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                 />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="City" required>
+                <Field label={t("wizard.city")} required>
                   <input
                     className={inputClass}
                     value={form.city}
                     onChange={(e) => set("city", e.target.value)}
                   />
                 </Field>
-                <Field label="ZIP Code" required>
+                <Field label={t("wizard.zipCode")} required>
                   <input
                     className={inputClass}
                     value={form.zip}
@@ -930,13 +941,13 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                 </Field>
               </div>
               {form.residency !== "resident" && (
-                <Field label="State" required>
+                <Field label={t("wizard.state")} required>
                   <select
                     className={inputClass}
                     value={form.state}
                     onChange={(e) => set("state", e.target.value)}
                   >
-                    <option value="">Select</option>
+                    <option value="">{t("wizard.selectState")}</option>
                     {US_STATE_OPTIONS.map((s) => (
                       <option key={s.value} value={s.value}>
                         {s.label}
@@ -947,9 +958,11 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
               )}
             </div>
 
-            <h3 className="mt-6 text-base font-bold text-slate-900">Contact information</h3>
+            <h3 className="mt-6 text-base font-bold text-slate-900">
+              {t("wizard.contactInformation")}
+            </h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Email address" required>
+              <Field label={t("wizard.email")} required>
                 <input
                   type="email"
                   className={inputClass}
@@ -957,7 +970,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                   onChange={(e) => set("email", e.target.value)}
                 />
               </Field>
-              <Field label="Phone number" required>
+              <Field label={t("wizard.phone")} required>
                 <input
                   type="tel"
                   className={inputClass}
@@ -970,19 +983,19 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
 
             <h3 className="mt-6 text-base font-bold text-slate-900">Physical description</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label="Gender" required>
+              <Field label={t("wizard.gender")} required>
                 <select
                   className={inputClass}
                   value={form.gender}
                   onChange={(e) => set("gender", e.target.value)}
                 >
-                  <option value="">Select</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
+                  <option value="">{t("wizard.selectGender")}</option>
+                  <option value="male">{t("wizard.male")}</option>
+                  <option value="female">{t("wizard.female")}</option>
                   <option value="other">Other</option>
                 </select>
               </Field>
-              <Field label="Weight (lbs)" required>
+              <Field label={t("wizard.weight")} required>
                 <input
                   type="number"
                   min={1}
@@ -1020,14 +1033,14 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                   ))}
                 </select>
               </Field>
-              <Field label="Height" required className="sm:col-span-2">
+              <Field label={t("wizard.height")} required className="sm:col-span-2">
                 <div className="grid grid-cols-2 gap-2">
                   <select
                     className={inputClass}
                     value={form.heightFt}
                     onChange={(e) => set("heightFt", e.target.value)}
                   >
-                    <option value="">Feet</option>
+                    <option value="">{t("wizard.heightFt")}</option>
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
                       <option key={n} value={String(n)}>
                         {n} ft
@@ -1039,7 +1052,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                     value={form.heightIn}
                     onChange={(e) => set("heightIn", e.target.value)}
                   >
-                    <option value="">Inches</option>
+                    <option value="">{t("wizard.heightIn")}</option>
                     {Array.from({ length: 12 }, (_, i) => String(i)).map((n) => (
                       <option key={n} value={n}>
                         {n} in
@@ -1052,7 +1065,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
 
             <div className="mt-8 border-t border-slate-200 pt-5">
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">
-                Declaration & Consent
+                {t("wizard.declarationConsent")}
               </h2>
               <div className="mt-3 flex items-start gap-2 text-sm text-slate-700">
                 <input
@@ -1064,8 +1077,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                 />
                 <div className="min-w-0 flex-1">
                   <label htmlFor="ca-consent" className="cursor-pointer">
-                    I confirm that all information provided is accurate and I agree to the terms and
-                    conditions. <span className="text-red-600">*</span>
+                    {t("wizard.consent")} <span className="text-red-600">*</span>
                   </label>{" "}
                   <button
                     type="button"
@@ -1073,7 +1085,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                     onClick={() => setShowConsentTerms((v) => !v)}
                     aria-expanded={showConsentTerms}
                   >
-                    {showConsentTerms ? "Show less" : "Read More"}
+                    {showConsentTerms ? t("wizard.showLess") : t("wizard.readMore")}
                     <span aria-hidden="true">{showConsentTerms ? " ˅" : " >"}</span>
                   </button>
                   {showConsentTerms && (
@@ -1120,7 +1132,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                   setStep(0);
                 }}
               >
-                ← Back
+                {t("wizard.back")}
               </button>
               <button
                 type="button"
@@ -1134,7 +1146,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                   }
                 }}
               >
-                Complete Order
+                {t("wizard.completeOrder")}
               </button>
             </div>
           </>
@@ -1175,7 +1187,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                 setStep(1);
               }}
             >
-              ← Back
+              {t("wizard.back")}
             </button>
           </>
         )}

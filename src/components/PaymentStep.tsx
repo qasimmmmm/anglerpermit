@@ -32,6 +32,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { useLocale } from "@/i18n/LocaleProvider";
 
 /**
  * Wizard payment step — NMI Collect.js tokenized checkout.
@@ -169,6 +170,7 @@ export function PaymentStep({
   /** Slimmer chrome for competitor-style checkout pages. */
   compact?: boolean;
 }) {
+  const { t } = useLocale();
   const liveNmi = nmiBrowserConfigured();
   const showPromo = isTestPromoUiEnabled();
   const [number, setNumber] = useState("");
@@ -436,7 +438,7 @@ export function PaymentStep({
               <div className="sm:col-span-2">
                 <CollectFieldFrame
                   id={COLLECT_IDS.ccnumber}
-                  label="Card number"
+                  label={t("pay.cardNumber")}
                   error={liveErrors.ccnumber}
                   ready={ready}
                   rightAdornment={<CreditCard className="h-5 w-5 text-slate-400" aria-hidden="true" />}
@@ -444,13 +446,13 @@ export function PaymentStep({
               </div>
               <CollectFieldFrame
                 id={COLLECT_IDS.ccexp}
-                label="Expiry (MM/YY)"
+                label={t("pay.expiry")}
                 error={liveErrors.ccexp}
                 ready={ready}
               />
               <CollectFieldFrame
                 id={COLLECT_IDS.cvv}
-                label="Security code (CVV)"
+                label={t("pay.cvv")}
                 error={liveErrors.cvv}
                 ready={ready}
                 rightAdornment={
@@ -475,7 +477,7 @@ export function PaymentStep({
             <>
               <div className="sm:col-span-2">
                 <Input
-                  label="Card number"
+                  label={t("pay.cardNumber")}
                   name="cardNumber"
                   type="text"
                   inputMode="numeric"
@@ -491,7 +493,7 @@ export function PaymentStep({
                 />
               </div>
               <Input
-                label="Expiry (MM/YY)"
+                label={t("pay.expiry")}
                 name="cardExpiry"
                 type="text"
                 inputMode="numeric"
@@ -506,7 +508,7 @@ export function PaymentStep({
               />
               <div className="relative">
                 <Input
-                  label="Security code (CVV)"
+                  label={t("pay.cvv")}
                   name="cardCvv"
                   type="password"
                   inputMode="numeric"
@@ -543,7 +545,7 @@ export function PaymentStep({
           )}
           <div className="sm:col-span-2">
             <Input
-              label="Billing ZIP code"
+              label={t("pay.billingZip")}
               name="billingZip"
               type="text"
               inputMode="numeric"
@@ -591,12 +593,12 @@ export function PaymentStep({
           {busy ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-              Processing payment…
+              {t("pay.processing")}
             </>
           ) : (
             <>
               <Lock className="h-4 w-4" aria-hidden="true" />
-              Pay {formatPrice(chargeTotal)} securely
+              {t("pay.payNow", { amount: formatPrice(chargeTotal) })}
             </>
           )}
         </Button>
@@ -623,11 +625,11 @@ export function PaymentStep({
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                   <div className="flex-1">
                     <Input
-                      label="Promo code"
+                      label={t("pay.promo")}
                       name="promoCode"
                       type="text"
                       autoComplete="off"
-                      placeholder="Enter code"
+                      placeholder={t("pay.enterCode")}
                       value={promoInput}
                       onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                       onKeyDown={(e) => {
