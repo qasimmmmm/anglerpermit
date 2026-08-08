@@ -140,6 +140,7 @@ type FormState = {
   weightPounds: string;
   street: string;
   city: string;
+  state: string;
   zip: string;
   consent: boolean;
 };
@@ -165,6 +166,7 @@ const INITIAL: FormState = {
   weightPounds: "",
   street: "",
   city: "",
+  state: "MI",
   zip: "",
   consent: false,
 };
@@ -340,6 +342,7 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
       licenseId: "",
       idCountry: value === "nonresident" ? f.idCountry || "United States" : "United States",
       issuingState: value === "resident" ? "MI" : f.issuingState === "MI" ? "" : f.issuingState,
+      state: value === "resident" ? "MI" : f.state || "MI",
       // Competitor leaves ID type unset until the user picks; label defaults to Personal ID Number.
       idKind: f.idKind,
     }));
@@ -368,7 +371,11 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
     if (!form.weightPounds.trim() || Number(form.weightPounds) < 1) {
       e.push("Weight is required.");
     }
-    if (form.zip.trim() && !/^\d{5}(-\d{4})?$/.test(form.zip.trim())) {
+    if (!form.street.trim()) e.push("Street address is required.");
+    if (!form.city.trim()) e.push("City is required.");
+    if (!form.state) e.push("State is required.");
+    if (!form.zip.trim()) e.push("ZIP code is required.");
+    else if (!/^\d{5}(-\d{4})?$/.test(form.zip.trim())) {
       e.push("Enter a valid ZIP code.");
     }
     if (!form.consent) e.push("Please confirm your information and agree to the terms.");
@@ -406,7 +413,7 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
       primaryPhone: form.phone.trim() ? formatPhone(form.phone) : "",
       resStreet1: form.street.trim(),
       resCity: form.city.trim(),
-      resState: isResident ? "MICHIGAN" : toMiStateName(form.issuingState || "MI"),
+      resState: toMiStateName(form.state || (isResident ? "MI" : form.issuingState || "MI")),
       resZip: form.zip.trim(),
       resCountry:
         !isResident && form.idCountry && form.idCountry !== "United States"
@@ -859,22 +866,36 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
 
             <SectionHeading>Residential Address</SectionHeading>
             <div className="mt-3 grid gap-3">
-              <Field label="Street Address">
+              <Field label="Street Address" required>
                 <input
                   className={inputClass}
                   value={form.street}
                   onChange={(e) => set("street", e.target.value)}
                 />
               </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="City">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Field label="City" required>
                   <input
                     className={inputClass}
                     value={form.city}
                     onChange={(e) => set("city", e.target.value)}
                   />
                 </Field>
-                <Field label="ZIP">
+                <Field label="State" required>
+                  <select
+                    className={inputClass}
+                    value={form.state}
+                    onChange={(e) => set("state", e.target.value)}
+                  >
+                    <option value="">Select state</option>
+                    {MI_ISSUING_STATE_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.value === "MI" ? "MI — Michigan" : s.value}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="ZIP" required>
                   <input
                     className={inputClass}
                     value={form.zip}
