@@ -713,8 +713,7 @@ export const config: StateConfig = {
       section: "Address",
       label: "Street",
       type: "text",
-      // Competitor apply flow treats street as optional.
-      required: false,
+      required: true,
       autocomplete: "street-address",
       step: 2,
       officialNote: "Under 'Physical Address' heading; label rendered as 'Street * Physical Address'.",
@@ -733,8 +732,7 @@ export const config: StateConfig = {
       section: "Address",
       label: "City",
       type: "text",
-      // Competitor apply flow treats city as optional.
-      required: false,
+      required: true,
       autocomplete: "address-level2",
       step: 2,
     },
@@ -743,8 +741,7 @@ export const config: StateConfig = {
       section: "Address",
       label: "State",
       type: "select",
-      // Competitor apply flow has no State field on Applicant Info.
-      required: false,
+      required: true,
       options: [
         { "value": "AL", "label": "Alabama" },
         { "value": "AK", "label": "Alaska" },
@@ -816,8 +813,7 @@ export const config: StateConfig = {
       section: "Address",
       label: "Zip Code",
       type: "zip",
-      // Competitor apply flow treats ZIP as optional.
-      required: false,
+      required: true,
       mask: "zip",
       autocomplete: "postal-code",
       validation: { pattern: "^\\d{5}(-\\d{4})?$", patternMessage: "Enter a valid ZIP code" },
