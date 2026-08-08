@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { LicenseOption, StateConfig, TokenizedPayment } from "@/lib/state-config";
 import { computeOrderTotal, displayPrice } from "@/lib/state-config";
 import { US_STATE_OPTIONS } from "@/lib/us-states";
@@ -9,64 +9,40 @@ import { PaymentStep } from "@/components/PaymentStep";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { useLocale } from "@/i18n/LocaleProvider";
 
-const RESIDENT_ANNUAL_IDS = ["resident-all-water-package"] as const;
-const RESIDENT_SHORT_IDS = [
-  "resident-one-day-all-water-license",
-  "resident-two-day-all-water-license",
-  "resident-three-day-all-water-license",
-  "resident-four-day-all-water-license",
+const RESIDENT_ANNUAL_IDS = [
+  "resident-annual-fishing",
+  "small-game-fishing-combo",
 ] as const;
-const NONRESIDENT_ANNUAL_IDS = ["lake-texoma-license"] as const;
+const RESIDENT_SHORT_IDS = ["one-day-fishing-resident"] as const;
+const NONRESIDENT_ANNUAL_IDS = ["nonresident-annual-fishing"] as const;
 const NONRESIDENT_SHORT_IDS = [
-  "nonresident-one-day-all-water-license",
-  "nonresident-two-day-all-water-license",
-  "nonresident-three-day-all-water-license",
-  "nonresident-four-day-all-water-license",
+  "one-day-fishing-nonresident",
+  "five-day-fishing-nonresident",
 ] as const;
 
-const SHORT_TERM_IDS = new Set<string>([...RESIDENT_SHORT_IDS, ...NONRESIDENT_SHORT_IDS]);
+const SHORT_TERM_IDS = new Set<string>([
+  ...RESIDENT_SHORT_IDS,
+  ...NONRESIDENT_SHORT_IDS,
+  "additional-day-fishing",
+]);
 
 const LICENSE_LABELS: Record<string, string> = {
-  "resident-all-water-package": "All Water Fishing Package",
-  "resident-one-day-all-water-license": "1-Day",
-  "resident-two-day-all-water-license": "2-Day",
-  "resident-three-day-all-water-license": "3-Day",
-  "resident-four-day-all-water-license": "4-Day",
-  "lake-texoma-license": "Lake Texoma Fishing License",
-  "nonresident-one-day-all-water-license": "1-Day",
-  "nonresident-two-day-all-water-license": "2-Day",
-  "nonresident-three-day-all-water-license": "3-Day",
-  "nonresident-four-day-all-water-license": "4-Day",
+  "resident-annual-fishing": "Adult Annual Fishing",
+  "small-game-fishing-combo": "Small Game & Fishing Combo",
+  "one-day-fishing-resident": "1-Day Fishing",
+  "nonresident-annual-fishing": "Nonresident Annual Fishing",
+  "one-day-fishing-nonresident": "1-Day Fishing",
+  "five-day-fishing-nonresident": "5-Day Fishing",
 };
 
 const LICENSE_SUB: Record<string, string> = {
-  "resident-all-water-package": "Valid for 365 days",
-  "lake-texoma-license": "Valid to 12/31/2026",
+  "resident-annual-fishing": "Valid March 1 – March 31 (13 months)",
+  "small-game-fishing-combo": "Annual combo · small game + fishing",
+  "one-day-fishing-resident": "Valid for 1 day",
+  "nonresident-annual-fishing": "Valid March 1 – March 31 (13 months)",
+  "one-day-fishing-nonresident": "Valid for 1 day",
+  "five-day-fishing-nonresident": "Valid for 5 consecutive days",
 };
-
-const ID_COUNTRIES = [
-  "United States",
-  "Canada",
-  "Mexico",
-  "United Kingdom",
-  "Germany",
-  "France",
-  "Australia",
-  "Japan",
-  "Brazil",
-  "India",
-  "China",
-  "South Korea",
-  "Italy",
-  "Spain",
-  "Netherlands",
-  "Sweden",
-  "Norway",
-  "Denmark",
-  "Finland",
-  "Switzerland",
-  "Other",
-];
 
 const MONTHS = [
   "January",
@@ -83,46 +59,32 @@ const MONTHS = [
   "December",
 ];
 
-const TX_STATE_OPTIONS = [
-  ...US_STATE_OPTIONS.filter((s) => s.value === "TX"),
-  ...US_STATE_OPTIONS.filter((s) => s.value !== "TX" && s.value !== "DC"),
+const CO_STATE_OPTIONS = [
+  ...US_STATE_OPTIONS.filter((s) => s.value === "CO"),
+  ...US_STATE_OPTIONS.filter((s) => s.value !== "CO" && s.value !== "DC"),
   ...US_STATE_OPTIONS.filter((s) => s.value === "DC"),
 ];
 
-type IdKind = "drivers-license" | "personal-id";
+type IdKind = "drivers-license" | "state-id";
 type Step = 0 | 1 | 2;
 
 type FormState = {
   residency: "" | "resident" | "nonresident";
   idKind: IdKind | "";
   idNumber: string;
-  issueMonth: string;
-  issueDay: string;
-  issueYear: string;
-  expMonth: string;
-  expDay: string;
-  expYear: string;
-  idCountry: string;
   issuingState: string;
   ssn: string;
-  passportNumber: string;
-  passportCountry: string;
-  dlUploadName: string;
-  dlUploadData: string;
   licenseId: string;
-  digitalLicense: "" | "yes" | "no";
+  secondRod: boolean;
   firstName: string;
-  middleName: string;
+  middleInitial: string;
   lastName: string;
   dobDay: string;
   dobMonth: string;
   dobYear: string;
-  gender: string;
-  heightFt: string;
-  heightIn: string;
-  weightPounds: string;
   street: string;
   city: string;
+  state: string;
   zip: string;
   email: string;
   phone: string;
@@ -133,33 +95,19 @@ const INITIAL: FormState = {
   residency: "",
   idKind: "",
   idNumber: "",
-  issueMonth: "",
-  issueDay: "",
-  issueYear: "",
-  expMonth: "",
-  expDay: "",
-  expYear: "",
-  idCountry: "United States",
-  issuingState: "TX",
+  issuingState: "CO",
   ssn: "",
-  passportNumber: "",
-  passportCountry: "",
-  dlUploadName: "",
-  dlUploadData: "",
   licenseId: "",
-  digitalLicense: "",
+  secondRod: false,
   firstName: "",
-  middleName: "",
+  middleInitial: "",
   lastName: "",
   dobDay: "",
   dobMonth: "",
   dobYear: "",
-  gender: "",
-  heightFt: "",
-  heightIn: "",
-  weightPounds: "",
   street: "",
   city: "",
+  state: "CO",
   zip: "",
   email: "",
   phone: "",
@@ -179,6 +127,12 @@ function monthIndex(name: string): number {
 
 function digitsOnly(s: string) {
   return s.replace(/\D/g, "");
+}
+
+function formatPhone(raw: string): string {
+  const d = digitsOnly(raw).slice(0, 10);
+  if (d.length !== 10) return raw;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
 }
 
 function formatSsnDisplay(raw: string): string {
@@ -240,57 +194,9 @@ function Field({
 
 function SectionHeading({ children }: { children: ReactNode }) {
   return (
-    <h2 className="mt-8 border-t border-slate-100 pt-6 text-base font-bold text-slate-800">
+    <h2 className="mt-8 border-t border-slate-100 pt-6 text-base font-bold uppercase tracking-wide text-slate-800">
       {children}
     </h2>
-  );
-}
-
-function DateTriple({
-  month,
-  day,
-  year,
-  onMonth,
-  onDay,
-  onYear,
-  yearOptions,
-}: {
-  month: string;
-  day: string;
-  year: string;
-  onMonth: (v: string) => void;
-  onDay: (v: string) => void;
-  onYear: (v: string) => void;
-  yearOptions: string[];
-}) {
-  const { t } = useLocale();
-  return (
-    <div className="grid grid-cols-3 gap-2">
-      <select className={inputClass} value={month} onChange={(e) => onMonth(e.target.value)}>
-        <option value="">{t("wizard.month")}</option>
-        {MONTHS.map((m) => (
-          <option key={m} value={m}>
-            {t(`month.${m}`)}
-          </option>
-        ))}
-      </select>
-      <select className={inputClass} value={day} onChange={(e) => onDay(e.target.value)}>
-        <option value="">{t("wizard.day")}</option>
-        {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
-          <option key={d} value={d}>
-            {d}
-          </option>
-        ))}
-      </select>
-      <select className={inputClass} value={year} onChange={(e) => onYear(e.target.value)}>
-        <option value="">{t("wizard.year")}</option>
-        {yearOptions.map((y) => (
-          <option key={y} value={y}>
-            {y}
-          </option>
-        ))}
-      </select>
-    </div>
   );
 }
 
@@ -298,12 +204,10 @@ function LicenseCard({
   lic,
   selected,
   onSelect,
-  shortTerm = false,
 }: {
   lic: LicenseOption;
   selected: boolean;
   onSelect: () => void;
-  shortTerm?: boolean;
 }) {
   const price = displayPrice(lic.price);
   return (
@@ -321,7 +225,7 @@ function LicenseCard({
         <span className="block font-medium text-slate-800">
           {LICENSE_LABELS[lic.id] ?? lic.name}
         </span>
-        {!shortTerm && LICENSE_SUB[lic.id] && (
+        {LICENSE_SUB[lic.id] && (
           <span className="block text-xs text-slate-500">{LICENSE_SUB[lic.id]}</span>
         )}
       </span>
@@ -330,7 +234,7 @@ function LicenseCard({
   );
 }
 
-export function TexasCompetitorApply({ config }: { config: StateConfig }) {
+export function ColoradoCompetitorApply({ config }: { config: StateConfig }) {
   const { t } = useLocale();
   const [step, setStep] = useState<Step>(0);
   const [form, setForm] = useState<FormState>(INITIAL);
@@ -365,7 +269,12 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
   }, [config.licenses, form.residency, isResident]);
 
   const selectedLicense = config.licenses.find((l) => l.id === form.licenseId);
-  const total = form.licenseId ? computeOrderTotal(config, form.licenseId, []) : 0;
+  const addOnIds = form.secondRod ? ["second-rod-stamp"] : [];
+  const total = form.licenseId
+    ? computeOrderTotal(config, form.licenseId, addOnIds)
+    : 0;
+  const habitat = config.addOns.find((a) => a.id === "habitat-stamp");
+  const secondRod = config.addOns.find((a) => a.id === "second-rod-stamp");
   const needsStartDate = SHORT_TERM_IDS.has(form.licenseId);
 
   function selectResidency(value: "resident" | "nonresident") {
@@ -373,124 +282,58 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
       ...f,
       residency: value,
       licenseId: "",
-      digitalLicense: "",
-      idKind: "",
-      idNumber: "",
-      passportNumber: "",
-      passportCountry: "",
-      issuingState: value === "resident" ? "TX" : "",
-      idCountry: "United States",
+      issuingState: value === "resident" ? "CO" : "",
+      state: value === "resident" ? "CO" : f.state,
     }));
     setErrors([]);
   }
 
-  function onUpload(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors(["Driver's license upload must be 5MB or smaller."]);
-      return;
-    }
-    const ok =
-      /image\/(jpeg|png)/.test(file.type) ||
-      file.type === "application/pdf" ||
-      /\.(jpe?g|png|pdf)$/i.test(file.name);
-    if (!ok) {
-      setErrors(["Upload must be JPG, PNG, or PDF."]);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = typeof reader.result === "string" ? reader.result : "";
-      setForm((f) => ({ ...f, dlUploadName: file.name, dlUploadData: dataUrl }));
-    };
-    reader.readAsDataURL(file);
-  }
-
   function validateStep0(): string[] {
     const e: string[] = [];
-    if (!form.residency) e.push("Select whether your primary residence is in Texas.");
+    if (!form.residency) e.push("Select whether you are a Colorado resident.");
     if (!form.idKind) e.push("Select an ID type.");
-    if (!form.idNumber.trim()) {
-      e.push(
-        form.idKind === "personal-id"
-          ? "Enter your Personal ID number."
-          : "Enter your Driver's License number.",
-      );
-    }
-    if (!form.issueMonth || !form.issueDay || !form.issueYear) {
-      e.push("Driver's License issue date is required.");
-    }
-    if (!form.expMonth || !form.expDay || !form.expYear) {
-      e.push("Driver's License expiration date is required.");
-    }
-    if (!isResident && !form.idCountry) e.push("Country is required.");
-    if (!form.issuingState) e.push("Issuing state is required.");
+    if (!form.idNumber.trim()) e.push("Identification number is required.");
+    if (!form.issuingState) e.push("ID issuing state is required.");
     if (digitsOnly(form.ssn).length !== 9) e.push("Enter a valid Social Security number.");
-    if (!isResident) {
-      if (!form.passportNumber.trim()) e.push("Passport number is required.");
-      if (!form.passportCountry) e.push("Passport issuing country is required.");
-    }
     if (!form.licenseId) e.push("Select a license.");
-    if (!form.digitalLicense) e.push("Select digital or paper license preference.");
     return e;
   }
 
   function validateStep1(): string[] {
     const e: string[] = [];
-    if (!form.firstName.trim()) e.push("First name is required.");
-    if (!form.lastName.trim()) e.push("Last name is required.");
+    if (!form.firstName.trim()) e.push("First legal name is required.");
+    if (!form.lastName.trim()) e.push("Last legal name is required.");
     if (!form.dobDay || !form.dobMonth || !form.dobYear) e.push("Date of birth is required.");
-    if (!form.gender) e.push("Gender is required.");
-    if (!form.heightFt || form.heightIn === "") e.push("Height is required.");
-    if (!form.weightPounds.trim() || Number(form.weightPounds) <= 0) {
-      e.push("Weight is required.");
-    }
-    if (!form.street.trim()) e.push("Street address is required.");
+    if (!form.street.trim()) e.push("Mailing address is required.");
     if (!form.city.trim()) e.push("City is required.");
-    if (!/^\d{5}$/.test(form.zip.trim())) e.push("Enter a valid 5-digit ZIP code.");
-    if (!form.email.trim() || !form.email.includes("@")) e.push("Email address is required.");
+    if (!form.state) e.push("State is required.");
+    if (!/^\d{5}(-\d{4})?$/.test(form.zip.trim())) e.push("Enter a valid ZIP code.");
+    if (!form.email.trim() || !form.email.includes("@")) e.push("Email is required.");
     if (digitsOnly(form.phone).length !== 10) e.push("Enter a valid 10-digit phone number.");
     if (!form.consent) e.push("Please confirm your information and agree to the terms.");
     return e;
   }
 
   function buildPayload(payment: TokenizedPayment) {
-    const dob = `${pad2(monthIndex(form.dobMonth))}/${pad2(form.dobDay)}/${form.dobYear}`;
-    const ssnDigits = digitsOnly(form.ssn);
+    const dateOfBirth = `${pad2(monthIndex(form.dobMonth))}/${pad2(form.dobDay)}/${form.dobYear}`;
     const data: Record<string, string | boolean | number> = {
       firstName: form.firstName.trim(),
-      middleName: form.middleName.trim(),
+      middleInitial: form.middleInitial.trim().slice(0, 1),
       lastName: form.lastName.trim(),
-      dob,
-      gender: form.gender === "non-binary" ? "undisclosed" : form.gender,
-      heightFeet: form.heightFt,
-      heightInches: form.heightIn,
-      weightPounds: form.weightPounds.trim(),
-      ssn: ssnDigits,
-      driversLicenseState: form.issuingState,
-      driversLicenseNumber: form.idNumber.trim(),
-      texasResident: isResident ? "yes" : "no",
-      resAddress1: form.street.trim(),
-      resCity: form.city.trim(),
-      resState: isResident ? "TX" : form.issuingState || "TX",
-      resZip: form.zip.trim(),
-      phone: digitsOnly(form.phone),
+      dateOfBirth,
       email: form.email.trim(),
-      digitalLicense: form.digitalLicense,
-      idIssueDate: `${pad2(monthIndex(form.issueMonth))}/${pad2(form.issueDay)}/${form.issueYear}`,
-      idExpirationDate: `${pad2(monthIndex(form.expMonth))}/${pad2(form.expDay)}/${form.expYear}`,
-      idCountry: form.idCountry,
+      addressLine1: form.street.trim(),
+      city: form.city.trim(),
+      state: form.state,
+      zipCode: form.zip.trim(),
+      phone: formatPhone(form.phone),
+      identificationType: form.idKind,
+      identificationNumber: form.idNumber.trim(),
+      identificationState: form.issuingState,
+      ssn: digitsOnly(form.ssn),
+      residencyDeclaration: form.residency,
     };
 
-    if (!isResident) {
-      data.passportNumber = form.passportNumber.trim();
-      data.passportIssuingCountry = form.passportCountry;
-    }
-    if (form.dlUploadData) {
-      data.dlUploadName = form.dlUploadName;
-      data.dlUploadData = form.dlUploadData;
-    }
     if (needsStartDate) {
       const today = new Date();
       data.licenseStartDate = `${pad2(today.getMonth() + 1)}/${pad2(today.getDate())}/${today.getFullYear()}`;
@@ -500,7 +343,7 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
       stateSlug: config.slug,
       residency: form.residency,
       licenseId: form.licenseId,
-      addOnIds: [] as string[],
+      addOnIds,
       data,
       consents: { accurateAndTerms: true as const },
       payment,
@@ -561,7 +404,7 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
       <div className="mx-auto max-w-xl rounded border border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
         <h2 className="text-2xl font-bold text-navy">{t("wizard.applicationReceived")}</h2>
         <p className="mt-2 text-slate-600">
-          Thank you — your Texas fishing license application and payment have been received.
+          Thank you — your Colorado fishing license application and payment have been received.
         </p>
         <div className="mt-6 rounded border border-navy/10 bg-slate-50 px-6 py-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -584,8 +427,6 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
     t("wizard.yourInformation"),
     t("wizard.payment"),
   ] as const;
-  const issueYears = Array.from({ length: 30 }, (_, i) => String(2026 - i));
-  const expYears = Array.from({ length: 20 }, (_, i) => String(2026 + i));
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -627,12 +468,12 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
 
         {step === 0 && (
           <>
-            <h2 className="text-xl font-bold text-slate-900">{t("tx.step0Title")}</h2>
-            <p className="mt-1 text-sm text-slate-500">{t("tx.step0Sub")}</p>
+            <h2 className="text-xl font-bold text-slate-900">{t("co.step0Title")}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t("co.step0Sub")}</p>
 
             <div className="mt-6">
               <p className="text-sm font-semibold text-slate-800">
-                {t("tx.primaryInTexas")} <span className="text-red-600">*</span>
+                {t("co.areYouResident")} <span className="text-red-600">*</span>
               </p>
               <div className="mt-2 flex w-full flex-row gap-2">
                 <ChoiceButton
@@ -651,10 +492,9 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                 </ChoiceButton>
               </div>
               <p className="mt-3 text-sm text-slate-500">
-                A Texas resident is a person who has lived continuously in Texas for more than six
-                months immediately before buying their license. Members of the U.S. Armed Forces
-                (and their dependents) on full-time &quot;active duty&quot; anywhere are also
-                considered residents.
+                Colorado residents generally need a Colorado driver&apos;s license or ID issued at
+                least six months prior (or two additional proofs of residency). Youth 15 and under
+                fish free.
               </p>
             </div>
 
@@ -674,8 +514,8 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                     </ChoiceButton>
                     <ChoiceButton
                       className="flex-1"
-                      selected={form.idKind === "personal-id"}
-                      onClick={() => set("idKind", "personal-id")}
+                      selected={form.idKind === "state-id"}
+                      onClick={() => set("idKind", "state-id")}
                     >
                       {t("wizard.personalId")}
                     </ChoiceButton>
@@ -684,14 +524,7 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
 
                 {form.idKind && (
                   <div className="mt-4 grid gap-3">
-                    <Field
-                      label={
-                        form.idKind === "personal-id"
-                          ? "Personal ID Number"
-                          : "Driver's License Number"
-                      }
-                      required
-                    >
+                    <Field label="Identification Number" required>
                       <input
                         className={inputClass}
                         placeholder={t("wizard.enterIdNumber")}
@@ -699,63 +532,6 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                         onChange={(e) => set("idNumber", e.target.value)}
                       />
                     </Field>
-                    <Field label="Driver's License Issue Date" required>
-                      <DateTriple
-                        month={form.issueMonth}
-                        day={form.issueDay}
-                        year={form.issueYear}
-                        onMonth={(v) => set("issueMonth", v)}
-                        onDay={(v) => set("issueDay", v)}
-                        onYear={(v) => set("issueYear", v)}
-                        yearOptions={issueYears}
-                      />
-                    </Field>
-                    <Field label="Driver's License Expiration Date" required>
-                      <DateTriple
-                        month={form.expMonth}
-                        day={form.expDay}
-                        year={form.expYear}
-                        onMonth={(v) => set("expMonth", v)}
-                        onDay={(v) => set("expDay", v)}
-                        onYear={(v) => set("expYear", v)}
-                        yearOptions={expYears}
-                      />
-                    </Field>
-                    <div>
-                      <p className="mb-1 text-sm font-medium text-slate-700">
-                        Upload Driver&apos;s License{" "}
-                        <span className="font-normal text-slate-400">(optional)</span>
-                      </p>
-                      <label className="flex cursor-pointer flex-col items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600 hover:border-navy/40">
-                        <span className="font-semibold text-navy">
-                          {form.dlUploadName || "Click to upload your Driver's License"}
-                        </span>
-                        <span className="mt-1 text-xs text-slate-400">
-                          JPG, PNG or PDF — max 5MB
-                        </span>
-                        <input
-                          type="file"
-                          accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                          className="hidden"
-                          onChange={onUpload}
-                        />
-                      </label>
-                    </div>
-                    {!isResident && (
-                      <Field label={t("wizard.country")} required>
-                        <select
-                          className={inputClass}
-                          value={form.idCountry}
-                          onChange={(e) => set("idCountry", e.target.value)}
-                        >
-                          {ID_COUNTRIES.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                    )}
                     <Field label={t("wizard.issuingState")} required>
                       <select
                         className={inputClass}
@@ -763,11 +539,9 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                         onChange={(e) => set("issuingState", e.target.value)}
                       >
                         <option value="">{t("wizard.selectIssuingState")}</option>
-                        <option value="TX">TX — Texas</option>
-                        <option disabled>──────────</option>
-                        {TX_STATE_OPTIONS.filter((s) => s.value !== "TX").map((s) => (
+                        {CO_STATE_OPTIONS.map((s) => (
                           <option key={s.value} value={s.value}>
-                            {s.value}
+                            {s.value === "CO" ? "CO — Colorado" : s.value}
                           </option>
                         ))}
                       </select>
@@ -781,31 +555,6 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                         onChange={(e) => set("ssn", digitsOnly(e.target.value))}
                       />
                     </Field>
-                    {!isResident && (
-                      <>
-                        <Field label="Passport Number" required>
-                          <input
-                            className={inputClass}
-                            value={form.passportNumber}
-                            onChange={(e) => set("passportNumber", e.target.value)}
-                          />
-                        </Field>
-                        <Field label="Passport Issuing Country" required>
-                          <select
-                            className={inputClass}
-                            value={form.passportCountry}
-                            onChange={(e) => set("passportCountry", e.target.value)}
-                          >
-                            <option value="">Select country</option>
-                            {ID_COUNTRIES.map((c) => (
-                              <option key={c} value={c}>
-                                {c}
-                              </option>
-                            ))}
-                          </select>
-                        </Field>
-                      </>
-                    )}
                     <div
                       className={[
                         "rounded border px-3 py-2 text-sm",
@@ -814,7 +563,7 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                           : "border-amber-200 bg-amber-50 text-amber-900",
                       ].join(" ")}
                     >
-                      {isResident ? t("tx.residentBanner") : t("tx.nonResidentBanner")}
+                      {isResident ? t("co.residentBanner") : t("co.nonResidentBanner")}
                     </div>
                   </div>
                 )}
@@ -828,10 +577,7 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                           key={lic.id}
                           lic={lic}
                           selected={form.licenseId === lic.id}
-                          onSelect={() => {
-                            set("licenseId", lic.id);
-                            if (!form.digitalLicense) set("digitalLicense", "yes");
-                          }}
+                          onSelect={() => set("licenseId", lic.id)}
                         />
                       ))}
                     </div>
@@ -846,48 +592,40 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                         <LicenseCard
                           key={lic.id}
                           lic={lic}
-                          shortTerm
                           selected={form.licenseId === lic.id}
-                          onSelect={() => {
-                            set("licenseId", lic.id);
-                            if (!form.digitalLicense) set("digitalLicense", "yes");
-                          }}
+                          onSelect={() => set("licenseId", lic.id)}
                         />
                       ))}
                     </div>
                   </>
                 )}
 
-                {form.licenseId && (
-                  <div className="mt-6">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {t("tx.digitalCustomer")} <span className="text-red-600">*</span>
-                    </p>
-                    <div className="mt-2 space-y-2">
-                      <ChoiceButton
-                        className="w-full text-left"
-                        selected={form.digitalLicense === "yes"}
-                        onClick={() => set("digitalLicense", "yes")}
-                      >
-                        <span className="block">{t("tx.digitalYes")}</span>
-                        <span className="mt-1 block text-xs font-normal text-slate-500">
-                          You will access your license, tags, and reporting on the Texas Hunt &amp;
-                          Fish app. We will NOT mail you a paper license.
-                        </span>
-                      </ChoiceButton>
-                      <ChoiceButton
-                        className="w-full text-left"
-                        selected={form.digitalLicense === "no"}
-                        onClick={() => set("digitalLicense", "no")}
-                      >
-                        <span className="block">{t("tx.digitalNo")}</span>
-                        <span className="mt-1 block text-xs font-normal text-slate-500">
-                          We will mail you a paper license. It typically takes 7–10 business days to
-                          receive your license.
-                        </span>
-                      </ChoiceButton>
-                    </div>
+                {form.licenseId && habitat && (
+                  <div className="mt-4 rounded border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-600">
+                    <span className="font-semibold text-slate-800">
+                      Annual Habitat Stamp ({formatPrice(displayPrice(habitat.price))})
+                    </span>{" "}
+                    is included when applicable — required for ages 18–64 on most license purchases.
                   </div>
+                )}
+
+                {form.licenseId && secondRod && (
+                  <label className="mt-4 flex items-start gap-2 rounded border border-slate-200 px-3 py-3 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={form.secondRod}
+                      onChange={(e) => set("secondRod", e.target.checked)}
+                    />
+                    <span>
+                      <span className="font-semibold text-slate-800">
+                        Add Second-rod Stamp ({formatPrice(displayPrice(secondRod.price))})
+                      </span>
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        Allows fishing with a second rod. Does not increase bag limits.
+                      </span>
+                    </span>
+                  </label>
                 )}
               </>
             )}
@@ -911,10 +649,15 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
 
         {step === 1 && (
           <>
-            <h2 className="text-xl font-bold text-slate-900">{t("wizard.yourPersonalInformation")}</h2>
-            <p className="mt-1 text-sm text-slate-500">{t("tx.personalIntro")}</p>
+            <h2 className="text-xl font-bold text-slate-900">
+              {t("wizard.yourPersonalInformation")}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Please provide us with some personal information — this is essential for your CO
+              Fishing License guidance.
+            </p>
             <p className="mt-4 text-sm text-slate-600">
-              {t("wizard.state")}: <span className="font-semibold text-slate-900">Texas</span>
+              {t("wizard.state")}: <span className="font-semibold text-slate-900">Colorado</span>
             </p>
 
             <SectionHeading>{t("wizard.personalInformation")}</SectionHeading>
@@ -929,8 +672,9 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
               <Field label={t("wizard.middleName")}>
                 <input
                   className={inputClass}
-                  value={form.middleName}
-                  onChange={(e) => set("middleName", e.target.value)}
+                  maxLength={1}
+                  value={form.middleInitial}
+                  onChange={(e) => set("middleInitial", e.target.value)}
                 />
               </Field>
               <Field label={t("wizard.lastName")} required>
@@ -983,59 +727,6 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
               </div>
             </Field>
 
-            <SectionHeading>{t("wizard.demographics")}</SectionHeading>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <Field label={t("wizard.gender")} required className="sm:col-span-2">
-                <select
-                  className={inputClass}
-                  value={form.gender}
-                  onChange={(e) => set("gender", e.target.value)}
-                >
-                  <option value="">{t("wizard.selectGender")}</option>
-                  <option value="male">{t("wizard.male")}</option>
-                  <option value="female">{t("wizard.female")}</option>
-                  <option value="non-binary">{t("wizard.nonBinary")}</option>
-                  <option value="undisclosed">{t("wizard.preferNot")}</option>
-                </select>
-              </Field>
-              <Field label={t("wizard.heightFt")} required>
-                <select
-                  className={inputClass}
-                  value={form.heightFt}
-                  onChange={(e) => set("heightFt", e.target.value)}
-                >
-                  <option value="">Ft</option>
-                  {["3", "4", "5", "6", "7"].map((ft) => (
-                    <option key={ft} value={ft}>
-                      {ft}&apos;
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={t("wizard.heightIn")} required>
-                <select
-                  className={inputClass}
-                  value={form.heightIn}
-                  onChange={(e) => set("heightIn", e.target.value)}
-                >
-                  <option value="">In</option>
-                  {Array.from({ length: 12 }, (_, i) => String(i)).map((inch) => (
-                    <option key={inch} value={inch}>
-                      {inch}&quot;
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={t("wizard.weight")} required className="sm:col-span-2">
-                <input
-                  className={inputClass}
-                  inputMode="numeric"
-                  value={form.weightPounds}
-                  onChange={(e) => set("weightPounds", digitsOnly(e.target.value).slice(0, 3))}
-                />
-              </Field>
-            </div>
-
             <SectionHeading>{t("wizard.residentialAddress")}</SectionHeading>
             <div className="mt-3 grid gap-3">
               <Field label={t("wizard.street")} required>
@@ -1045,7 +736,7 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                   onChange={(e) => set("street", e.target.value)}
                 />
               </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-3">
                 <Field label={t("wizard.city")} required>
                   <input
                     className={inputClass}
@@ -1053,11 +744,24 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                     onChange={(e) => set("city", e.target.value)}
                   />
                 </Field>
+                <Field label={t("wizard.state")} required>
+                  <select
+                    className={inputClass}
+                    value={form.state}
+                    onChange={(e) => set("state", e.target.value)}
+                  >
+                    {US_STATE_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.value}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
                 <Field label={t("wizard.zipCode")} required>
                   <input
                     className={inputClass}
                     value={form.zip}
-                    onChange={(e) => set("zip", digitsOnly(e.target.value).slice(0, 5))}
+                    onChange={(e) => set("zip", e.target.value)}
                   />
                 </Field>
               </div>
@@ -1106,7 +810,7 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
               {showConsentTerms && (
                 <p className="mt-2 text-xs leading-relaxed text-slate-500">
                   {NON_AFFILIATION_DISCLAIMER} By submitting, you authorize AnglerPermit to assist
-                  with your Texas fishing license application and to process payment for the
+                  with your Colorado fishing license application and to process payment for the
                   selected license.
                 </p>
               )}

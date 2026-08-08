@@ -11,6 +11,7 @@ import { US_STATE_OPTIONS } from "@/lib/us-states";
 import { formatPrice } from "@/lib/format";
 import { PaymentStep } from "@/components/PaymentStep";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
+import { useLocale } from "@/i18n/LocaleProvider";
 
 /** Competitor DL-state option order: Florida pinned first, DC last. */
 const FL_STATE_OPTIONS = [
@@ -239,6 +240,7 @@ function licenseLabel(lic: LicenseOption): string {
 }
 
 export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
+  const { t } = useLocale();
   const [step, setStep] = useState<Step>(0);
   const [form, setForm] = useState<FormState>(INITIAL);
   const [errors, setErrors] = useState<string[]>([]);
@@ -504,19 +506,19 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
   if (reference) {
     return (
       <div className="mx-auto max-w-xl rounded border border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
-        <h2 className="text-2xl font-bold text-navy">Application received</h2>
+        <h2 className="text-2xl font-bold text-navy">{t("wizard.applicationReceived")}</h2>
         <p className="mt-2 text-slate-600">
           Thank you — your Florida fishing license application and payment have been received.
         </p>
         <div className="mt-6 rounded border border-navy/10 bg-slate-50 px-6 py-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Your reference number
+            {t("wizard.referenceNumber")}
           </p>
           <p className="mt-1 font-mono text-xl font-bold text-navy">{reference}</p>
         </div>
         {confirmationEmail && (
           <p className="mt-4 text-sm text-slate-600">
-            A confirmation email is on its way to{" "}
+            {t("wizard.confirmationEmail")}{" "}
             <span className="font-semibold text-navy">{confirmationEmail}</span>.
           </p>
         )}
@@ -524,7 +526,18 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
     );
   }
 
-  const steps = ["License Selection", "Personal Details", "Payment"] as const;
+  const steps = [
+    t("wizard.licenseSelection"),
+    t("wizard.personalDetails"),
+    t("wizard.payment"),
+  ] as const;
+
+  const flResidencyLabel = (value: string) => {
+    if (value === "resident") return t("fl.resident");
+    if (value === "us-citizen") return t("fl.usCitizen");
+    if (value === "international") return t("fl.international");
+    return config.residencyOptions.find((o) => o.value === value)?.label ?? value;
+  };
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -566,11 +579,11 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
 
         {step === 0 && (
           <>
-            <h2 className="text-xl font-bold text-slate-900">Residency Information</h2>
+            <h2 className="text-xl font-bold text-slate-900">{t("fl.residencyInfo")}</h2>
 
             <div className="mt-6">
               <p className="text-sm font-semibold text-slate-800">
-                Primary Residence Type <span className="text-red-600">*</span>
+                {t("fl.primaryResidence")} <span className="text-red-600">*</span>
               </p>
               <div className="mt-2 grid w-full grid-cols-3 gap-3">
                 {config.residencyOptions.map((opt) => (
@@ -579,7 +592,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                     selected={form.residency === opt.value}
                     onClick={() => selectResidency(opt.value)}
                   >
-                    {opt.label}
+                    {flResidencyLabel(opt.value)}
                   </ChoiceButton>
                 ))}
               </div>
@@ -625,10 +638,10 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                         value={form.expMonth}
                         onChange={(e) => set("expMonth", e.target.value)}
                       >
-                        <option value="">Month</option>
+                        <option value="">{t("wizard.month")}</option>
                         {MONTHS.map((m) => (
                           <option key={m} value={m}>
-                            {m}
+                            {t(`month.${m}`)}
                           </option>
                         ))}
                       </select>
@@ -637,7 +650,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                         value={form.expDay}
                         onChange={(e) => set("expDay", e.target.value)}
                       >
-                        <option value="">Day</option>
+                        <option value="">{t("wizard.day")}</option>
                         {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
                           <option key={d} value={d}>
                             {d}
@@ -649,7 +662,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                         value={form.expYear}
                         onChange={(e) => set("expYear", e.target.value)}
                       >
-                        <option value="">Year</option>
+                        <option value="">{t("wizard.year")}</option>
                         {Array.from({ length: 15 }, (_, i) => String(2026 + i)).map((y) => (
                           <option key={y} value={y}>
                             {y}
@@ -658,7 +671,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                       </select>
                     </div>
                   </Field>
-                  <Field label="Social Security Number" required className="sm:col-span-2">
+                  <Field label={t("wizard.ssn")} required className="sm:col-span-2">
                     <input
                       className={inputClass}
                       placeholder="XXX-XX-XXXX"
@@ -675,21 +688,21 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                   This must match your official identification.
                 </p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  <Field label="First Name" required>
+                  <Field label={t("wizard.firstName")} required>
                     <input
                       className={inputClass}
                       value={form.firstName}
                       onChange={(e) => set("firstName", e.target.value)}
                     />
                   </Field>
-                  <Field label="Middle Name">
+                  <Field label={t("wizard.middleName")}>
                     <input
                       className={inputClass}
                       value={form.middleName}
                       onChange={(e) => set("middleName", e.target.value)}
                     />
                   </Field>
-                  <Field label="Last Name" required>
+                  <Field label={t("wizard.lastName")} required>
                     <input
                       className={inputClass}
                       value={form.lastName}
@@ -721,7 +734,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
               <>
                 <SectionHeading>U.S. Citizen Identification</SectionHeading>
                 <div className="mt-4 grid gap-3">
-                  <Field label="Social Security Number" required>
+                  <Field label={t("wizard.ssn")} required>
                     <input
                       className={inputClass}
                       placeholder="XXX-XX-XXXX"
@@ -752,7 +765,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                         value={form.dlIssuingState}
                         onChange={(e) => set("dlIssuingState", e.target.value)}
                       >
-                        <option value="">State</option>
+                        <option value="">{t("wizard.state")}</option>
                         {FL_STATE_OPTIONS.map((s) => (
                           <option key={s.value} value={s.value}>
                             {s.label}
@@ -773,21 +786,21 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                   Please enter your name <strong>exactly as it appears on your Driver&apos;s License</strong>.
                 </p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  <Field label="First Name" required>
+                  <Field label={t("wizard.firstName")} required>
                     <input
                       className={inputClass}
                       value={form.firstName}
                       onChange={(e) => set("firstName", e.target.value)}
                     />
                   </Field>
-                  <Field label="Middle Name">
+                  <Field label={t("wizard.middleName")}>
                     <input
                       className={inputClass}
                       value={form.middleName}
                       onChange={(e) => set("middleName", e.target.value)}
                     />
                   </Field>
-                  <Field label="Last Name" required>
+                  <Field label={t("wizard.lastName")} required>
                     <input
                       className={inputClass}
                       value={form.lastName}
@@ -819,16 +832,16 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
               <>
                 <SectionHeading>Personal Identification</SectionHeading>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <Field label="Identification Type" required>
+                  <Field label={t("wizard.identificationType")} required>
                     <select
                       className={inputClass}
                       value={form.intlIdType}
                       onChange={(e) => set("intlIdType", e.target.value as IntlIdType | "")}
                     >
                       <option value="">Select identification type...</option>
-                      <option value="passport">Passport</option>
+                      <option value="passport">{t("wizard.passport")}</option>
                       <option value="visa">Visa</option>
-                      <option value="green-card">Green Card</option>
+                      <option value="green-card">{t("wizard.greenCard")}</option>
                       <option value="non-us-drivers-license">Non-US Driver&apos;s License</option>
                     </select>
                   </Field>
@@ -899,47 +912,47 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                 }
               }}
             >
-              Continue to Personal Details
+              {t("fl.continuePersonal")}
             </button>
           </>
         )}
 
         {step === 1 && (
           <>
-            <h2 className="text-xl font-bold text-slate-900">Personal information</h2>
+            <h2 className="text-xl font-bold text-slate-900">{t("wizard.personalInformation")}</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <Field label="First Name" required>
+              <Field label={t("wizard.firstName")} required>
                 <input
                   className={inputClass}
                   value={form.firstName}
                   onChange={(e) => set("firstName", e.target.value)}
                 />
               </Field>
-              <Field label="Middle Name">
+              <Field label={t("wizard.middleName")}>
                 <input
                   className={inputClass}
                   value={form.middleName}
                   onChange={(e) => set("middleName", e.target.value)}
                 />
               </Field>
-              <Field label="Last Name" required>
+              <Field label={t("wizard.lastName")} required>
                 <input
                   className={inputClass}
                   value={form.lastName}
                   onChange={(e) => set("lastName", e.target.value)}
                 />
               </Field>
-              <Field label="Date of Birth" required className="sm:col-span-3">
+              <Field label={t("wizard.dob")} required className="sm:col-span-3">
                 <div className="grid grid-cols-3 gap-2">
                   <select
                     className={inputClass}
                     value={form.dobMonth}
                     onChange={(e) => set("dobMonth", e.target.value)}
                   >
-                    <option value="">Month</option>
+                    <option value="">{t("wizard.month")}</option>
                     {MONTHS.map((m) => (
                       <option key={m} value={m}>
-                        {m}
+                        {t(`month.${m}`)}
                       </option>
                     ))}
                   </select>
@@ -948,7 +961,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                     value={form.dobDay}
                     onChange={(e) => set("dobDay", e.target.value)}
                   >
-                    <option value="">Day</option>
+                    <option value="">{t("wizard.day")}</option>
                     {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
                       <option key={d} value={d}>
                         {d}
@@ -960,7 +973,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                     value={form.dobYear}
                     onChange={(e) => set("dobYear", e.target.value)}
                   >
-                    <option value="">Year</option>
+                    <option value="">{t("wizard.year")}</option>
                     {Array.from({ length: 100 }, (_, i) => String(2025 - i)).map((y) => (
                       <option key={y} value={y}>
                         {y}
@@ -971,27 +984,27 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
               </Field>
             </div>
 
-            <SectionHeading>Residential Address</SectionHeading>
+            <SectionHeading>{t("wizard.residentialAddress")}</SectionHeading>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Field label="Street Address" required className="sm:col-span-2">
+              <Field label={t("wizard.street")} required className="sm:col-span-2">
                 <input
                   className={inputClass}
                   value={form.street}
                   onChange={(e) => set("street", e.target.value)}
                 />
               </Field>
-              <Field label="City" required>
+              <Field label={t("wizard.city")} required>
                 <input
                   className={inputClass}
                   value={form.city}
                   onChange={(e) => set("city", e.target.value)}
                 />
               </Field>
-              <Field label="State" required>
+              <Field label={t("wizard.state")} required>
                 {/* Competitor parity: license state is fixed to Florida (read-only). */}
                 <input className={inputClass} value="Florida" readOnly />
               </Field>
-              <Field label="ZIP Code" required className="sm:col-span-2">
+              <Field label={t("wizard.zipCode")} required className="sm:col-span-2">
                 <input
                   className={inputClass}
                   value={form.zip}
@@ -1000,9 +1013,9 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
               </Field>
             </div>
 
-            <SectionHeading>Contact Information</SectionHeading>
+            <SectionHeading>{t("wizard.contactInformation")}</SectionHeading>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Field label="Email Address" required>
+              <Field label={t("wizard.email")} required>
                 <input
                   type="email"
                   className={inputClass}
@@ -1010,7 +1023,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                   onChange={(e) => set("email", e.target.value)}
                 />
               </Field>
-              <Field label="Phone Number" required>
+              <Field label={t("wizard.phone")} required>
                 <input
                   className={inputClass}
                   placeholder="+1 (555) 000-0000"
@@ -1020,18 +1033,18 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
               </Field>
             </div>
 
-            <SectionHeading>Demographics Information</SectionHeading>
+            <SectionHeading>{t("wizard.demographics")}</SectionHeading>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Field label="Gender" required>
+              <Field label={t("wizard.gender")} required>
                 <select
                   className={inputClass}
                   value={form.gender}
                   onChange={(e) => set("gender", e.target.value)}
                 >
-                  <option value="">Select...</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="prefer-not-to-say">Prefer not to say</option>
+                  <option value="">{t("wizard.selectGender")}</option>
+                  <option value="male">{t("wizard.male")}</option>
+                  <option value="female">{t("wizard.female")}</option>
+                  <option value="prefer-not-to-say">{t("wizard.preferNot")}</option>
                 </select>
               </Field>
               <Field label="Ethnicity" required>
@@ -1048,7 +1061,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                   ))}
                 </select>
               </Field>
-              <Field label="Height" required className="sm:col-span-2">
+              <Field label={t("wizard.height")} required className="sm:col-span-2">
                 <div className="grid grid-cols-2 gap-2">
                   <select
                     className={inputClass}
@@ -1078,7 +1091,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
               </Field>
             </div>
 
-            <SectionHeading>Declaration & Consent</SectionHeading>
+            <SectionHeading>{t("wizard.declarationConsent")}</SectionHeading>
             <div className="mt-4">
               <div className="flex items-start gap-2 text-sm text-slate-700">
                 <input
@@ -1090,8 +1103,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                 />
                 <div className="min-w-0 flex-1">
                   <label htmlFor="fl-consent" className="cursor-pointer">
-                    I confirm that all information provided is accurate and I agree to the terms and
-                    conditions. <span className="text-red-600">*</span>
+                    {t("wizard.consent")} <span className="text-red-600">*</span>
                   </label>{" "}
                   <button
                     type="button"
@@ -1099,7 +1111,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                     onClick={() => setShowConsentTerms((v) => !v)}
                     aria-expanded={showConsentTerms}
                   >
-                    {showConsentTerms ? "Show less" : "Read More"}
+                    {showConsentTerms ? t("wizard.showLess") : t("wizard.readMore")}
                     <span aria-hidden="true">{showConsentTerms ? " ˅" : " >"}</span>
                   </button>
                   {showConsentTerms && (
@@ -1147,7 +1159,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                   setStep(0);
                 }}
               >
-                ← Back
+                {t("wizard.back")}
               </button>
               <button
                 type="button"
@@ -1161,7 +1173,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                   }
                 }}
               >
-                Continue to Payment
+                {t("wizard.continuePayment")}
               </button>
             </div>
           </>
@@ -1170,7 +1182,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
         {step === 2 && (
           <>
             <h2 className="mb-4 text-center text-xl font-bold text-slate-900">
-              Complete your payment
+              {t("wizard.payment")}
             </h2>
             <PaymentStep
               total={total}
@@ -1196,7 +1208,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                 setStep(1);
               }}
             >
-              ← Back
+              {t("wizard.back")}
             </button>
           </>
         )}
