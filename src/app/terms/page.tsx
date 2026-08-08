@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LegalContactBlock } from "@/components/LegalContactBlock";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -313,22 +314,7 @@ export default function TermsPage() {
           <section id="contact" className="scroll-mt-28">
             <h2 className="text-xl font-bold">15. Contact</h2>
             <p className="mt-3">Questions about these terms:</p>
-            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-6 py-5">
-              <p>
-                Email:{" "}
-                <a
-                  href="mailto:support@anglerpermit.com"
-                  className="font-medium text-forest-700 underline"
-                >
-                  support@anglerpermit.com
-                </a>
-              </p>
-              <p className="mt-2">Registered office: [Company address]</p>
-              <p className="mt-2 text-sm italic text-slate-500">
-                Owner note: replace [Company address] with the registered business address
-                before launch.
-              </p>
-            </div>
+            <LegalContactBlock />
           </section>
         </div>
       </section>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ExternalLink } from "lucide-react";
+import { LegalContactBlock } from "@/components/LegalContactBlock";
 import { NON_AFFILIATION_DISCLAIMER } from "@/components/ui/DisclaimerBanner";
 
 export const metadata: Metadata = {
@@ -241,22 +242,7 @@ export default function DisclaimerPage() {
           <section id="contact" className="scroll-mt-28">
             <h2 className="text-xl font-bold">8. Contact</h2>
             <p className="mt-3">Questions about this disclaimer:</p>
-            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-6 py-5">
-              <p>
-                Email:{" "}
-                <a
-                  href="mailto:support@anglerpermit.com"
-                  className="font-medium text-forest-700 underline"
-                >
-                  support@anglerpermit.com
-                </a>
-              </p>
-              <p className="mt-2">Registered office: [Company address]</p>
-              <p className="mt-2 text-sm italic text-slate-500">
-                Owner note: replace [Company address] with the registered business address
-                before launch.
-              </p>
-            </div>
+            <LegalContactBlock />
           </section>
         </div>
       </section>

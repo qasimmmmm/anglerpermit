@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LegalContactBlock } from "@/components/LegalContactBlock";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -376,23 +377,7 @@ export default function PrivacyPage() {
             <p className="mt-3">
               For privacy questions or to exercise any right described in this policy:
             </p>
-            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-6 py-5">
-              <p>
-                Email:{" "}
-                <a
-                  href="mailto:support@anglerpermit.com"
-                  className="font-medium text-forest-700 underline"
-                >
-                  support@anglerpermit.com
-                </a>{" "}
-                (subject line: &ldquo;Privacy request&rdquo;)
-              </p>
-              <p className="mt-2">Registered office: [Company address]</p>
-              <p className="mt-2 text-sm italic text-slate-500">
-                Owner note: replace [Company address] with the registered business address
-                before launch.
-              </p>
-            </div>
+            <LegalContactBlock emailNote={<>(subject line: &ldquo;Privacy request&rdquo;)</>} />
           </section>
         </div>
       </section>
