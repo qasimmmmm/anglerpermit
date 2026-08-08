@@ -14,9 +14,6 @@ export function LegalContactBlock({ emailNote }: LegalContactBlockProps) {
   return (
     <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-6 py-5">
       <p>
-        <span className="font-medium text-navy">Business Name:</span> OpenGov Services LLC
-      </p>
-      <p className="mt-2">
         <span className="font-medium text-navy">Contact Person/Department:</span> Customer
         Support
       </p>
