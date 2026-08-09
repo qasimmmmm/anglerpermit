@@ -47,6 +47,7 @@ import { Select } from "@/components/ui/Select";
 import { LicenseSelector } from "@/components/LicenseSelector";
 import { PriceSummary } from "@/components/PriceSummary";
 import { PaymentStep } from "@/components/PaymentStep";
+import { PurchaseConversionBeacon } from "@/components/PurchaseConversionBeacon";
 
 interface WizardValues {
   stateSlug: string;
@@ -515,6 +516,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
   // it only drives visibility of the mail* fields (which are conditional on it).
   const [mailingDifferent, setMailingDifferent] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
+  const [conversionValue, setConversionValue] = useState(1);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -926,6 +928,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
         reference?: string;
         applicationId?: string | null;
         confirmationEmailedTo?: string | null;
+        amount?: number;
         message?: string;
         errors?: Record<string, string[]>;
       };
@@ -935,6 +938,9 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
         // Application is complete — drop the saved draft so a later visit
         // starts fresh instead of resuming a finished order.
         clearDraft();
+        setConversionValue(
+          typeof json.amount === "number" && json.amount > 0 ? json.amount : orderTotal,
+        );
         setReference(json.reference);
         setConfirmationEmail(json.confirmationEmailedTo ?? null);
         setStep(4);
@@ -992,6 +998,7 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
   if (step === 4 && reference) {
     return (
       <Card className="mx-auto max-w-2xl">
+        <PurchaseConversionBeacon transactionId={reference} value={conversionValue} />
         <div className="px-6 py-10 text-center sm:px-10">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-forest-50">
             <Check className="h-8 w-8 text-forest-600" aria-hidden="true" />

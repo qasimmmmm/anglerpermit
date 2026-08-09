@@ -9,6 +9,7 @@ import {
 } from "@/lib/state-config";
 import { formatPrice } from "@/lib/format";
 import { PaymentStep } from "@/components/PaymentStep";
+import { PurchaseConversionBeacon } from "@/components/PurchaseConversionBeacon";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { useLocale } from "@/i18n/LocaleProvider";
 
@@ -285,6 +286,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
+  const [conversionValue, setConversionValue] = useState(1);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   const [showConsentTerms, setShowConsentTerms] = useState(false);
   const applicationIdRef = useRef<string | null>(null);
@@ -441,11 +443,15 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
         reference?: string;
         applicationId?: string | null;
         confirmationEmailedTo?: string | null;
+        amount?: number;
         message?: string;
         errors?: Record<string, string[]>;
       };
       if (res.ok && json.ok && json.reference) {
         applicationIdRef.current = null;
+        setConversionValue(
+          typeof json.amount === "number" && json.amount > 0 ? json.amount : total,
+        );
         setReference(json.reference);
         setConfirmationEmail(json.confirmationEmailedTo ?? null);
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -476,6 +482,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
   if (reference) {
     return (
       <div className="mx-auto max-w-xl rounded border border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
+        <PurchaseConversionBeacon transactionId={reference} value={conversionValue} />
         <h2 className="text-2xl font-bold text-navy">{t("wizard.applicationReceived")}</h2>
         <p className="mt-2 text-slate-600">
           Thank you — your South Carolina fishing license application and payment have been

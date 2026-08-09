@@ -340,13 +340,16 @@ export default function PrivacyPage() {
           <section id="cookies" className="scroll-mt-28">
             <h2 className="text-xl font-bold">10. Cookies and analytics</h2>
             <p className="mt-3">
-              We keep tracking to a minimum. The site uses only essential cookies and
-              similar technologies required for core functionality — for example, keeping
-              your application session working and protecting against abuse. We do not use
-              advertising trackers, cross-site tracking cookies, or sell browsing data. If
-              we introduce privacy-respecting, aggregate analytics in the future, we will
-              update this section before doing so. You can set your browser to refuse
-              cookies, but essential site features may not function without them.
+              The site uses essential cookies and similar technologies required for core
+              functionality — for example, keeping your application session working and
+              protecting against abuse. We also use Google Ads (gtag.js) conversion tags so
+              we can measure whether advertising led to a completed purchase. Those tags
+              may set or read advertising cookies when Google&apos;s scripts load, and a
+              purchase conversion event is sent when your paid application is confirmed
+              (including your order reference and amount). We do not sell your browsing
+              data. You can set your browser to refuse cookies or use Google&apos;s ad
+              settings to limit personalized advertising; essential site features may not
+              function without essential cookies.
             </p>
           </section>
 

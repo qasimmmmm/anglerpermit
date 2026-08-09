@@ -204,6 +204,7 @@ export async function POST(request: Request) {
             reference: existing.reference,
             applicationId: existing.id,
             confirmationEmailedTo: existing.email,
+            amount: (existing.amountCents ?? amountCents) / 100,
             duplicate: true,
           });
         }
@@ -263,6 +264,7 @@ export async function POST(request: Request) {
       reference: appRecord.reference,
       applicationId: appRecord.id,
       confirmationEmailedTo: appRecord.email,
+      amount: (appRecord.amountCents ?? amountCents) / 100,
       duplicate: true,
     });
   }
@@ -612,5 +614,6 @@ export async function POST(request: Request) {
     reference,
     applicationId: appRecord?.id ?? null,
     confirmationEmailedTo: customerEmailed ? email : null,
+    amount,
   });
 }

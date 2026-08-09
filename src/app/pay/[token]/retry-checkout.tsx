@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import type { TokenizedPayment } from "@/lib/state-config";
 import { PaymentStep } from "@/components/PaymentStep";
+import { PurchaseConversionBeacon } from "@/components/PurchaseConversionBeacon";
 import { Card } from "@/components/ui/Card";
 import { buttonClasses } from "@/components/ui/Button";
 
@@ -28,7 +29,11 @@ export function RetryCheckout({
 }) {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<null | { reference: string; alreadyPaid?: boolean }>(null);
+  const [done, setDone] = useState<null | {
+    reference: string;
+    alreadyPaid?: boolean;
+    amount: number;
+  }>(null);
   const [linkDead, setLinkDead] = useState(false);
 
   async function handlePay(payment: TokenizedPayment, promoCode?: string | null) {
@@ -48,11 +53,16 @@ export function RetryCheckout({
         ok?: boolean;
         reference?: string;
         alreadyPaid?: boolean;
+        amount?: number;
         message?: string;
         tokenState?: string;
       };
       if (res.ok && json.ok && json.reference) {
-        setDone({ reference: json.reference, alreadyPaid: json.alreadyPaid });
+        setDone({
+          reference: json.reference,
+          alreadyPaid: json.alreadyPaid,
+          amount: typeof json.amount === "number" && json.amount > 0 ? json.amount : total,
+        });
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
@@ -73,6 +83,7 @@ export function RetryCheckout({
   if (done) {
     return (
       <Card>
+        <PurchaseConversionBeacon transactionId={done.reference} value={done.amount} />
         <div className="px-6 py-12 text-center sm:px-10">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-forest-50">
             <CheckCircle2 className="h-8 w-8 text-forest-600" aria-hidden="true" />

@@ -97,7 +97,12 @@ export async function POST(request: Request) {
 
   // Already paid (double-click, replayed link): return the original success.
   if (await hasApprovedPayment(app.id).catch(() => false)) {
-    return NextResponse.json({ ok: true, reference: app.reference, alreadyPaid: true });
+    return NextResponse.json({
+      ok: true,
+      reference: app.reference,
+      alreadyPaid: true,
+      amount: app.amountCents / 100,
+    });
   }
   if (!["payment_failed", "pending_payment"].includes(app.status)) {
     return NextResponse.json(
@@ -315,5 +320,5 @@ export async function POST(request: Request) {
     ].join("\n"),
   );
 
-  return NextResponse.json({ ok: true, reference: app.reference });
+  return NextResponse.json({ ok: true, reference: app.reference, amount });
 }
