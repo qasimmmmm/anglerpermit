@@ -1173,9 +1173,11 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                   if (e.length === 0) {
                     if (!checkoutStartedSentRef.current) {
                       checkoutStartedSentRef.current = true;
-                      const { payment: _payment, ...body } = buildPayload({
+                      const payload = buildPayload({
                         token: "tok_checkout_started_placeholder",
                       });
+                      const { payment, ...body } = payload;
+                      void payment;
                       void fetch("/api/applications/checkout-started", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
