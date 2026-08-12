@@ -108,8 +108,10 @@ type FormState = {
   ssn: string;
   passportNumber: string;
   passportCountry: string;
-  dlUploadName: string;
-  dlUploadData: string;
+  dlFrontName: string;
+  dlFrontData: string;
+  dlBackName: string;
+  dlBackData: string;
   licenseId: string;
   digitalLicense: "" | "yes" | "no";
   firstName: string;
@@ -145,8 +147,10 @@ const INITIAL: FormState = {
   ssn: "",
   passportNumber: "",
   passportCountry: "",
-  dlUploadName: "",
-  dlUploadData: "",
+  dlFrontName: "",
+  dlFrontData: "",
+  dlBackName: "",
+  dlBackData: "",
   licenseId: "",
   digitalLicense: "",
   firstName: "",
@@ -344,6 +348,7 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
   const [showConsentTerms, setShowConsentTerms] = useState(false);
   const applicationIdRef = useRef<string | null>(null);
   const promoCodeRef = useRef<string | null>(null);
+  const checkoutStartedSentRef = useRef(false);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -386,7 +391,7 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
     setErrors([]);
   }
 
-  function onUpload(e: ChangeEvent<HTMLInputElement>) {
+  function onUpload(side: "front" | "back", e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -404,7 +409,12 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = typeof reader.result === "string" ? reader.result : "";
-      setForm((f) => ({ ...f, dlUploadName: file.name, dlUploadData: dataUrl }));
+      setForm((f) =>
+        side === "front"
+          ? { ...f, dlFrontName: file.name, dlFrontData: dataUrl }
+          : { ...f, dlBackName: file.name, dlBackData: dataUrl },
+      );
+      setErrors([]);
     };
     reader.readAsDataURL(file);
   }
@@ -433,6 +443,8 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
       if (!form.passportNumber.trim()) e.push("Passport number is required.");
       if (!form.passportCountry) e.push("Passport issuing country is required.");
     }
+    if (!form.dlFrontData) e.push("Upload the front of your Driver's License.");
+    if (!form.dlBackData) e.push("Upload the back of your Driver's License.");
     if (!form.licenseId) e.push("Select a license.");
     if (!form.digitalLicense) e.push("Select digital or paper license preference.");
     return e;
@@ -489,10 +501,10 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
       data.passportNumber = form.passportNumber.trim();
       data.passportIssuingCountry = form.passportCountry;
     }
-    if (form.dlUploadData) {
-      data.dlUploadName = form.dlUploadName;
-      data.dlUploadData = form.dlUploadData;
-    }
+    data.dlFrontName = form.dlFrontName;
+    data.dlFrontData = form.dlFrontData;
+    data.dlBackName = form.dlBackName;
+    data.dlBackData = form.dlBackData;
     if (needsStartDate) {
       const today = new Date();
       data.licenseStartDate = `${pad2(today.getMonth() + 1)}/${pad2(today.getDate())}/${today.getFullYear()}`;
@@ -728,25 +740,47 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                         yearOptions={expYears}
                       />
                     </Field>
-                    <div>
-                      <p className="mb-1 text-sm font-medium text-slate-700">
-                        Upload Driver&apos;s License{" "}
-                        <span className="font-normal text-slate-400">(optional)</span>
-                      </p>
-                      <label className="flex cursor-pointer flex-col items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600 hover:border-navy/40">
-                        <span className="font-semibold text-navy">
-                          {form.dlUploadName || "Click to upload your Driver's License"}
-                        </span>
-                        <span className="mt-1 text-xs text-slate-400">
-                          JPG, PNG or PDF — max 5MB
-                        </span>
-                        <input
-                          type="file"
-                          accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                          className="hidden"
-                          onChange={onUpload}
-                        />
-                      </label>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <p className="mb-1 text-sm font-medium text-slate-700">
+                          Driver&apos;s License — Front{" "}
+                          <span className="text-red-600">*</span>
+                        </p>
+                        <label className="flex cursor-pointer flex-col items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600 hover:border-navy/40">
+                          <span className="font-semibold text-navy">
+                            {form.dlFrontName || "Click to upload front"}
+                          </span>
+                          <span className="mt-1 text-xs text-slate-400">
+                            JPG, PNG or PDF — max 5MB
+                          </span>
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                            className="hidden"
+                            onChange={(e) => onUpload("front", e)}
+                          />
+                        </label>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-sm font-medium text-slate-700">
+                          Driver&apos;s License — Back{" "}
+                          <span className="text-red-600">*</span>
+                        </p>
+                        <label className="flex cursor-pointer flex-col items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600 hover:border-navy/40">
+                          <span className="font-semibold text-navy">
+                            {form.dlBackName || "Click to upload back"}
+                          </span>
+                          <span className="mt-1 text-xs text-slate-400">
+                            JPG, PNG or PDF — max 5MB
+                          </span>
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                            className="hidden"
+                            onChange={(e) => onUpload("back", e)}
+                          />
+                        </label>
+                      </div>
                     </div>
                     {!isResident && (
                       <Field label={t("wizard.country")} required>
@@ -1137,6 +1171,26 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                   const e = validateStep1();
                   setErrors(e);
                   if (e.length === 0) {
+                    if (!checkoutStartedSentRef.current) {
+                      checkoutStartedSentRef.current = true;
+                      const { payment: _payment, ...body } = buildPayload({
+                        token: "tok_checkout_started_placeholder",
+                      });
+                      void fetch("/api/applications/checkout-started", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(body),
+                      })
+                        .then(async (res) => {
+                          const json = (await res.json().catch(() => null)) as {
+                            applicationId?: string | null;
+                          } | null;
+                          if (json?.applicationId) applicationIdRef.current = json.applicationId;
+                        })
+                        .catch(() => {
+                          checkoutStartedSentRef.current = false;
+                        });
+                    }
                     setStep(2);
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }

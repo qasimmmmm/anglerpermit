@@ -568,6 +568,43 @@
   word-break: break-word;
 }
 
+.admin-kv-media {
+  grid-template-columns: 140px minmax(0, 1fr);
+}
+
+.admin-id-preview {
+  margin: 0;
+  max-width: 100%;
+}
+
+.admin-id-preview img {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid rgba(16, 42, 58, 0.12);
+  background: #f4f7f9;
+}
+
+.admin-id-preview-pdf object {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  height: 280px;
+  border-radius: 8px;
+  border: 1px solid rgba(16, 42, 58, 0.12);
+  background: #f4f7f9;
+}
+
+.admin-id-preview figcaption {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ap-muted);
+}
+
 .admin-meta-row {
   display: flex;
   flex-wrap: wrap;

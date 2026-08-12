@@ -11,6 +11,7 @@ import {
   type StoredApplication,
 } from "@/lib/storage";
 import { sendCheckoutStartedEmails, type OrderEmailContext } from "@/lib/email";
+import { persistApplicantUploads } from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
 
@@ -79,8 +80,15 @@ export async function POST(req: Request) {
   }
 
   const submission = parsed.data;
+  let applicationId: string | null = null;
+  let reference = generateReference(submission.stateSlug);
+
+  // Upload DL/ID data-URLs to Cloudinary; store HTTPS URLs in form_data.
+  const formData = await persistApplicantUploads(submission.data, {
+    stateSlug: submission.stateSlug,
+    reference,
+  });
   // Persist full applicant data for admin; mask only for outbound emails.
-  const formData = submission.data;
   const maskedData = maskSensitiveFields(config, formData);
   const amount = computeOrderTotal(config, submission.licenseId, submission.addOnIds);
   const amountCents = Math.round(amount * 100);
@@ -88,9 +96,6 @@ export async function POST(req: Request) {
   const firstName = str(formData.firstName);
   const lastName = str(formData.lastName);
   const phone = str(formData.phone) ?? str(formData.primaryPhone);
-
-  let applicationId: string | null = null;
-  let reference = generateReference(submission.stateSlug);
 
   try {
     const created = await createOrReuseApplication({

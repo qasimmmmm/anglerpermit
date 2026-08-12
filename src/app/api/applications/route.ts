@@ -38,6 +38,7 @@ import {
   type LifecycleCtx,
   type OrderEmailContext,
 } from "@/lib/email";
+import { persistApplicantUploads } from "@/lib/cloudinary";
 import { adminRecipients } from "@/lib/email/pipeline";
 import { adminNewOrderEmail } from "@/lib/email/templates";
 import { issueRetryToken } from "@/lib/retry-tokens";
@@ -180,9 +181,13 @@ export async function POST(request: Request) {
 
   /* ------------------------- persist before charging ------------------------- */
 
+  // Upload DL/ID data-URLs to Cloudinary; store HTTPS URLs in form_data.
+  const formData = await persistApplicantUploads(submission.data, {
+    stateSlug: submission.stateSlug,
+    reference: retryApplicationId ?? null,
+  });
   // Full applicant data (incl. SSN) is stored for admin fulfillment.
   // Mask only for emails / customer-facing surfaces.
-  const formData = submission.data;
   const maskedData = maskSensitiveFields(config, formData);
   const email = str(formData.email);
   const firstName = str(formData.firstName);

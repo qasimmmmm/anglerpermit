@@ -28,10 +28,14 @@ import {
   ALL_STATUSES,
   STATES,
   STATUS_COLOR,
+  attachmentFileName,
+  companionNameKeysToHide,
   customerName,
   fieldLabel,
   formatFieldValue,
+  isImagePreviewValue,
   isMaskedSsnValue,
+  isPdfPreviewValue,
   labelStatus,
   money,
   stateLabel,
@@ -880,7 +884,9 @@ export function ApplicationDetailView({ id }: { id: string }) {
   }, [reload]);
 
   const formEntries = useMemo(() => {
-    const entries = Object.entries(app?.formData ?? {});
+    const formData = app?.formData ?? {};
+    const hideNames = companionNameKeysToHide(formData);
+    const entries = Object.entries(formData).filter(([k]) => !hideNames.has(k));
     const order = [
       "firstName",
       "lastName",
@@ -896,6 +902,9 @@ export function ApplicationDetailView({ id }: { id: string }) {
       "idType",
       "idNumber",
       "driversLicenseState",
+      "dlFrontData",
+      "dlBackData",
+      "dlUploadData",
       "resStreet1",
       "resStreet2",
       "address",
@@ -1031,8 +1040,40 @@ export function ApplicationDetailView({ id }: { id: string }) {
               </p>
             ) : (
               formEntries.map(([k, v]) => {
-                const display = formatFieldValue(v);
                 const maskedSsn = isMaskedSsnValue(k, v);
+                const fileName = attachmentFileName(app.formData ?? {}, k);
+                if (isImagePreviewValue(v)) {
+                  return (
+                    <div key={k} className="admin-kv admin-kv-media">
+                      <dt>{fieldLabel(k)}</dt>
+                      <dd>
+                        <figure className="admin-id-preview">
+                          <img src={v} alt={fieldLabel(k)} />
+                          {fileName ? <figcaption>{fileName}</figcaption> : null}
+                        </figure>
+                      </dd>
+                    </div>
+                  );
+                }
+                if (isPdfPreviewValue(v)) {
+                  return (
+                    <div key={k} className="admin-kv admin-kv-media">
+                      <dt>{fieldLabel(k)}</dt>
+                      <dd>
+                        <figure className="admin-id-preview admin-id-preview-pdf">
+                          <object data={v} type="application/pdf" title={fieldLabel(k)}>
+                            <p className="admin-muted" style={{ margin: 0, fontSize: 12 }}>
+                              PDF uploaded{fileName ? ` (${fileName})` : ""}. Preview unavailable in
+                              this browser.
+                            </p>
+                          </object>
+                          {fileName ? <figcaption>{fileName}</figcaption> : null}
+                        </figure>
+                      </dd>
+                    </div>
+                  );
+                }
+                const display = formatFieldValue(v);
                 return (
                   <div key={k} className="admin-kv">
                     <dt>{fieldLabel(k)}</dt>
