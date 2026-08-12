@@ -12,6 +12,7 @@ import {
 } from "@/lib/storage";
 import { sendCheckoutStartedEmails, type OrderEmailContext } from "@/lib/email";
 import { persistApplicantUploads } from "@/lib/cloudinary";
+import { missingRequiredIdUploads } from "@/lib/id-upload-requirements";
 
 export const runtime = "nodejs";
 
@@ -77,6 +78,21 @@ export async function POST(req: Request) {
   }
   if (!parsed.success) {
     return NextResponse.json({ ok: false, message: "Validation failed" }, { status: 400 });
+  }
+
+  const uploadErrors = missingRequiredIdUploads(
+    parsed.data.stateSlug,
+    parsed.data.data as Record<string, unknown>,
+  );
+  if (Object.keys(uploadErrors).length) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Driver's License front and back uploads are required.",
+        errors: uploadErrors,
+      },
+      { status: 400 },
+    );
   }
 
   const submission = parsed.data;

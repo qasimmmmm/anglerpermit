@@ -39,6 +39,7 @@ import {
   type OrderEmailContext,
 } from "@/lib/email";
 import { persistApplicantUploads } from "@/lib/cloudinary";
+import { missingRequiredIdUploads } from "@/lib/id-upload-requirements";
 import { adminRecipients } from "@/lib/email/pipeline";
 import { adminNewOrderEmail } from "@/lib/email/templates";
 import { issueRetryToken } from "@/lib/retry-tokens";
@@ -150,6 +151,21 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(
       { ok: false, message: "Please correct the highlighted fields.", errors },
+      { status: 400 },
+    );
+  }
+
+  const uploadErrors = missingRequiredIdUploads(
+    parsed.data.stateSlug,
+    (parsed.data as { data: Record<string, unknown> }).data,
+  );
+  if (Object.keys(uploadErrors).length) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Driver's License front and back uploads are required.",
+        errors: uploadErrors,
+      },
       { status: 400 },
     );
   }
