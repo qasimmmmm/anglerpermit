@@ -63,6 +63,7 @@ export type ApplicationStatus =
   | "received"
   | "processing"
   | "missing_info"
+  | "future_pending"
   | "delivered"
   | "cancelled"
   | "refunded";
@@ -83,6 +84,8 @@ export interface ApplicationRecord {
   amountCents: number;
   status: ApplicationStatus;
   statusReason: string | null;
+  /** YYYY-MM-DD — current annual license expiry when status is future_pending. */
+  existingLicenseExpiresOn: string | null;
   nmiCustomerVaultId: string | null;
   submittedAt: string;
   paidAt: string | null;
@@ -108,6 +111,7 @@ interface AppRow {
   amount_cents: number;
   status: ApplicationStatus;
   status_reason: string | null;
+  existing_license_expires_on: Date | string | null;
   nmi_customer_vault_id: string | null;
   submitted_at: Date;
   paid_at: Date | null;
@@ -115,6 +119,12 @@ interface AppRow {
   delivered_at: Date | null;
   cancelled_at: Date | null;
   refunded_at: Date | null;
+}
+
+function dateOnly(value: Date | string | null | undefined): string | null {
+  if (value == null) return null;
+  if (typeof value === "string") return value.slice(0, 10);
+  return value.toISOString().slice(0, 10);
 }
 
 function rowToRecord(r: AppRow): ApplicationRecord {
@@ -134,6 +144,7 @@ function rowToRecord(r: AppRow): ApplicationRecord {
     amountCents: r.amount_cents,
     status: r.status,
     statusReason: r.status_reason,
+    existingLicenseExpiresOn: dateOnly(r.existing_license_expires_on),
     nmiCustomerVaultId: r.nmi_customer_vault_id,
     submittedAt: r.submitted_at.toISOString(),
     paidAt: r.paid_at?.toISOString() ?? null,
@@ -146,8 +157,8 @@ function rowToRecord(r: AppRow): ApplicationRecord {
 
 const APP_COLS = `id, reference, state_slug, residency, license_id, addon_ids, email,
   first_name, last_name, phone, form_data, consents, amount_cents, status,
-  status_reason, nmi_customer_vault_id, submitted_at, paid_at, payment_failed_at,
-  delivered_at, cancelled_at, refunded_at`;
+  status_reason, existing_license_expires_on, nmi_customer_vault_id, submitted_at,
+  paid_at, payment_failed_at, delivered_at, cancelled_at, refunded_at`;
 
 /* ------------------------------------------------------------------ */
 /* create / reuse                                                      */
@@ -606,6 +617,33 @@ export async function setLicenseFields(
       where id = $1`,
     [applicationId, fields.licenseNumber ?? null, fields.validFrom ?? null, fields.validTo ?? null],
   );
+}
+
+/**
+ * Park a paid application until the customer's current annual license expires.
+ * `expiresOn` must be YYYY-MM-DD.
+ */
+export async function markApplicationFuturePending(
+  applicationId: string,
+  expiresOn: string,
+  reason?: string,
+): Promise<void> {
+  const day = expiresOn.trim().slice(0, 10);
+  const note = reason?.trim() || "waiting for existing annual license to expire";
+  if (dbConfigured()) {
+    await q(
+      `update applications
+          set status = 'future_pending',
+              status_reason = $3,
+              existing_license_expires_on = $2::date
+        where id = $1`,
+      [applicationId, day, note],
+    );
+  }
+  await mongoSyncStatus(applicationId, "future_pending", {
+    statusReason: note,
+    existingLicenseExpiresOn: day,
+  }).catch(() => undefined);
 }
 
 /* ------------------------------------------------------------------ */

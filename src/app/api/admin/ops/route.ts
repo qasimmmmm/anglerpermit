@@ -10,15 +10,22 @@ export const runtime = "nodejs";
 /**
  * POST /api/admin/ops — team actions via session cookie OR ADMIN_PANEL_SECRET.
  *
- * Actions: mark-processing | request-info | cancel | refund
+ * Actions: mark-processing | request-info | mark-future-pending | cancel | refund
  */
 
 const bodySchema = z.object({
   secret: z.string().min(1).optional(),
-  action: z.enum(["mark-processing", "request-info", "cancel", "refund"]),
+  action: z.enum([
+    "mark-processing",
+    "request-info",
+    "mark-future-pending",
+    "cancel",
+    "refund",
+  ]),
   reference: z.string().min(4).max(60),
   message: z.string().max(2000).optional(),
   force: z.boolean().optional(),
+  existingLicenseExpiresOn: z.string().max(32).optional(),
 });
 
 function secretMatches(provided: string): boolean {
@@ -41,7 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Invalid request." }, { status: 400 });
   }
 
-  const { secret, action, reference, message, force } = parsed.data;
+  const { secret, action, reference, message, force, existingLicenseExpiresOn } = parsed.data;
   const sessionOk = await isAdminAuthenticated();
   const secretOk = Boolean(secret && secretMatches(secret));
   if (!sessionOk && !secretOk) {
@@ -51,7 +58,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Database not configured." }, { status: 503 });
   }
 
-  const result = await runAdminOpsAction({ action, reference, message, force });
+  const result = await runAdminOpsAction({
+    action,
+    reference,
+    message,
+    force,
+    existingLicenseExpiresOn,
+  });
   if (!result.ok) {
     return NextResponse.json(
       { ok: false, message: result.message },

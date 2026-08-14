@@ -20,6 +20,7 @@ create extension if not exists pgcrypto;
 -- status lifecycle:
 --   pending_payment -> received -> processing -> delivered
 --        |                \-> missing_info -> processing/delivered
+--        |                \-> future_pending -> processing/delivered
 --        \-> payment_failed -> received (retry success) | cancelled (day 8)
 --   received/processing/delivered -> refunded (manual, admin)
 -- ---------------------------------------------------------------------------
@@ -40,9 +41,10 @@ create table if not exists applications (
   currency         text not null default 'USD',
   status           text not null default 'pending_payment'
                    check (status in ('pending_payment','payment_failed','received',
-                                     'processing','missing_info','delivered',
-                                     'cancelled','refunded')),
+                                     'processing','missing_info','future_pending',
+                                     'delivered','cancelled','refunded')),
   status_reason    text,
+  existing_license_expires_on date,               -- set when status = future_pending
   nmi_customer_vault_id text,                     -- set only when vaulting enabled
   submitted_at     timestamptz not null default now(),
   paid_at          timestamptz,

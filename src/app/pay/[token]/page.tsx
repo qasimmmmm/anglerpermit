@@ -118,7 +118,7 @@ export default async function PayPage({ params }: { params: { token: string } })
   const app = await getApplicationById(check.applicationId);
   if (!app) return <LinkExpired state="invalid" />;
 
-  const paid = ["received", "processing", "missing_info", "delivered", "refunded"].includes(
+  const paid = ["received", "processing", "missing_info", "future_pending", "delivered", "refunded"].includes(
     app.status,
   );
   if (check.status === "used" || paid) {

@@ -59,6 +59,7 @@ const STATUSES: ApplicationStatus[] = [
   "received",
   "processing",
   "missing_info",
+  "future_pending",
   "delivered",
   "cancelled",
   "refunded",
@@ -221,6 +222,7 @@ function fromInput(input: NewApplicationInput, id: string, reference: string): M
     amountCents: input.amountCents,
     status: "pending_payment",
     statusReason: null,
+    existingLicenseExpiresOn: null,
     nmiCustomerVaultId: null,
     submittedAt: t,
     paidAt: null,
@@ -249,6 +251,7 @@ export function docToRecord(doc: MongoAppDoc): ApplicationRecord {
     amountCents: doc.amountCents,
     status: doc.status,
     statusReason: doc.statusReason,
+    existingLicenseExpiresOn: doc.existingLicenseExpiresOn ?? null,
     nmiCustomerVaultId: doc.nmiCustomerVaultId,
     submittedAt: doc.submittedAt,
     paidAt: doc.paidAt,
@@ -281,6 +284,7 @@ export async function mongoUpsertApp(
     amountCents: app.amountCents,
     status: app.status,
     statusReason: app.statusReason,
+    existingLicenseExpiresOn: app.existingLicenseExpiresOn ?? null,
     nmiCustomerVaultId: app.nmiCustomerVaultId,
     submittedAt: app.submittedAt,
     paidAt: app.paidAt,
@@ -528,6 +532,7 @@ const PAID_STATUSES: ApplicationStatus[] = [
   "received",
   "processing",
   "missing_info",
+  "future_pending",
   "delivered",
 ];
 
@@ -882,13 +887,14 @@ async function ensureDemoSeed() {
       statusReason: status === "missing_info" ? "DOB mismatch on ID" : null,
       nmiCustomerVaultId: null,
       submittedAt,
-      paidAt: ["received", "processing", "missing_info", "delivered"].includes(status)
+      paidAt: ["received", "processing", "missing_info", "future_pending", "delivered"].includes(status)
         ? submittedAt
         : null,
       paymentFailedAt: status === "payment_failed" ? submittedAt : null,
       deliveredAt: status === "delivered" ? submittedAt : null,
       cancelledAt: status === "cancelled" ? submittedAt : null,
       refundedAt: status === "refunded" ? submittedAt : null,
+      existingLicenseExpiresOn: null,
       updatedAt: submittedAt,
       paymentMeta: { last4: "4242", brand: "Visa", descriptor: "ANGLER PERMIT", devMode: true },
     };

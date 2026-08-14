@@ -4,6 +4,7 @@ import { q } from "@/lib/db";
 import {
   getApplicationByReference,
   logPaymentEvent,
+  markApplicationFuturePending,
   recordPayment,
   updateApplicationStatus,
   type ApplicationRecord,
@@ -16,7 +17,12 @@ import {
   type LifecycleCtx,
 } from "@/lib/email";
 
-export type AdminOpsAction = "mark-processing" | "request-info" | "cancel" | "refund";
+export type AdminOpsAction =
+  | "mark-processing"
+  | "request-info"
+  | "mark-future-pending"
+  | "cancel"
+  | "refund";
 
 export type AdminOpsResult =
   | { ok: true; status: string; emailed?: string; refundTransactionId?: string }
@@ -45,13 +51,15 @@ export async function runAdminOpsAction(input: {
   reference: string;
   message?: string;
   force?: boolean;
+  /** YYYY-MM-DD — required for mark-future-pending */
+  existingLicenseExpiresOn?: string;
 }): Promise<AdminOpsResult> {
   const app = await getApplicationByReference(input.reference.trim());
   if (!app) {
     return { ok: false, message: `No application ${input.reference}.`, status: 404 };
   }
   const ctx = await buildCtx(app);
-  const { action, message, force } = input;
+  const { action, message, force, existingLicenseExpiresOn } = input;
 
   if (action === "mark-processing") {
     await updateApplicationStatus(app.id, "processing", "admin");
@@ -62,6 +70,29 @@ export async function runAdminOpsAction(input: {
       detail: { to: "processing" },
     });
     return { ok: true, status: "processing" };
+  }
+
+  if (action === "mark-future-pending") {
+    const expiresOn = existingLicenseExpiresOn?.trim().slice(0, 10) ?? "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(expiresOn)) {
+      return {
+        ok: false,
+        message: "Enter the current license expiry date (YYYY-MM-DD).",
+        status: 400,
+      };
+    }
+    if (["cancelled", "refunded", "delivered"].includes(app.status)) {
+      return { ok: false, message: `Cannot park a ${app.status} application.`, status: 409 };
+    }
+    const note = message?.trim() || "waiting for existing annual license to expire";
+    await markApplicationFuturePending(app.id, expiresOn, note);
+    await logPaymentEvent({
+      applicationId: app.id,
+      source: "admin",
+      eventType: "status_change",
+      detail: { to: "future_pending", existingLicenseExpiresOn: expiresOn },
+    });
+    return { ok: true, status: "future_pending" };
   }
 
   if (action === "request-info") {

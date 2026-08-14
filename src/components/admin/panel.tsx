@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LayoutDashboard,
@@ -18,6 +18,7 @@ import {
   Ban,
   CircleDollarSign,
   PlayCircle,
+  CalendarClock,
 } from "lucide-react";
 import type { ApplicationRecord, ApplicationStatus } from "@/lib/storage";
 import type { PublicAdminUser } from "@/lib/admin-users";
@@ -253,6 +254,7 @@ export function DashboardView({ initialStats = null, initialOrders = [] }: Dashb
     (stats.byStatus.pending_payment ?? 0) + (stats.byStatus.payment_failed ?? 0);
   const needsAttention =
     (stats.byStatus.received ?? 0) + (stats.byStatus.missing_info ?? 0) + (stats.byStatus.processing ?? 0);
+  const futurePendingCount = stats.byStatus.future_pending ?? 0;
 
   let angle = 0;
   const arcs = statusEntries.map(([status, n]) => {
@@ -289,10 +291,15 @@ export function DashboardView({ initialStats = null, initialOrders = [] }: Dashb
 
       <div className="admin-kpi-grid">
         {[
-          { label: "Applications", value: String(stats.total) },
-          { label: "Needs attention", value: String(needsAttention) },
-          { label: "Awaiting payment", value: String(pendingCount) },
-          { label: "Paid orders", value: String(stats.paidCount) },
+          { label: "Applications", value: String(stats.total), href: "/admin/applications" },
+          { label: "Needs attention", value: String(needsAttention), href: "/admin/applications" },
+          { label: "Awaiting payment", value: String(pendingCount), href: "/admin/applications?status=pending_payment" },
+          {
+            label: "Future pending",
+            value: String(futurePendingCount),
+            href: "/admin/applications?status=future_pending",
+          },
+          { label: "Paid orders", value: String(stats.paidCount), href: "/admin/applications" },
           { label: "Gross volume", value: money(stats.revenueCents) },
           {
             label: "Avg ticket",
@@ -301,7 +308,13 @@ export function DashboardView({ initialStats = null, initialOrders = [] }: Dashb
         ].map((card, i) => (
           <div key={card.label} className={`admin-card admin-kpi admin-rise admin-rise-${(i % 4) + 1}`}>
             <div className="admin-kpi-label">{card.label}</div>
-            <div className="admin-stat-value">{card.value}</div>
+            {"href" in card && card.href ? (
+              <Link href={card.href} prefetch={false} className="admin-stat-value admin-link" style={{ textDecoration: "none" }}>
+                {card.value}
+              </Link>
+            ) : (
+              <div className="admin-stat-value">{card.value}</div>
+            )}
           </div>
         ))}
       </div>
@@ -480,6 +493,8 @@ function varSea() {
 }
 
 export function ApplicationsView() {
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get("status") ?? "";
   const [items, setItems] = useState<ApplicationRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -492,7 +507,7 @@ export function ApplicationsView() {
   const [deleteError, setDeleteError] = useState("");
   const [filters, setFilters] = useState({
     q: "",
-    status: "",
+    status: initialStatus,
     state: "",
     from: "",
     to: "",
@@ -501,6 +516,12 @@ export function ApplicationsView() {
     sort: "newest",
   });
   const [appliedFilters, setAppliedFilters] = useState(filters);
+
+  useEffect(() => {
+    const status = searchParams.get("status") ?? "";
+    setFilters((f) => (f.status === status ? f : { ...f, status }));
+    setPage(1);
+  }, [searchParams]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setAppliedFilters(filters), 300);
@@ -712,6 +733,7 @@ export function ApplicationsView() {
                 <th>Email</th>
                 <th>State</th>
                 <th>Status</th>
+                <th>License expiry</th>
                 <th>Amount</th>
                 <th>Submitted</th>
                 <th className="admin-col-action" aria-label="Actions" />
@@ -720,13 +742,13 @@ export function ApplicationsView() {
             <tbody>
               {loading && items.length === 0 && loaderVisible ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: 24 }} className="admin-muted">
+                  <td colSpan={10} style={{ padding: 24 }} className="admin-muted">
                     Loading…
                   </td>
                 </tr>
               ) : !loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: 24 }} className="admin-muted">
+                  <td colSpan={10} style={{ padding: 24 }} className="admin-muted">
                     No applications match these filters.
                   </td>
                 </tr>
@@ -757,6 +779,9 @@ export function ApplicationsView() {
                     </td>
                     <td>
                       <StatusPill status={app.status} />
+                    </td>
+                    <td className="admin-muted" style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {app.existingLicenseExpiresOn || "—"}
                     </td>
                     <td style={{ fontVariantNumeric: "tabular-nums" }}>
                       <CopyableValue value={money(app.amountCents)} strong={false} />
@@ -852,6 +877,8 @@ export function ApplicationDetailView({ id }: { id: string }) {
   const [opsBusy, setOpsBusy] = useState("");
   const [infoAsk, setInfoAsk] = useState("");
   const [forceInfo, setForceInfo] = useState(false);
+  const [futureExpiry, setFutureExpiry] = useState("");
+  const [futureNote, setFutureNote] = useState("");
 
   const reload = useCallback(
     async (signal?: AbortSignal) => {
@@ -869,6 +896,8 @@ export function ApplicationDetailView({ id }: { id: string }) {
         setLicenseSummary((d.licenseSummary as LicenseSummary | null) ?? null);
         setStatus(d.app.status);
         setReason(d.app.statusReason || "");
+        setFutureExpiry(d.app.existingLicenseExpiresOn || "");
+        setFutureNote(d.app.status === "future_pending" ? d.app.statusReason || "" : "");
       } catch (err) {
         if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
         setError("Could not load application.");
@@ -953,7 +982,9 @@ export function ApplicationDetailView({ id }: { id: string }) {
     }
   }
 
-  async function runOps(action: "mark-processing" | "request-info" | "cancel" | "refund") {
+  async function runOps(
+    action: "mark-processing" | "request-info" | "mark-future-pending" | "cancel" | "refund",
+  ) {
     if (!app) return;
     setOpsBusy(action);
     setOpsMsg("");
@@ -964,8 +995,15 @@ export function ApplicationDetailView({ id }: { id: string }) {
         body: JSON.stringify({
           action,
           reference: app.reference,
-          message: action === "request-info" ? infoAsk : reason || undefined,
+          message:
+            action === "request-info"
+              ? infoAsk
+              : action === "mark-future-pending"
+                ? futureNote || undefined
+                : reason || undefined,
           force: action === "request-info" ? forceInfo : undefined,
+          existingLicenseExpiresOn:
+            action === "mark-future-pending" ? futureExpiry || undefined : undefined,
         }),
       });
       const data = await res.json();
@@ -1107,6 +1145,9 @@ export function ApplicationDetailView({ id }: { id: string }) {
                 ["Residency", app.residency],
                 ["Phone", app.phone],
                 ["Submitted", new Date(app.submittedAt).toLocaleString()],
+                ...(app.existingLicenseExpiresOn
+                  ? ([["Current license expiry", app.existingLicenseExpiresOn]] as [string, string][])
+                  : []),
               ].map(([label, value]) => (
                 <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                   <span className="admin-muted">{label}</span>
@@ -1163,6 +1204,45 @@ export function ApplicationDetailView({ id }: { id: string }) {
               >
                 <MessageSquareWarning size={15} />
                 {opsBusy === "request-info" ? "Sending…" : "Request info"}
+              </button>
+            </div>
+
+            <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+              <p className="admin-sub" style={{ margin: 0, fontSize: 13 }}>
+                Park when the customer already has an active annual license. Process after the
+                expiry date.
+              </p>
+              <label>
+                <div className="admin-field-label">Current license expiry</div>
+                <input
+                  type="date"
+                  className="admin-input"
+                  value={futureExpiry}
+                  onChange={(e) => setFutureExpiry(e.target.value)}
+                />
+              </label>
+              <input
+                className="admin-input"
+                placeholder="Note (optional)"
+                value={futureNote}
+                onChange={(e) => setFutureNote(e.target.value)}
+              />
+              <button
+                type="button"
+                className="admin-btn admin-btn-secondary"
+                disabled={
+                  !!opsBusy ||
+                  !futureExpiry ||
+                  ["cancelled", "refunded", "delivered"].includes(app.status)
+                }
+                onClick={() => void runOps("mark-future-pending")}
+              >
+                <CalendarClock size={15} />
+                {opsBusy === "mark-future-pending"
+                  ? "Saving…"
+                  : app.status === "future_pending"
+                    ? "Update future pending"
+                    : "Mark future pending"}
               </button>
             </div>
 
