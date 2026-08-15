@@ -17,6 +17,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
     "cloudinary": "^2.10.0",
+    "exceljs": "^4.4.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.25.0",
     "mongodb": "^6.21.0",

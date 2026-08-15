@@ -495,7 +495,10 @@ export async function mongoListApps(query: AppListQuery): Promise<{
 }> {
   await ensureDemoSeed();
   const page = Math.max(1, query.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
+  const pageSize = Math.min(
+    query.pageSize && query.pageSize > 100 ? 10_000 : 100,
+    Math.max(1, query.pageSize ?? 25),
+  );
   const filter = buildFilter(query);
 
   const c = await col();

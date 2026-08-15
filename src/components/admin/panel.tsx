@@ -19,6 +19,7 @@ import {
   CircleDollarSign,
   PlayCircle,
   CalendarClock,
+  Download,
 } from "lucide-react";
 import type { ApplicationRecord, ApplicationStatus } from "@/lib/storage";
 import type { PublicAdminUser } from "@/lib/admin-users";
@@ -505,6 +506,8 @@ export function ApplicationsView() {
   const [pendingDelete, setPendingDelete] = useState<ApplicationRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const [filters, setFilters] = useState({
     q: "",
     status: initialStatus,
@@ -605,6 +608,48 @@ export function ApplicationsView() {
     }
   }
 
+  async function exportExcel() {
+    setExporting(true);
+    setExportError("");
+    try {
+      const sp = new URLSearchParams({ sort: appliedFilters.sort });
+      Object.entries(appliedFilters).forEach(([k, v]) => {
+        if (k === "sort") return;
+        const trimmed = v.trim();
+        if (!trimmed) return;
+        if (k === "minAmount" || k === "maxAmount") {
+          const n = Number(trimmed);
+          if (!Number.isFinite(n)) return;
+          sp.set(k, String(Math.round(n * 100)));
+          return;
+        }
+        sp.set(k, trimmed);
+      });
+      const res = await fetch(`/api/admin/applications/export?${sp}`);
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setExportError(data.error || `Export failed (${res.status})`);
+        return;
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition") || "";
+      const match = cd.match(/filename="([^"]+)"/);
+      const filename = match?.[1] || `anglerpermit-applications-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const pages = Math.max(1, Math.ceil(total / 25));
 
   return (
@@ -614,19 +659,32 @@ export function ApplicationsView() {
           <h1 className="admin-title">Applications</h1>
           <p className="admin-sub">{total} matching records</p>
         </div>
-        <button
-          type="button"
-          className="admin-btn-icon"
-          onClick={() => void load()}
-          disabled={loading}
-          aria-label="Refresh applications"
-          title="Refresh"
-        >
-          <RefreshCw size={16} className={loading ? "admin-spin" : undefined} />
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            type="button"
+            className="admin-btn admin-btn-secondary"
+            onClick={() => void exportExcel()}
+            disabled={exporting || loading || total === 0}
+            title="Download filtered applications as Excel"
+          >
+            <Download size={16} />
+            {exporting ? "Exporting…" : "Export Excel"}
+          </button>
+          <button
+            type="button"
+            className="admin-btn-icon"
+            onClick={() => void load()}
+            disabled={loading}
+            aria-label="Refresh applications"
+            title="Refresh"
+          >
+            <RefreshCw size={16} className={loading ? "admin-spin" : undefined} />
+          </button>
+        </div>
       </div>
 
       {loadError ? <p className="admin-alert admin-alert-error">{loadError}</p> : null}
+      {exportError ? <p className="admin-alert admin-alert-error">{exportError}</p> : null}
 
       <div className="admin-card admin-rise admin-rise-1">
         <div className="admin-filters">
