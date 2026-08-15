@@ -368,7 +368,7 @@ export async function GET(req: Request) {
       pattern: "solid",
       fgColor: { argb: `FF${NAVY}` },
     };
-    [...byStatus.entries()]
+    Array.from(byStatus.entries())
       .sort((a, b) => b[1] - a[1])
       .forEach(([status, count], i) => {
         const row = summary.getRow(br + 1 + i);
