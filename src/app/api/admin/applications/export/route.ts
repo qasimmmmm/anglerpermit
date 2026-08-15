@@ -296,13 +296,7 @@ export async function GET(req: Request) {
       }
     }
 
-    // AutoFilter + freeze below header
-    if (result.items.length > 0) {
-      sheet.autoFilter = {
-        from: { row: headerRowIndex, column: 1 },
-        to: { row: lastDataRow, column: colCount },
-      };
-    }
+    // Freeze header row (no AutoFilter — keeps headers clean without sort dropdowns)
     sheet.views = [{ state: "frozen", xSplit: 0, ySplit: headerRowIndex, activeCell: "A7" }];
 
     // Summary sheet
