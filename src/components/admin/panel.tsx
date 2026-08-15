@@ -20,6 +20,10 @@ import {
   PlayCircle,
   CalendarClock,
   Download,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import type { ApplicationRecord, ApplicationStatus } from "@/lib/storage";
 import type { PublicAdminUser } from "@/lib/admin-users";
@@ -493,12 +497,35 @@ function varSea() {
   return "var(--ap-sea)";
 }
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+
+/** Build a compact page list with ellipses, e.g. [1, "…", 4, 5, 6, "…", 20]. */
+function buildPageItems(current: number, totalPages: number): Array<number | "…"> {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const items: Array<number | "…"> = [];
+  const push = (v: number | "…") => {
+    if (items[items.length - 1] !== v) items.push(v);
+  };
+  push(1);
+  const start = Math.max(2, current - 1);
+  const end = Math.min(totalPages - 1, current + 1);
+  if (start > 2) push("…");
+  for (let p = start; p <= end; p++) push(p);
+  if (end < totalPages - 1) push("…");
+  push(totalPages);
+  return items;
+}
+
 export function ApplicationsView() {
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get("status") ?? "";
   const [items, setItems] = useState<ApplicationRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(25);
+  const [pageJump, setPageJump] = useState("");
   const [loading, setLoading] = useState(true);
   /** Empty-state loader is kept; only revealed if fetch exceeds 200ms. */
   const [loaderVisible, setLoaderVisible] = useState(false);
@@ -531,6 +558,10 @@ export function ApplicationsView() {
     return () => window.clearTimeout(t);
   }, [filters]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [appliedFilters, pageSize]);
+
   const load = useCallback(
     async (signal?: AbortSignal) => {
       setLoading(true);
@@ -541,7 +572,7 @@ export function ApplicationsView() {
       const sp = new URLSearchParams({
         view: "list",
         page: String(page),
-        pageSize: "25",
+        pageSize: String(pageSize),
         sort: appliedFilters.sort,
       });
       Object.entries(appliedFilters).forEach(([k, v]) => {
@@ -577,7 +608,7 @@ export function ApplicationsView() {
         }
       }
     },
-    [appliedFilters, page],
+    [appliedFilters, page, pageSize],
   );
 
   useEffect(() => {
@@ -650,7 +681,27 @@ export function ApplicationsView() {
     }
   }
 
-  const pages = Math.max(1, Math.ceil(total / 25));
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const pageItems = buildPageItems(page, pages);
+  const rangeFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeTo = Math.min(page * pageSize, total);
+
+  useEffect(() => {
+    if (page > pages) setPage(pages);
+  }, [page, pages]);
+
+  function goToPage(next: number) {
+    const clamped = Math.min(pages, Math.max(1, next));
+    setPage(clamped);
+    setPageJump("");
+  }
+
+  function submitPageJump(e: React.FormEvent) {
+    e.preventDefault();
+    const n = Number(pageJump.trim());
+    if (!Number.isFinite(n)) return;
+    goToPage(Math.round(n));
+  }
 
   return (
     <div>
@@ -813,7 +864,7 @@ export function ApplicationsView() {
               ) : (
                 items.map((app, idx) => (
                   <tr key={app.id}>
-                    <td className="admin-col-num">{(page - 1) * 25 + idx + 1}</td>
+                    <td className="admin-col-num">{(page - 1) * pageSize + idx + 1}</td>
                     <td>
                       <Link
                         href={`/admin/applications/${app.id}`}
@@ -865,27 +916,110 @@ export function ApplicationsView() {
             </tbody>
           </table>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", padding: "0.85rem 1rem", alignItems: "center" }}>
-          <span style={{ fontSize: 13 }} className="admin-muted">
-            Page {page} of {pages}
-          </span>
-          <div style={{ display: "flex", gap: 8 }}>
+        <div className="admin-pagination">
+          <div className="admin-pagination-meta">
+            <span>
+              {total === 0
+                ? "No records"
+                : `Showing ${rangeFrom.toLocaleString()}–${rangeTo.toLocaleString()} of ${total.toLocaleString()}`}
+            </span>
+            <label className="admin-pagination-size">
+              <span>Rows</span>
+              <select
+                className="admin-select"
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                aria-label="Records per page"
+              >
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>
+                    {n} / page
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="admin-pagination-controls">
             <button
               type="button"
-              className="admin-btn admin-btn-secondary"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="admin-page-btn"
+              disabled={page <= 1 || loading}
+              onClick={() => goToPage(1)}
+              aria-label="First page"
+              title="First page"
             >
-              Prev
+              <ChevronsLeft size={16} />
             </button>
             <button
               type="button"
-              className="admin-btn admin-btn-secondary"
-              disabled={page >= pages}
-              onClick={() => setPage((p) => p + 1)}
+              className="admin-page-btn"
+              disabled={page <= 1 || loading}
+              onClick={() => goToPage(page - 1)}
+              aria-label="Previous page"
+              title="Previous page"
             >
-              Next
+              <ChevronLeft size={16} />
             </button>
+
+            <div className="admin-page-numbers" role="navigation" aria-label="Pagination">
+              {pageItems.map((item, i) =>
+                item === "…" ? (
+                  <span key={`e-${i}`} className="admin-page-ellipsis" aria-hidden>
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    className={`admin-page-btn admin-page-num${item === page ? " is-active" : ""}`}
+                    disabled={loading}
+                    aria-current={item === page ? "page" : undefined}
+                    onClick={() => goToPage(item)}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="admin-page-btn"
+              disabled={page >= pages || loading}
+              onClick={() => goToPage(page + 1)}
+              aria-label="Next page"
+              title="Next page"
+            >
+              <ChevronRight size={16} />
+            </button>
+            <button
+              type="button"
+              className="admin-page-btn"
+              disabled={page >= pages || loading}
+              onClick={() => goToPage(pages)}
+              aria-label="Last page"
+              title="Last page"
+            >
+              <ChevronsRight size={16} />
+            </button>
+
+            <form className="admin-page-jump" onSubmit={submitPageJump}>
+              <label htmlFor="admin-page-jump-input">Go to</label>
+              <input
+                id="admin-page-jump-input"
+                className="admin-input"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder={`${page}`}
+                value={pageJump}
+                onChange={(e) => setPageJump(e.target.value.replace(/[^\d]/g, ""))}
+                aria-label="Jump to page number"
+              />
+              <button type="submit" className="admin-btn admin-btn-secondary" disabled={loading || !pageJump}>
+                Go
+              </button>
+            </form>
           </div>
         </div>
       </div>
