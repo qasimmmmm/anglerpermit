@@ -19,7 +19,8 @@ import { z } from "zod";
  * "official state fee", or "state fee". The total is a single bundled price
  * (no separate service-fee line — our margin is inside the total).
  */
-export const PRICE_MARKUP = 6;
+/** Customer price = base × markup. Was 6; set to 4.5 for a 25% reduction vs prior display prices. */
+export const PRICE_MARKUP = 4.5;
 
 /** Convert a researched base price to the price shown to (and charged to) the customer. */
 export function displayPrice(basePrice: number): number {
