@@ -10,8 +10,18 @@ import {
 import { formatPrice } from "@/lib/format";
 import { PaymentStep } from "@/components/PaymentStep";
 import { PurchaseConversionBeacon } from "@/components/PurchaseConversionBeacon";
+import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
+import { isoToMmDdYyyy, localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
+
+const SHORT_TERM_IDS = new Set<string>([
+  "freshwater-fishing-license-14-day-res",
+  "freshwater-fishing-license-14-day-nonres",
+  "saltwater-fishing-license-14-day-res",
+  "saltwater-fishing-license-7-day-nonres",
+  "saltwater-fishing-license-1-day-nonres",
+]);
 
 const RESIDENT_LICENSE_GROUPS: { heading: string; ids: readonly string[] }[] = [
   {
@@ -159,6 +169,7 @@ type FormState = {
   expYear: string;
   ssn: string;
   licenseId: string;
+  licenseStartDate: string;
   consent: boolean;
 };
 
@@ -188,6 +199,7 @@ const INITIAL: FormState = {
   expYear: "",
   ssn: "",
   licenseId: "",
+  licenseStartDate: "",
   consent: false,
 };
 
@@ -315,6 +327,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
 
   const selectedLicense = config.licenses.find((l) => l.id === form.licenseId);
   const total = form.licenseId ? computeOrderTotal(config, form.licenseId, []) : 0;
+  const needsStartDate = SHORT_TERM_IDS.has(form.licenseId);
   const needsSsn = form.residency === "resident" || form.residency === "us-citizen";
   const needsExpiration = form.residency === "resident" && form.residentId === "sc-dl";
 
@@ -323,6 +336,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
       ...f,
       residency: value,
       licenseId: "",
+      licenseStartDate: "",
       residentId: value === "resident" ? f.residentId || "sc-dl" : "",
       intlIdType:
         value === "international" || value === "us-citizen" ? f.intlIdType || "" : "",
@@ -373,6 +387,9 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
       if (!form.documentNumber.trim()) e.push("Enter your identification number.");
     }
     if (!form.licenseId) e.push("Select a license.");
+    if (needsStartDate && !form.licenseStartDate) {
+      e.push("Choose a license start date.");
+    }
     if (!form.consent) e.push("Please confirm your information and agree to the terms.");
     return e;
   }
@@ -413,6 +430,10 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
 
     if (needsSsn) {
       data.ssn = `${ssnDigits.slice(0, 3)}-${ssnDigits.slice(3, 5)}-${ssnDigits.slice(5)}`;
+    }
+
+    if (needsStartDate && form.licenseStartDate) {
+      data.licenseStartDate = isoToMmDdYyyy(form.licenseStartDate);
     }
 
     return {
@@ -1004,7 +1025,15 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                               type="radio"
                               name="sc-license"
                               checked={selected}
-                              onChange={() => set("licenseId", lic.id)}
+                              onChange={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  licenseId: lic.id,
+                                  licenseStartDate: SHORT_TERM_IDS.has(lic.id)
+                                    ? f.licenseStartDate || localIsoDate()
+                                    : "",
+                                }))
+                              }
                               className="accent-navy"
                             />
                             <span>
@@ -1025,6 +1054,14 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                   </div>
                 </div>
               ))}
+
+            {needsStartDate && (
+              <LicenseStartDateField
+                value={form.licenseStartDate}
+                onChange={(v) => set("licenseStartDate", v)}
+                inputClassName={inputClass}
+              />
+            )}
 
             <SectionHeading>{t("wizard.declarationConsent")}</SectionHeading>
             <div className="mt-3">

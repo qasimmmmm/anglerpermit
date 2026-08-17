@@ -12,7 +12,9 @@ import { US_STATE_OPTIONS } from "@/lib/us-states";
 import { formatPrice } from "@/lib/format";
 import { PaymentStep } from "@/components/PaymentStep";
 import { PurchaseConversionBeacon } from "@/components/PurchaseConversionBeacon";
+import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
+import { localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
 
 /** Core sport licenses shown on the competitor-style CA step 1. */
@@ -784,7 +786,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                           onClick={() => {
                             set("licenseId", lic.id);
                             if (!form.licenseStartDate) {
-                              set("licenseStartDate", new Date().toISOString().slice(0, 10));
+                              set("licenseStartDate", localIsoDate());
                             }
                           }}
                           className={[
@@ -807,17 +809,11 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
             )}
 
             {SHORT_TERM_IDS.has(form.licenseId) && (
-              <div className="mt-4">
-                <Field label="License Start Date" required>
-                  <input
-                    type="date"
-                    className={inputClass}
-                    value={form.licenseStartDate}
-                    min={new Date().toISOString().slice(0, 10)}
-                    onChange={(e) => set("licenseStartDate", e.target.value)}
-                  />
-                </Field>
-              </div>
+              <LicenseStartDateField
+                value={form.licenseStartDate}
+                onChange={(v) => set("licenseStartDate", v)}
+                inputClassName={inputClass}
+              />
             )}
 
             <button

@@ -11,7 +11,9 @@ import { US_STATE_OPTIONS } from "@/lib/us-states";
 import { formatPrice } from "@/lib/format";
 import { PaymentStep } from "@/components/PaymentStep";
 import { PurchaseConversionBeacon } from "@/components/PurchaseConversionBeacon";
+import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
+import { isoToMmDdYyyy, localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
 
 const NC_STATE_OPTIONS = [
@@ -159,6 +161,7 @@ type FormState = {
   expYear: string;
   ssn: string;
   licenseId: string;
+  licenseStartDate: string;
   firstName: string;
   middleName: string;
   lastName: string;
@@ -188,6 +191,7 @@ const INITIAL: FormState = {
   expYear: "",
   ssn: "",
   licenseId: "",
+  licenseStartDate: "",
   firstName: "",
   middleName: "",
   lastName: "",
@@ -339,6 +343,7 @@ export function NorthCarolinaCompetitorApply({ config }: { config: StateConfig }
       ...f,
       residency: value,
       licenseId: "",
+      licenseStartDate: "",
       residentId: "",
       intlIdType: "",
       documentNumber: "",
@@ -372,6 +377,9 @@ export function NorthCarolinaCompetitorApply({ config }: { config: StateConfig }
       if (!form.documentNumber.trim()) e.push("Enter your identification number.");
     }
     if (!form.licenseId) e.push("Select a license.");
+    if (needsStartDate && !form.licenseStartDate) {
+      e.push("Choose a license start date.");
+    }
     return e;
   }
 
@@ -442,9 +450,8 @@ export function NorthCarolinaCompetitorApply({ config }: { config: StateConfig }
       data.idExpirationDate = `${pad2(monthIndex(form.expMonth))}/${pad2(form.expDay)}/${form.expYear}`;
     }
 
-    if (needsStartDate) {
-      const today = new Date();
-      data.licenseStartDate = `${pad2(today.getMonth() + 1)}/${pad2(today.getDate())}/${today.getFullYear()}`;
+    if (needsStartDate && form.licenseStartDate) {
+      data.licenseStartDate = isoToMmDdYyyy(form.licenseStartDate);
     }
 
     return {
@@ -845,7 +852,15 @@ export function NorthCarolinaCompetitorApply({ config }: { config: StateConfig }
                               type="radio"
                               name="nc-license"
                               checked={selected}
-                              onChange={() => set("licenseId", lic.id)}
+                              onChange={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  licenseId: lic.id,
+                                  licenseStartDate: SHORT_TERM_IDS.has(lic.id)
+                                    ? f.licenseStartDate || localIsoDate()
+                                    : "",
+                                }))
+                              }
                               className="accent-navy"
                             />
                             <span>
@@ -866,6 +881,14 @@ export function NorthCarolinaCompetitorApply({ config }: { config: StateConfig }
                   </div>
                 </div>
               ))}
+
+            {needsStartDate && (
+              <LicenseStartDateField
+                value={form.licenseStartDate}
+                onChange={(v) => set("licenseStartDate", v)}
+                inputClassName={inputClass}
+              />
+            )}
 
             <button
               type="button"

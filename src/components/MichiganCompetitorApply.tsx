@@ -7,7 +7,9 @@ import { US_STATE_OPTIONS } from "@/lib/us-states";
 import { formatPrice } from "@/lib/format";
 import { PaymentStep } from "@/components/PaymentStep";
 import { PurchaseConversionBeacon } from "@/components/PurchaseConversionBeacon";
+import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
+import { isoToMmDdYyyy, localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
 
 const RESIDENT_LICENSE_IDS = [
@@ -128,6 +130,7 @@ type FormState = {
   idCountry: string;
   issuingState: string;
   licenseId: string;
+  licenseStartDate: string;
   firstName: string;
   middleName: string;
   lastName: string;
@@ -154,6 +157,7 @@ const INITIAL: FormState = {
   idCountry: "United States",
   issuingState: "MI",
   licenseId: "",
+  licenseStartDate: "",
   firstName: "",
   middleName: "",
   lastName: "",
@@ -344,6 +348,7 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
       ...f,
       residency: value,
       licenseId: "",
+      licenseStartDate: "",
       idCountry: value === "nonresident" ? f.idCountry || "United States" : "United States",
       issuingState: value === "resident" ? "MI" : f.issuingState === "MI" ? "" : f.issuingState,
       state: value === "resident" ? "MI" : f.state || "MI",
@@ -361,6 +366,9 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
     if (!isResident && !form.idCountry) e.push("Select the issuing country.");
     if (!form.issuingState) e.push("Select the issuing state.");
     if (!form.licenseId) e.push("Select a license.");
+    if (isShortTerm && !form.licenseStartDate) {
+      e.push("Choose a license start date.");
+    }
     return e;
   }
 
@@ -393,11 +401,6 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
     return "OTHER";
   }
 
-  function todayMmDdYyyy() {
-    const d = new Date();
-    return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}/${d.getFullYear()}`;
-  }
-
   function buildPayload(payment: TokenizedPayment) {
     const dob = `${pad2(monthIndex(form.dobMonth))}/${pad2(form.dobDay)}/${form.dobYear}`;
     const data: Record<string, string | boolean | number> = {
@@ -425,9 +428,8 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
           : "UNITED STATES",
       michiganResident: isResident ? "Yes" : "No",
     };
-    // Competitor does not collect start date on Applicant Info — default today for ops.
-    if (isShortTerm) {
-      data.licenseStartDate = todayMmDdYyyy();
+    if (isShortTerm && form.licenseStartDate) {
+      data.licenseStartDate = isoToMmDdYyyy(form.licenseStartDate);
     }
     return {
       stateSlug: config.slug,
@@ -678,7 +680,15 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
                           key={lic.id}
                           lic={lic}
                           selected={form.licenseId === lic.id}
-                          onSelect={() => set("licenseId", lic.id)}
+                          onSelect={() => {
+                            setForm((f) => ({
+                              ...f,
+                              licenseId: lic.id,
+                              licenseStartDate: SHORT_TERM_ID_SET.has(lic.id)
+                                ? f.licenseStartDate || localIsoDate()
+                                : "",
+                            }));
+                          }}
                         />
                       ))}
                     </div>
@@ -694,7 +704,9 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
                           key={lic.id}
                           lic={lic}
                           selected={form.licenseId === lic.id}
-                          onSelect={() => set("licenseId", lic.id)}
+                          onSelect={() =>
+                            setForm((f) => ({ ...f, licenseId: lic.id, licenseStartDate: "" }))
+                          }
                         />
                       ))}
                     </div>
@@ -706,11 +718,25 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
                           lic={lic}
                           shortTerm
                           selected={form.licenseId === lic.id}
-                          onSelect={() => set("licenseId", lic.id)}
+                          onSelect={() =>
+                            setForm((f) => ({
+                              ...f,
+                              licenseId: lic.id,
+                              licenseStartDate: f.licenseStartDate || localIsoDate(),
+                            }))
+                          }
                         />
                       ))}
                     </div>
                   </>
+                )}
+
+                {isShortTerm && (
+                  <LicenseStartDateField
+                    value={form.licenseStartDate}
+                    onChange={(v) => set("licenseStartDate", v)}
+                    inputClassName={inputClass}
+                  />
                 )}
               </>
             )}

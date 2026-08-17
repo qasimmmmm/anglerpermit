@@ -7,7 +7,9 @@ import { US_STATE_OPTIONS } from "@/lib/us-states";
 import { formatPrice } from "@/lib/format";
 import { PaymentStep } from "@/components/PaymentStep";
 import { PurchaseConversionBeacon } from "@/components/PurchaseConversionBeacon";
+import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
+import { isoToMmDdYyyy, localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
 
 const RESIDENT_ANNUAL_IDS = ["resident-all-water-package"] as const;
@@ -113,6 +115,7 @@ type FormState = {
   dlBackName: string;
   dlBackData: string;
   licenseId: string;
+  licenseStartDate: string;
   digitalLicense: "" | "yes" | "no";
   firstName: string;
   middleName: string;
@@ -152,6 +155,7 @@ const INITIAL: FormState = {
   dlBackName: "",
   dlBackData: "",
   licenseId: "",
+  licenseStartDate: "",
   digitalLicense: "",
   firstName: "",
   middleName: "",
@@ -380,6 +384,7 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
       ...f,
       residency: value,
       licenseId: "",
+      licenseStartDate: "",
       digitalLicense: "",
       idKind: "",
       idNumber: "",
@@ -446,6 +451,9 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
     if (!form.dlFrontData) e.push("Upload the front of your Driver's License.");
     if (!form.dlBackData) e.push("Upload the back of your Driver's License.");
     if (!form.licenseId) e.push("Select a license.");
+    if (needsStartDate && !form.licenseStartDate) {
+      e.push("Choose a license start date.");
+    }
     if (!form.digitalLicense) e.push("Select digital or paper license preference.");
     return e;
   }
@@ -505,9 +513,8 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
     data.dlFrontData = form.dlFrontData;
     data.dlBackName = form.dlBackName;
     data.dlBackData = form.dlBackData;
-    if (needsStartDate) {
-      const today = new Date();
-      data.licenseStartDate = `${pad2(today.getMonth() + 1)}/${pad2(today.getDate())}/${today.getFullYear()}`;
+    if (needsStartDate && form.licenseStartDate) {
+      data.licenseStartDate = isoToMmDdYyyy(form.licenseStartDate);
     }
 
     return {
@@ -870,8 +877,12 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                           lic={lic}
                           selected={form.licenseId === lic.id}
                           onSelect={() => {
-                            set("licenseId", lic.id);
-                            if (!form.digitalLicense) set("digitalLicense", "yes");
+                            setForm((f) => ({
+                              ...f,
+                              licenseId: lic.id,
+                              licenseStartDate: "",
+                              digitalLicense: f.digitalLicense || "yes",
+                            }));
                           }}
                         />
                       ))}
@@ -890,13 +901,25 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                           shortTerm
                           selected={form.licenseId === lic.id}
                           onSelect={() => {
-                            set("licenseId", lic.id);
-                            if (!form.digitalLicense) set("digitalLicense", "yes");
+                            setForm((f) => ({
+                              ...f,
+                              licenseId: lic.id,
+                              licenseStartDate: f.licenseStartDate || localIsoDate(),
+                              digitalLicense: f.digitalLicense || "yes",
+                            }));
                           }}
                         />
                       ))}
                     </div>
                   </>
+                )}
+
+                {needsStartDate && (
+                  <LicenseStartDateField
+                    value={form.licenseStartDate}
+                    onChange={(v) => set("licenseStartDate", v)}
+                    inputClassName={inputClass}
+                  />
                 )}
 
                 {form.licenseId && (

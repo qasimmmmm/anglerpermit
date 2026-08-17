@@ -7,7 +7,9 @@ import { US_STATE_OPTIONS } from "@/lib/us-states";
 import { formatPrice } from "@/lib/format";
 import { PaymentStep } from "@/components/PaymentStep";
 import { PurchaseConversionBeacon } from "@/components/PurchaseConversionBeacon";
+import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
+import { isoToMmDdYyyy, localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
 
 const RESIDENT_ANNUAL_IDS = [
@@ -76,6 +78,7 @@ type FormState = {
   issuingState: string;
   ssn: string;
   licenseId: string;
+  licenseStartDate: string;
   secondRod: boolean;
   firstName: string;
   middleInitial: string;
@@ -99,6 +102,7 @@ const INITIAL: FormState = {
   issuingState: "CO",
   ssn: "",
   licenseId: "",
+  licenseStartDate: "",
   secondRod: false,
   firstName: "",
   middleInitial: "",
@@ -284,6 +288,7 @@ export function ColoradoCompetitorApply({ config }: { config: StateConfig }) {
       ...f,
       residency: value,
       licenseId: "",
+      licenseStartDate: "",
       issuingState: value === "resident" ? "CO" : "",
       state: value === "resident" ? "CO" : f.state,
     }));
@@ -298,6 +303,9 @@ export function ColoradoCompetitorApply({ config }: { config: StateConfig }) {
     if (!form.issuingState) e.push("ID issuing state is required.");
     if (digitsOnly(form.ssn).length !== 9) e.push("Enter a valid Social Security number.");
     if (!form.licenseId) e.push("Select a license.");
+    if (needsStartDate && !form.licenseStartDate) {
+      e.push("Choose a license start date.");
+    }
     return e;
   }
 
@@ -336,9 +344,8 @@ export function ColoradoCompetitorApply({ config }: { config: StateConfig }) {
       residencyDeclaration: form.residency,
     };
 
-    if (needsStartDate) {
-      const today = new Date();
-      data.licenseStartDate = `${pad2(today.getMonth() + 1)}/${pad2(today.getDate())}/${today.getFullYear()}`;
+    if (needsStartDate && form.licenseStartDate) {
+      data.licenseStartDate = isoToMmDdYyyy(form.licenseStartDate);
     }
 
     return {
@@ -584,7 +591,9 @@ export function ColoradoCompetitorApply({ config }: { config: StateConfig }) {
                           key={lic.id}
                           lic={lic}
                           selected={form.licenseId === lic.id}
-                          onSelect={() => set("licenseId", lic.id)}
+                          onSelect={() =>
+                            setForm((f) => ({ ...f, licenseId: lic.id, licenseStartDate: "" }))
+                          }
                         />
                       ))}
                     </div>
@@ -600,11 +609,25 @@ export function ColoradoCompetitorApply({ config }: { config: StateConfig }) {
                           key={lic.id}
                           lic={lic}
                           selected={form.licenseId === lic.id}
-                          onSelect={() => set("licenseId", lic.id)}
+                          onSelect={() =>
+                            setForm((f) => ({
+                              ...f,
+                              licenseId: lic.id,
+                              licenseStartDate: f.licenseStartDate || localIsoDate(),
+                            }))
+                          }
                         />
                       ))}
                     </div>
                   </>
+                )}
+
+                {needsStartDate && (
+                  <LicenseStartDateField
+                    value={form.licenseStartDate}
+                    onChange={(v) => set("licenseStartDate", v)}
+                    inputClassName={inputClass}
+                  />
                 )}
 
                 {form.licenseId && habitat && (

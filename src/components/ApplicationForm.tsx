@@ -40,6 +40,7 @@ import {
 } from "@/lib/state-config";
 import { applyMask } from "@/lib/masks";
 import { formatPrice } from "@/lib/format";
+import { localIsoDate } from "@/lib/local-date";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -263,11 +264,16 @@ function FieldControl({
             const autoComplete =
               def.autocomplete ??
               (def.type === "email" ? "email" : def.type === "tel" ? "tel" : def.type === "zip" ? "postal-code" : undefined);
+            const dateMin =
+              def.type === "date" && !def.mask && def.name === "licenseStartDate"
+                ? localIsoDate()
+                : undefined;
             return (
               <Input
                 label={def.label}
                 name={f.name}
                 type={inputType}
+                min={dateMin}
                 inputMode={def.mask || digitLimit !== null ? "numeric" : undefined}
                 placeholder={def.placeholder ?? (useMask && def.mask === "dob" ? "MM/DD/YYYY" : undefined)}
                 autoComplete={autoComplete}

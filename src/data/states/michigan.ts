@@ -2048,8 +2048,7 @@ export const config: StateConfig = {
       section: "License start date",
       label: "License start date",
       type: "date",
-      // Competitor does not collect this on Applicant Info; wizard defaults it.
-      required: false,
+      required: true,
       conditional: {
         field: "licenseId",
         oneOf: [
