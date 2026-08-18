@@ -1,7 +1,19 @@
 /**
  * Google Ads conversion accounts + Purchase conversion labels for AnglerPermit.
  * Every ads ID must be configured site-wide; every send_to must fire on purchase.
+ *
+ * NOTE: The conversion value reported to Google Ads is 50% of the actual sale
+ * amount (see GOOGLE_ADS_VALUE_RATIO). This is a reporting-only adjustment —
+ * customer-facing prices and charged amounts are never modified here.
  */
+
+/**
+ * Fraction of the sale amount forwarded to Google Ads as the conversion value.
+ * Example: a $100 license reports $50; a $200 sale reports $100.
+ * Applies to every Google Ads account, every state, and every item, because
+ * all Purchase conversions on the site flow through trackGoogleAdsPurchase().
+ */
+export const GOOGLE_ADS_VALUE_RATIO = 0.5;
 
 export type GoogleAdsConversion = {
   adsId: string;
@@ -65,6 +77,9 @@ function markFired(transactionId: string): boolean {
 /**
  * Fire Purchase conversion for every configured Google Ads account.
  * Safe to call multiple times for the same reference within a tab (sessionStorage).
+ *
+ * `opts.value` must be the FULL sale amount; the value actually sent to Google
+ * is opts.value × GOOGLE_ADS_VALUE_RATIO (50%), rounded to cents.
  */
 export function trackGoogleAdsPurchase(opts: {
   transactionId: string;
@@ -76,9 +91,10 @@ export function trackGoogleAdsPurchase(opts: {
   if (!transactionId) return;
   if (!markFired(transactionId)) return;
 
+  // Forward only 50% of the sale amount to Google Ads (all accounts).
   const value =
     typeof opts.value === "number" && Number.isFinite(opts.value) && opts.value > 0
-      ? Math.round(opts.value * 100) / 100
+      ? Math.round(opts.value * GOOGLE_ADS_VALUE_RATIO * 100) / 100
       : 1;
   const currency = opts.currency ?? "USD";
 
