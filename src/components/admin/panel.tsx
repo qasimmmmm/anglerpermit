@@ -1179,8 +1179,8 @@ export function ApplicationDetailView({ id }: { id: string }) {
   const formEntries = useMemo(() => {
     const formData = app?.formData ?? {};
     const hideNames = companionNameKeysToHide(formData);
-    const hideUploads = new Set([
-      ...APPLICANT_DOCUMENT_FORM_KEYS,
+    const hideUploads = new Set<string>([
+      ...Array.from(APPLICANT_DOCUMENT_FORM_KEYS),
       ...documents.map((d) => d.key),
     ]);
     const entries = Object.entries(formData).filter(
