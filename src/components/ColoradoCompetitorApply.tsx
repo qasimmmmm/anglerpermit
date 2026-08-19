@@ -11,6 +11,8 @@ import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { isoToMmDdYyyy, localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { DlUploadFields } from "@/components/DlUploadFields";
+import { EMPTY_DL_UPLOAD, mergeDlUploads } from "@/lib/dl-upload";
 
 const RESIDENT_ANNUAL_IDS = [
   "resident-annual-fishing",
@@ -93,6 +95,10 @@ type FormState = {
   email: string;
   phone: string;
   consent: boolean;
+  dlFrontName: string;
+  dlFrontData: string;
+  dlBackName: string;
+  dlBackData: string;
 };
 
 const INITIAL: FormState = {
@@ -117,6 +123,7 @@ const INITIAL: FormState = {
   email: "",
   phone: "",
   consent: false,
+  ...EMPTY_DL_UPLOAD,
 };
 
 const inputClass =
@@ -343,6 +350,7 @@ export function ColoradoCompetitorApply({ config }: { config: StateConfig }) {
       ssn: digitsOnly(form.ssn),
       residencyDeclaration: form.residency,
     };
+    mergeDlUploads(data, form);
 
     if (needsStartDate && form.licenseStartDate) {
       data.licenseStartDate = isoToMmDdYyyy(form.licenseStartDate);
@@ -569,6 +577,11 @@ export function ColoradoCompetitorApply({ config }: { config: StateConfig }) {
                         onChange={(e) => set("ssn", digitsOnly(e.target.value))}
                       />
                     </Field>
+                    <DlUploadFields
+                      value={form}
+                      onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                      onError={(msg) => setErrors([msg])}
+                    />
                     <div
                       className={[
                         "rounded border px-3 py-2 text-sm",

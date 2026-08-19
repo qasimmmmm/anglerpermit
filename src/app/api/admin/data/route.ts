@@ -24,6 +24,7 @@ import {
   parseIsoDate,
   parseMmDdYyyy,
 } from "@/lib/state-config";
+import { extractApplicantDocuments } from "@/lib/applicant-documents";
 
 interface LicenseSummary {
   name: string;
@@ -128,6 +129,32 @@ export async function GET(req: Request) {
         app.formData,
       );
       return NextResponse.json({ ok: true, app, licenseSummary });
+    }
+
+    if (view === "documents") {
+      const result = await mongoListApps({
+        q: url.searchParams.get("q") ?? undefined,
+        status: url.searchParams.get("status") ?? undefined,
+        state: url.searchParams.get("state") ?? undefined,
+        page: num(url.searchParams.get("page")) ?? 1,
+        pageSize: num(url.searchParams.get("pageSize")) ?? 25,
+        sort:
+          (url.searchParams.get("sort") as "newest" | "oldest" | "amount_desc" | "amount_asc") ||
+          "newest",
+        hasDocuments: true,
+      });
+      const items = result.items.map((app) => ({
+        id: app.id,
+        reference: app.reference,
+        firstName: app.firstName,
+        lastName: app.lastName,
+        email: app.email,
+        stateSlug: app.stateSlug,
+        status: app.status,
+        submittedAt: app.submittedAt,
+        documents: extractApplicantDocuments(app.formData),
+      }));
+      return NextResponse.json({ ok: true, ...result, items });
     }
 
     const result = await mongoListApps({

@@ -16,6 +16,8 @@ import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { DlUploadFields } from "@/components/DlUploadFields";
+import { EMPTY_DL_UPLOAD, mergeDlUploads } from "@/lib/dl-upload";
 
 /** Core sport licenses shown on the competitor-style CA step 1. */
 const CORE_LICENSE_IDS = new Set([
@@ -105,6 +107,10 @@ type FormState = {
   heightFt: string;
   heightIn: string;
   consent: boolean;
+  dlFrontName: string;
+  dlFrontData: string;
+  dlBackName: string;
+  dlBackData: string;
 };
 
 const INITIAL: FormState = {
@@ -134,6 +140,7 @@ const INITIAL: FormState = {
   heightFt: "",
   heightIn: "",
   consent: false,
+  ...EMPTY_DL_UPLOAD,
 };
 
 function ChoiceGroup({
@@ -444,6 +451,7 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
     if (form.identityType === "state-id") data.stateIssued = form.stateIssued;
     if (form.identityType === "passport") data.countryIssued = form.idCountry;
     if (SHORT_TERM_IDS.has(form.licenseId)) data.licenseStartDate = form.licenseStartDate;
+    mergeDlUploads(data, form);
 
     return {
       stateSlug: config.slug,
@@ -724,6 +732,14 @@ export function CaliforniaCompetitorApply({ config }: { config: StateConfig }) {
                 </Field>
               </div>
             )}
+
+            {form.identityType ? (
+              <DlUploadFields
+                value={form}
+                onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                onError={(msg) => setErrors([msg])}
+              />
+            ) : null}
 
             {qualification && (
               <div

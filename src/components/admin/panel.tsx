@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -24,6 +24,9 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ExternalLink,
+  Puzzle,
+  Images,
 } from "lucide-react";
 import type { ApplicationRecord, ApplicationStatus } from "@/lib/storage";
 import type { PublicAdminUser } from "@/lib/admin-users";
@@ -46,6 +49,22 @@ import {
   money,
   stateLabel,
 } from "@/components/admin/admin-utils";
+import {
+  PORTAL_BY_SLUG,
+  PORTAL_FILL_ACK,
+  PORTAL_FILL_MESSAGE,
+  PORTAL_FILL_PING,
+  PORTAL_FILL_PONG,
+  PORTAL_LOCAL_MOCK_PATH,
+  buildPortalFillPayload,
+  isSupportedPortalState,
+  normalizeStateSlug,
+} from "@/lib/portal-fill";
+import {
+  APPLICANT_DOCUMENT_FORM_KEYS,
+  extractApplicantDocuments,
+} from "@/lib/applicant-documents";
+import { DocumentsGallery } from "@/components/admin/documents-gallery";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "";
@@ -60,6 +79,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const links = [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
     { href: "/admin/applications", label: "Applications", icon: FileStack },
+    { href: "/admin/documents", label: "Documents", icon: Images },
     { href: "/admin/users", label: "Team", icon: Users },
     { href: "/admin/deliver", label: "Deliver", icon: Send },
   ];
@@ -841,6 +861,7 @@ export function ApplicationsView() {
                 <th>Customer</th>
                 <th>Email</th>
                 <th>State</th>
+                <th>Docs</th>
                 <th>Status</th>
                 <th>License expiry</th>
                 <th>Amount</th>
@@ -851,13 +872,13 @@ export function ApplicationsView() {
             <tbody>
               {loading && items.length === 0 && loaderVisible ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: 24 }} className="admin-muted">
+                  <td colSpan={11} style={{ padding: 24 }} className="admin-muted">
                     Loading…
                   </td>
                 </tr>
               ) : !loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: 24 }} className="admin-muted">
+                  <td colSpan={11} style={{ padding: 24 }} className="admin-muted">
                     No applications match these filters.
                   </td>
                 </tr>
@@ -885,6 +906,20 @@ export function ApplicationsView() {
                     </td>
                     <td>
                       <CopyableValue value={stateLabel(app.stateSlug)} strong={false} />
+                    </td>
+                    <td>
+                      {extractApplicantDocuments(app.formData).length > 0 ? (
+                        <Link
+                          href={`/admin/applications/${app.id}?tab=documents`}
+                          prefetch={false}
+                          className="admin-link"
+                          title="View scanned documents"
+                        >
+                          {extractApplicantDocuments(app.formData).length}
+                        </Link>
+                      ) : (
+                        <span className="admin-muted">—</span>
+                      )}
                     </td>
                     <td>
                       <StatusPill status={app.status} />
@@ -1071,6 +1106,10 @@ export function ApplicationDetailView({ id }: { id: string }) {
   const [forceInfo, setForceInfo] = useState(false);
   const [futureExpiry, setFutureExpiry] = useState("");
   const [futureNote, setFutureNote] = useState("");
+  const [applyMsg, setApplyMsg] = useState("");
+  const [applyBusy, setApplyBusy] = useState(false);
+  const [extensionInstalled, setExtensionInstalled] = useState<boolean | null>(null);
+  const [section, setSection] = useState<"applicant" | "documents">("applicant");
 
   const reload = useCallback(
     async (signal?: AbortSignal) => {
@@ -1104,10 +1143,49 @@ export function ApplicationDetailView({ id }: { id: string }) {
     return () => ctrl.abort();
   }, [reload]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    setSection(tab === "documents" ? "documents" : "applicant");
+  }, [id]);
+
+  useEffect(() => {
+    let done = false;
+    const onMsg = (event: MessageEvent) => {
+      if (event.source !== window) return;
+      const data = event.data;
+      if (!data || typeof data !== "object") return;
+      if (data.type === PORTAL_FILL_PONG) {
+        done = true;
+        setExtensionInstalled(true);
+      }
+    };
+    window.addEventListener("message", onMsg);
+    window.postMessage({ type: PORTAL_FILL_PING }, "*");
+    const t = window.setTimeout(() => {
+      if (!done) setExtensionInstalled(false);
+    }, 400);
+    return () => {
+      window.removeEventListener("message", onMsg);
+      window.clearTimeout(t);
+    };
+  }, [id]);
+
+  const documents = useMemo(
+    () => extractApplicantDocuments(app?.formData),
+    [app],
+  );
+
   const formEntries = useMemo(() => {
     const formData = app?.formData ?? {};
     const hideNames = companionNameKeysToHide(formData);
-    const entries = Object.entries(formData).filter(([k]) => !hideNames.has(k));
+    const hideUploads = new Set([
+      ...APPLICANT_DOCUMENT_FORM_KEYS,
+      ...documents.map((d) => d.key),
+    ]);
+    const entries = Object.entries(formData).filter(
+      ([k]) => !hideNames.has(k) && !hideUploads.has(k),
+    );
     const order = [
       "firstName",
       "lastName",
@@ -1123,9 +1201,6 @@ export function ApplicationDetailView({ id }: { id: string }) {
       "idType",
       "idNumber",
       "driversLicenseState",
-      "dlFrontData",
-      "dlBackData",
-      "dlUploadData",
       "resStreet1",
       "resStreet2",
       "address",
@@ -1149,7 +1224,7 @@ export function ApplicationDetailView({ id }: { id: string }) {
       return i === -1 ? 1000 + k.localeCompare("") : i;
     };
     return entries.sort((a, b) => rank(a[0]) - rank(b[0]) || a[0].localeCompare(b[0]));
-  }, [app]);
+  }, [app, documents]);
 
   async function saveStatus() {
     setSaving(true);
@@ -1216,6 +1291,78 @@ export function ApplicationDetailView({ id }: { id: string }) {
     }
   }
 
+  function waitForPortalAck(timeoutMs = 2500): Promise<boolean> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener("message", onMsg);
+        window.clearTimeout(timer);
+        resolve(ok);
+      };
+      const onMsg = (event: MessageEvent) => {
+        if (event.source !== window) return;
+        const data = event.data;
+        if (data?.type === PORTAL_FILL_ACK) finish(!!data.ok);
+      };
+      window.addEventListener("message", onMsg);
+      const timer = window.setTimeout(() => finish(false), timeoutMs);
+    });
+  }
+
+  async function applyNowPortal(opts?: { official?: boolean }) {
+    if (!app || !isSupportedPortalState(app.stateSlug)) return;
+    setApplyBusy(true);
+    setApplyMsg("");
+    try {
+      const payload = buildPortalFillPayload({
+        stateSlug: app.stateSlug,
+        reference: app.reference,
+        licenseId: app.licenseId,
+        licenseName: licenseSummary?.name ?? null,
+        residency: app.residency,
+        formData: app.formData,
+      });
+      if (!payload) {
+        setApplyMsg("This state is not supported for Apply Now yet.");
+        return;
+      }
+
+      window.postMessage({ type: PORTAL_FILL_MESSAGE, payload }, "*");
+      const acked = await waitForPortalAck(payload.files.length ? 5000 : 2500);
+      setExtensionInstalled(acked);
+
+      const localDev =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+      const targetUrl =
+        opts?.official || !localDev
+          ? payload.createUrl
+          : `${window.location.origin}${PORTAL_LOCAL_MOCK_PATH}?state=${encodeURIComponent(payload.stateSlug)}`;
+
+      window.open(targetUrl, "_blank", "noopener,noreferrer");
+
+      if (!acked) {
+        setApplyMsg(
+          "Portal opened, but the Ops extension did not acknowledge. Install/reload once: chrome://extensions → Load unpacked → extensions/anglerpermit-ops (v0.2+).",
+        );
+      } else if (localDev && !opts?.official) {
+        setApplyMsg(
+          `Payload sent (${payload.stateSlug}${payload.files.length ? `, ${payload.files.length} ID image${payload.files.length === 1 ? "" : "s"}` : ""}). Local mock opened — click Fill this page. Use “Open official portal” for the live state site.`,
+        );
+      } else {
+        setApplyMsg(
+          `Payload sent (${payload.stateSlug}${payload.files.length ? `, ${payload.files.length} ID image${payload.files.length === 1 ? "" : "s"}` : ""}). Log in / create customer, then Fill this page on each step. ID photos attach to file inputs when present. Payment is never autofilled.`,
+        );
+      }
+    } catch {
+      setApplyMsg("Could not prepare Apply Now.");
+    } finally {
+      setApplyBusy(false);
+    }
+  }
+
   if (!app && !error) {
     return <p className="admin-sub">Loading application…</p>;
   }
@@ -1257,10 +1404,40 @@ export function ApplicationDetailView({ id }: { id: string }) {
         </div>
       </div>
 
+      <div className="admin-tabs" role="tablist" aria-label="Application sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={section === "applicant"}
+          className={section === "applicant" ? "active" : undefined}
+          onClick={() => setSection("applicant")}
+        >
+          Applicant
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={section === "documents"}
+          className={section === "documents" ? "active" : undefined}
+          onClick={() => setSection("documents")}
+        >
+          Documents{documents.length ? ` (${documents.length})` : ""}
+        </button>
+      </div>
+
       <div
         className="admin-detail-grid"
         style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "0.85rem", marginTop: "1.15rem" }}
       >
+      {section === "documents" ? (
+        <div className="admin-card admin-rise admin-rise-1" style={{ padding: "1.15rem" }}>
+          <strong style={{ fontSize: "0.95rem" }}>Scanned documents</strong>
+          <p className="admin-muted" style={{ margin: "6px 0 14px", fontSize: 13 }}>
+            Driver’s license and ID images uploaded with this application.
+          </p>
+          <DocumentsGallery documents={documents} />
+        </div>
+      ) : (
         <div className="admin-card admin-rise admin-rise-1" style={{ padding: "1.15rem" }}>
           <strong style={{ fontSize: "0.95rem" }}>Applicant</strong>
           <dl style={{ margin: "12px 0 0" }}>
@@ -1322,6 +1499,7 @@ export function ApplicationDetailView({ id }: { id: string }) {
             )}
           </dl>
         </div>
+      )}
 
         <div style={{ display: "grid", gap: "0.85rem", alignContent: "start" }}>
           <div className="admin-card admin-rise admin-rise-2" style={{ padding: "1.15rem" }}>
@@ -1354,6 +1532,68 @@ export function ApplicationDetailView({ id }: { id: string }) {
             <p className="admin-sub" style={{ marginTop: 6, fontSize: 13 }}>
               These actions update order status and notify the customer when applicable.
             </p>
+
+            {isSupportedPortalState(app.stateSlug) ? (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: "12px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(22, 101, 52, 0.25)",
+                  background: "rgba(22, 101, 52, 0.06)",
+                  display: "grid",
+                  gap: 8,
+                }}
+              >
+                <strong style={{ fontSize: 13 }}>Apply on official portal</strong>
+                <p className="admin-sub" style={{ margin: 0, fontSize: 12 }}>
+                  {PORTAL_BY_SLUG[normalizeStateSlug(app.stateSlug)!]?.portalName ?? stateLabel(app.stateSlug)}
+                  {" · "}
+                  Sends CRM fields to AnglerPermit Ops extension. Extension:{" "}
+                  {extensionInstalled === null
+                    ? "checking…"
+                    : extensionInstalled
+                      ? "detected"
+                      : "not detected — install/reload once"}
+                  .
+                </p>
+                <div className="admin-actions-row">
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-primary"
+                    disabled={applyBusy}
+                    onClick={() => void applyNowPortal()}
+                  >
+                    <ExternalLink size={15} />
+                    {applyBusy ? "Preparing…" : "Apply Now"}
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-secondary"
+                    disabled={applyBusy}
+                    onClick={() => void applyNowPortal({ official: true })}
+                    title="Opens the official state create/lookup URL"
+                  >
+                    Open official portal
+                  </button>
+                </div>
+                <p className="admin-muted" style={{ margin: 0, fontSize: 12 }}>
+                  <Puzzle size={12} style={{ verticalAlign: "-1px", marginRight: 4 }} />
+                  Install once: chrome://extensions → Developer mode → Load unpacked →{" "}
+                  <code>extensions/anglerpermit-ops</code> (reload after updates)
+                </p>
+                {applyMsg ? (
+                  <p className="admin-sub" style={{ margin: 0, fontSize: 12 }}>
+                    {applyMsg}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="admin-muted" style={{ marginTop: 12, fontSize: 12 }}>
+                Apply Now autofill is not configured for this state yet.
+              </p>
+            )}
+
             <div className="admin-actions-row" style={{ marginTop: 12 }}>
               <button
                 type="button"

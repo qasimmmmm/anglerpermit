@@ -15,6 +15,8 @@ import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { isoToMmDdYyyy, localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { DlUploadFields } from "@/components/DlUploadFields";
+import { EMPTY_DL_UPLOAD, mergeDlUploads } from "@/lib/dl-upload";
 
 const NC_STATE_OPTIONS = [
   ...US_STATE_OPTIONS.filter((s) => s.value === "NC"),
@@ -179,6 +181,10 @@ type FormState = {
   heightFt: string;
   heightIn: string;
   consent: boolean;
+  dlFrontName: string;
+  dlFrontData: string;
+  dlBackName: string;
+  dlBackData: string;
 };
 
 const INITIAL: FormState = {
@@ -209,6 +215,7 @@ const INITIAL: FormState = {
   heightFt: "",
   heightIn: "",
   consent: false,
+  ...EMPTY_DL_UPLOAD,
 };
 
 const inputClass =
@@ -429,6 +436,7 @@ export function NorthCarolinaCompetitorApply({ config }: { config: StateConfig }
       residency: form.residency,
       documentNumber: form.documentNumber.trim(),
     };
+    mergeDlUploads(data, form);
 
     if (form.residency === "resident") {
       data.documentType = "us-drivers-license";
@@ -824,6 +832,14 @@ export function NorthCarolinaCompetitorApply({ config }: { config: StateConfig }
                 </div>
               </div>
             )}
+
+            {form.residency ? (
+              <DlUploadFields
+                value={form}
+                onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                onError={(msg) => setErrors([msg])}
+              />
+            ) : null}
 
             {form.residency &&
               licenseGroups.map((group) => (

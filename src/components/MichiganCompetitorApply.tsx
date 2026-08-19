@@ -11,6 +11,8 @@ import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { isoToMmDdYyyy, localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { DlUploadFields } from "@/components/DlUploadFields";
+import { EMPTY_DL_UPLOAD, mergeDlUploads } from "@/lib/dl-upload";
 
 const RESIDENT_LICENSE_IDS = [
   "daily-all-species",
@@ -148,6 +150,10 @@ type FormState = {
   state: string;
   zip: string;
   consent: boolean;
+  dlFrontName: string;
+  dlFrontData: string;
+  dlBackName: string;
+  dlBackData: string;
 };
 
 const INITIAL: FormState = {
@@ -175,6 +181,7 @@ const INITIAL: FormState = {
   state: "MI",
   zip: "",
   consent: false,
+  ...EMPTY_DL_UPLOAD,
 };
 
 const inputClass =
@@ -428,6 +435,7 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
           : "UNITED STATES",
       michiganResident: isResident ? "Yes" : "No",
     };
+    mergeDlUploads(data, form);
     if (isShortTerm && form.licenseStartDate) {
       data.licenseStartDate = isoToMmDdYyyy(form.licenseStartDate);
     }
@@ -657,6 +665,14 @@ export function MichiganCompetitorApply({ config }: { config: StateConfig }) {
                     </select>
                   </Field>
                 </div>
+
+                {form.residency ? (
+                  <DlUploadFields
+                    value={form}
+                    onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                    onError={(msg) => setErrors([msg])}
+                  />
+                ) : null}
 
                 <div
                   className={[

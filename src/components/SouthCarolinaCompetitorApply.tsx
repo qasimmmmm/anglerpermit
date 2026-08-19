@@ -14,6 +14,8 @@ import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { isoToMmDdYyyy, localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { DlUploadFields } from "@/components/DlUploadFields";
+import { EMPTY_DL_UPLOAD, mergeDlUploads } from "@/lib/dl-upload";
 
 const SHORT_TERM_IDS = new Set<string>([
   "freshwater-fishing-license-14-day-res",
@@ -171,6 +173,10 @@ type FormState = {
   licenseId: string;
   licenseStartDate: string;
   consent: boolean;
+  dlFrontName: string;
+  dlFrontData: string;
+  dlBackName: string;
+  dlBackData: string;
 };
 
 const INITIAL: FormState = {
@@ -201,6 +207,7 @@ const INITIAL: FormState = {
   licenseId: "",
   licenseStartDate: "",
   consent: false,
+  ...EMPTY_DL_UPLOAD,
 };
 
 const inputClass =
@@ -423,6 +430,7 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
       driversLicenseNumber: form.documentNumber.trim(),
       idStateOfIssue: form.residency === "resident" ? "SC" : form.state || "SC",
     };
+    mergeDlUploads(data, form);
 
     if (needsExpiration && form.expMonth && form.expDay && form.expYear) {
       data.idExpirationDate = `${pad2(monthIndex(form.expMonth))}/${pad2(form.expDay)}/${form.expYear}`;
@@ -1001,6 +1009,14 @@ export function SouthCarolinaCompetitorApply({ config }: { config: StateConfig }
                 </div>
               </div>
             )}
+
+            {form.residency ? (
+              <DlUploadFields
+                value={form}
+                onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                onError={(msg) => setErrors([msg])}
+              />
+            ) : null}
 
             {form.residency &&
               licenseGroups.map((group) => (

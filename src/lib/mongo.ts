@@ -1,5 +1,6 @@
 import { MongoClient, ObjectId, type Collection, type Db, type Filter } from "mongodb";
 import type { ApplicationRecord, ApplicationStatus, NewApplicationInput } from "@/lib/storage";
+import { formHasApplicantDocuments } from "@/lib/applicant-documents";
 
 /**
  * Admin + optional checkout persistence on MongoDB.
@@ -485,6 +486,8 @@ export interface AppListQuery {
   page?: number;
   pageSize?: number;
   sort?: "newest" | "oldest" | "amount_desc" | "amount_asc";
+  /** Only applications that include a scanned ID / DL upload. */
+  hasDocuments?: boolean;
 }
 
 export async function mongoListApps(query: AppListQuery): Promise<{
@@ -778,6 +781,15 @@ function buildFilter(query: AppListQuery): Filter<MongoAppDoc> {
       ],
     });
   }
+  if (query.hasDocuments) {
+    and.push({
+      $or: [
+        { "formData.dlFrontData": { $exists: true, $nin: [null, ""] } },
+        { "formData.dlBackData": { $exists: true, $nin: [null, ""] } },
+        { "formData.dlUploadData": { $exists: true, $nin: [null, ""] } },
+      ],
+    });
+  }
   return { $and: and };
 }
 
@@ -797,6 +809,7 @@ function matchMem(d: MongoAppDoc, query: AppListQuery): boolean {
       .toLowerCase();
     if (!hay.includes(q)) return false;
   }
+  if (query.hasDocuments && !formHasApplicantDocuments(d.formData)) return false;
   return true;
 }
 

@@ -605,6 +605,79 @@
   color: var(--ap-muted);
 }
 
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 1.1rem;
+  padding: 4px;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 12px;
+  background: rgba(16, 42, 58, 0.06);
+}
+
+.admin-tabs button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ap-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  padding: 7px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.admin-tabs button.active {
+  background: #fff;
+  color: var(--ap-ink);
+  box-shadow: 0 1px 2px rgba(12, 27, 36, 0.08);
+}
+
+.admin-docs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.85rem;
+}
+
+.admin-doc-card {
+  min-width: 0;
+  border: 1px solid var(--ap-line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.admin-doc-preview {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  background: #f4f7f9;
+  border-bottom: 1px solid var(--ap-line);
+}
+
+.admin-doc-preview img,
+.admin-doc-preview object {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+}
+
+.admin-doc-meta {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px 12px;
+  font-size: 13px;
+}
+
+.admin-doc-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
 .admin-meta-row {
   display: flex;
   flex-wrap: wrap;

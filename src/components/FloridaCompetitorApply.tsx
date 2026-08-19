@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { LicenseOption, StateConfig, TokenizedPayment } from "@/lib/state-config";
 import {
   computeOrderTotal,
@@ -13,6 +13,8 @@ import { PaymentStep } from "@/components/PaymentStep";
 import { PurchaseConversionBeacon } from "@/components/PurchaseConversionBeacon";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { DlUploadFields } from "@/components/DlUploadFields";
+import { EMPTY_DL_UPLOAD, mergeDlUploads } from "@/lib/dl-upload";
 
 /** Competitor DL-state option order: Florida pinned first, DC last. */
 const FL_STATE_OPTIONS = [
@@ -102,8 +104,10 @@ type FormState = {
   firstName: string;
   middleName: string;
   lastName: string;
-  dlUploadName: string;
-  dlUploadData: string;
+  dlFrontName: string;
+  dlFrontData: string;
+  dlBackName: string;
+  dlBackData: string;
   licenseId: string;
   dobDay: string;
   dobMonth: string;
@@ -134,8 +138,7 @@ const INITIAL: FormState = {
   firstName: "",
   middleName: "",
   lastName: "",
-  dlUploadName: "",
-  dlUploadData: "",
+  ...EMPTY_DL_UPLOAD,
   licenseId: "",
   dobDay: "",
   dobMonth: "",
@@ -325,33 +328,6 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
     set("noSsn", false);
   }
 
-  async function onUpload(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors(["Driver's license upload must be 5MB or smaller."]);
-      e.target.value = "";
-      return;
-    }
-    const okType =
-      /image\/(jpeg|png)/.test(file.type) ||
-      file.type === "application/pdf" ||
-      /\.(jpe?g|png|pdf)$/i.test(file.name);
-    if (!okType) {
-      setErrors(["Upload must be JPG, PNG, or PDF."]);
-      e.target.value = "";
-      return;
-    }
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result ?? ""));
-      reader.onerror = () => reject(new Error("read failed"));
-      reader.readAsDataURL(file);
-    });
-    setForm((f) => ({ ...f, dlUploadName: file.name, dlUploadData: dataUrl }));
-    setErrors([]);
-  }
-
   function validateStep0(): string[] {
     const e: string[] = [];
     if (!form.residency) e.push("Select your primary residence type.");
@@ -440,10 +416,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
       data.documentNumber = form.documentNumber.trim();
     }
 
-    if (form.dlUploadName && form.dlUploadData) {
-      data.dlUploadFileName = form.dlUploadName;
-      data.dlUploadData = form.dlUploadData;
-    }
+    mergeDlUploads(data, form);
 
     return {
       stateSlug: config.slug,
@@ -717,23 +690,6 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                     />
                   </Field>
                 </div>
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-slate-700">
-                    Upload Driver&apos;s License (optional)
-                  </p>
-                  <label className="mt-2 flex cursor-pointer flex-col items-center rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600 hover:border-navy/40">
-                    <span className="font-semibold text-navy">
-                      {form.dlUploadName || "Click to upload your Driver's License"}
-                    </span>
-                    <span className="mt-1 text-xs text-slate-400">JPG, PNG or PDF — max 5MB</span>
-                    <input
-                      type="file"
-                      accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                      className="hidden"
-                      onChange={onUpload}
-                    />
-                  </label>
-                </div>
               </>
             )}
 
@@ -815,23 +771,6 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                     />
                   </Field>
                 </div>
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-slate-700">
-                    Upload Driver&apos;s License (optional)
-                  </p>
-                  <label className="mt-2 flex cursor-pointer flex-col items-center rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600 hover:border-navy/40">
-                    <span className="font-semibold text-navy">
-                      {form.dlUploadName || "Click to upload your Driver's License"}
-                    </span>
-                    <span className="mt-1 text-xs text-slate-400">JPG, PNG or PDF — max 5MB</span>
-                    <input
-                      type="file"
-                      accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                      className="hidden"
-                      onChange={onUpload}
-                    />
-                  </label>
-                </div>
               </>
             )}
 
@@ -862,6 +801,14 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
                 </div>
               </>
             )}
+
+            {form.residency ? (
+              <DlUploadFields
+                value={form}
+                onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                onError={(msg) => setErrors([msg])}
+              />
+            ) : null}
 
             {form.residency && licenses.length > 0 && (
               <>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { LicenseOption, StateConfig, TokenizedPayment } from "@/lib/state-config";
 import { computeOrderTotal, displayPrice } from "@/lib/state-config";
 import { US_STATE_OPTIONS } from "@/lib/us-states";
@@ -11,6 +11,7 @@ import { LicenseStartDateField } from "@/components/LicenseStartDateField";
 import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { isoToMmDdYyyy, localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
+import { DlUploadFields } from "@/components/DlUploadFields";
 
 const RESIDENT_ANNUAL_IDS = ["resident-all-water-package"] as const;
 const RESIDENT_SHORT_IDS = [
@@ -396,34 +397,6 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
     setErrors([]);
   }
 
-  function onUpload(side: "front" | "back", e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors(["Driver's license upload must be 5MB or smaller."]);
-      return;
-    }
-    const ok =
-      /image\/(jpeg|png)/.test(file.type) ||
-      file.type === "application/pdf" ||
-      /\.(jpe?g|png|pdf)$/i.test(file.name);
-    if (!ok) {
-      setErrors(["Upload must be JPG, PNG, or PDF."]);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = typeof reader.result === "string" ? reader.result : "";
-      setForm((f) =>
-        side === "front"
-          ? { ...f, dlFrontName: file.name, dlFrontData: dataUrl }
-          : { ...f, dlBackName: file.name, dlBackData: dataUrl },
-      );
-      setErrors([]);
-    };
-    reader.readAsDataURL(file);
-  }
-
   function validateStep0(): string[] {
     const e: string[] = [];
     if (!form.residency) e.push("Select whether your primary residence is in Texas.");
@@ -747,48 +720,12 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
                         yearOptions={expYears}
                       />
                     </Field>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <p className="mb-1 text-sm font-medium text-slate-700">
-                          Driver&apos;s License — Front{" "}
-                          <span className="text-red-600">*</span>
-                        </p>
-                        <label className="flex cursor-pointer flex-col items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600 hover:border-navy/40">
-                          <span className="font-semibold text-navy">
-                            {form.dlFrontName || "Click to upload front"}
-                          </span>
-                          <span className="mt-1 text-xs text-slate-400">
-                            JPG, PNG or PDF — max 5MB
-                          </span>
-                          <input
-                            type="file"
-                            accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                            className="hidden"
-                            onChange={(e) => onUpload("front", e)}
-                          />
-                        </label>
-                      </div>
-                      <div>
-                        <p className="mb-1 text-sm font-medium text-slate-700">
-                          Driver&apos;s License — Back{" "}
-                          <span className="text-red-600">*</span>
-                        </p>
-                        <label className="flex cursor-pointer flex-col items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600 hover:border-navy/40">
-                          <span className="font-semibold text-navy">
-                            {form.dlBackName || "Click to upload back"}
-                          </span>
-                          <span className="mt-1 text-xs text-slate-400">
-                            JPG, PNG or PDF — max 5MB
-                          </span>
-                          <input
-                            type="file"
-                            accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                            className="hidden"
-                            onChange={(e) => onUpload("back", e)}
-                          />
-                        </label>
-                      </div>
-                    </div>
+                    <DlUploadFields
+                      required
+                      value={form}
+                      onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                      onError={(msg) => setErrors([msg])}
+                    />
                     {!isResident && (
                       <Field label={t("wizard.country")} required>
                         <select
