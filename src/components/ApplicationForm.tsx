@@ -252,13 +252,13 @@ function FieldControl({
           case "date": {
             // A field-level validation.pattern normally suppresses the input
             // mask so the raw value can match (e.g. TX 5-digit ZIP). Phone
-            // fields with a digits-only pattern (TX ^\d{10}$) keep the
-            // (xxx) xxx-xxxx display mask — the schema strips non-digits
-            // before applying the pattern.
-            const digitLimit = digitsOnlyPatternCount(def.validation?.pattern);
+            // fields keep the display mask and are never digit-capped.
+            const isPhone = def.type === "tel" || def.mask === "phone";
+            const digitLimit = isPhone
+              ? null
+              : digitsOnlyPatternCount(def.validation?.pattern);
             const useMask =
-              Boolean(def.mask) &&
-              (!def.validation?.pattern || (def.mask === "phone" && digitLimit !== null));
+              Boolean(def.mask) && (isPhone || !def.validation?.pattern);
             const inputType =
               def.type === "email" ? "email" : def.type === "tel" ? "tel" : def.type === "date" && !def.mask ? "date" : "text";
             const autoComplete =

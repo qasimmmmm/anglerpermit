@@ -15,9 +15,9 @@ export function maskSSNInput(value: string): string {
   return digits;
 }
 
-/** 5551234567 -> (555) 123-4567 */
+/** 5551234567 -> (555) 123-4567. Extra digits are kept (no length cap). */
 export function maskPhoneInput(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 10);
+  const digits = value.replace(/\D/g, "");
   if (digits.length > 6) {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }

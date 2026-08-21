@@ -171,9 +171,9 @@ function digitsOnly(s: string) {
 }
 
 function formatPhone(raw: string): string {
-  const d = digitsOnly(raw).slice(0, 10);
-  if (d.length !== 10) return raw;
-  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  const d = digitsOnly(raw);
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  return raw.trim();
 }
 
 function formatSsnDisplay(raw: string): string {
@@ -380,7 +380,7 @@ export function FloridaCompetitorApply({ config }: { config: StateConfig }) {
     if (!form.state) e.push("State is required.");
     if (!/^\d{5}(-\d{4})?$/.test(form.zip.trim())) e.push("Enter a valid ZIP code.");
     if (!form.email.trim() || !form.email.includes("@")) e.push("Email address is required.");
-    if (digitsOnly(form.phone).length !== 10) e.push("Enter a valid 10-digit phone number.");
+    if (!digitsOnly(form.phone)) e.push("Phone number is required.");
     if (!form.gender) e.push("Gender is required.");
     if (!form.ethnicity) e.push("Ethnicity is required.");
     if (!form.heightFt || form.heightIn === "") e.push("Height is required.");

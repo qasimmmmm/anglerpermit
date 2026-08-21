@@ -455,7 +455,7 @@ export function TexasCompetitorApply({ config }: { config: StateConfig }) {
     if (!form.city.trim()) e.push("City is required.");
     if (!/^\d{5}$/.test(form.zip.trim())) e.push("Enter a valid 5-digit ZIP code.");
     if (!form.email.trim() || !form.email.includes("@")) e.push("Email address is required.");
-    if (digitsOnly(form.phone).length !== 10) e.push("Enter a valid 10-digit phone number.");
+    if (!digitsOnly(form.phone)) e.push("Phone number is required.");
     if (!form.consent) e.push("Please confirm your information and agree to the terms.");
     return e;
   }

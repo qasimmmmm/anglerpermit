@@ -684,8 +684,7 @@ export const config: StateConfig = {
       mask: "phone",
       autocomplete: "tel-national",
       validation: {
-        pattern: "^\\d{10}$",
-        patternMessage: "Enter a 10-digit phone number.",
+        patternMessage: "Enter a valid phone number.",
       },
       step: 2,
       officialNote: "Residence Address section, exact label 'Phone No.' WITH asterisk on the current official screen (rendered as three inputs: area code / prefix / line). Note: the 2021 archived form did NOT mark phone/email required - the current form does.",

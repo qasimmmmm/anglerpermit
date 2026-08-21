@@ -387,7 +387,7 @@ export function isFieldEffectivelyRequired(
 
 const SSN_PATTERN = /^\d{3}-\d{2}-\d{4}$/;
 const ZIP_PATTERN = /^\d{5}(-\d{4})?$/;
-const PHONE_PATTERN = /^\(\d{3}\) \d{3}-\d{4}$/;
+const PHONE_PATTERN = /\d/;
 const DOB_PATTERN = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/;
 
 /** Normalize empty / missing input so optional fields accept "" and required fields produce friendly messages. */
@@ -397,10 +397,10 @@ function normalizeEmpty(value: unknown): unknown {
 }
 
 /**
- * Matches digits-only field patterns such as ^\d{4}$ / ^\d{10}$ and returns
- * the required digit count (null for any other pattern). Drives (a) live
- * digits-only input behavior and (b) digit normalization before validation
- * for masked phone display values (e.g. TX phone).
+ * Matches digits-only field patterns such as ^\d{4}$ / ^\d{9}$ and returns
+ * the required digit count (null for any other pattern). Drives live
+ * digits-only input behavior (e.g. NC last-4-of-SSN). Phone fields are not
+ * length-capped.
  */
 export function digitsOnlyPatternCount(pattern: string | undefined): number | null {
   if (!pattern) return null;
@@ -425,25 +425,11 @@ export function buildFieldSchema(field: FormFieldDef): z.ZodTypeAny {
       return wrapRequired(s, field, label);
     }
     case "tel": {
-      // A field-level validation.pattern (e.g. TX/NC raw 10-digit) takes
-      // precedence over the default masked-phone pattern. For digits-only
-      // patterns the (xxx) xxx-xxxx display mask stays enabled in the form,
-      // so non-digits are stripped before the pattern is applied.
-      const digitCount = digitsOnlyPatternCount(v.pattern);
-      const s = v.pattern
-        ? digitCount !== null
-          ? z.preprocess(
-              (val) => (typeof val === "string" ? val.replace(/\D/g, "") : val),
-              z
-                .string()
-                .regex(new RegExp(v.pattern), v.patternMessage ?? `Enter a valid phone number`),
-            )
-          : z
-              .string()
-              .regex(new RegExp(v.pattern), v.patternMessage ?? `Enter a valid phone number`)
-        : z
-            .string()
-            .regex(PHONE_PATTERN, `Enter a valid phone number, e.g. (555) 123-4567`);
+      // Phone fields accept any number of digits. Do not enforce a 10-digit
+      // NANP length — customers may enter country codes and international numbers.
+      const s = z
+        .string()
+        .regex(PHONE_PATTERN, v.patternMessage ?? `Enter a valid phone number`);
       return wrapRequired(s, field, label);
     }
     case "date": {

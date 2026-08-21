@@ -652,10 +652,6 @@ export const config: StateConfig = {
       officialNote: "Phone rows are marked with a '#' footnote marker on the portal; the footnote text was not visible in the rendered page (likely 'at least one phone number is required'). TODO: verify meaning of '#' marker.",
     },
     {
-      // NOTE: the JSON's ^\d{10}$ validation is preserved verbatim but is SHADOWED — the shared
-      //       buildFieldSchema ignores field.validation for type "tel" and enforces (555) 123-4567,
-      //       which the phone input mask produces. The 10-digit pattern documents the portal's raw
-      //       split-box entry.
       name: "primaryPhone",
       section: "Contact",
       label: "Primary Phone:",
@@ -663,7 +659,7 @@ export const config: StateConfig = {
       required: false,
       mask: "phone",
       autocomplete: "tel",
-      validation: { pattern: "^\\d{10}$", patternMessage: "Enter a 10-digit phone number" },
+      validation: { patternMessage: "Enter a valid phone number" },
       step: 2,
       officialNote: "Portal renders two adjacent inputs separated by a dash (area code/prefix split). See '#' note on primaryPhoneType.",
     },
@@ -682,17 +678,13 @@ export const config: StateConfig = {
       step: 2,
     },
     {
-      // NOTE: the JSON's ^\d{10}$ validation is preserved verbatim but is SHADOWED — the shared
-      //       buildFieldSchema ignores field.validation for type "tel" and enforces (555) 123-4567,
-      //       which the phone input mask produces. The 10-digit pattern documents the portal's raw
-      //       split-box entry.
       name: "secondaryPhone",
       section: "Contact",
       label: "Secondary Phone:",
       type: "tel",
       required: false,
       mask: "phone",
-      validation: { pattern: "^\\d{10}$", patternMessage: "Enter a 10-digit phone number" },
+      validation: { patternMessage: "Enter a valid phone number" },
       step: 2,
     },
     {

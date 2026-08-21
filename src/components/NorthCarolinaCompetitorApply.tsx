@@ -233,9 +233,9 @@ function digitsOnly(s: string) {
 }
 
 function formatPhone(raw: string): string {
-  const d = digitsOnly(raw).slice(0, 10);
-  if (d.length !== 10) return raw;
-  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  const d = digitsOnly(raw);
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  return raw.trim();
 }
 
 function formatSsnDisplay(raw: string): string {

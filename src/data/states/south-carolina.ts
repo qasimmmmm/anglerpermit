@@ -980,11 +980,8 @@ export const config: StateConfig = {
       required: true,
       mask: "phone",
       autocomplete: "tel",
-      // Provenance only: buildFieldSchema() enforces its own masked phone
-      // pattern ((555) 123-4567) for type "tel"; the phone mask produces it.
       validation: {
-        pattern: "^\\(?\\d{3}\\)?[-. ]?\\d{3}[-. ]?\\d{4}$",
-        patternMessage: "Enter a valid 10-digit phone number",
+        patternMessage: "Enter a valid phone number",
       },
       step: 2,
       officialNote:
