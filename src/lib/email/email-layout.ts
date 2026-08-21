@@ -29,10 +29,7 @@ export const BRAND = {
 export const FONT_STACK =
   "'Inter','Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif";
 
-import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
-export { NON_AFFILIATION_DISCLAIMER };
-
-/** Business identity shown in every footer (CAN-SPAM physical address). */
+/** Business identity + support contact shown in every footer. */
 export const BUSINESS = {
   legalName: process.env.BUSINESS_LEGAL_NAME ?? "Angler Permit",
   address: process.env.BUSINESS_ADDRESS ?? "5900 Balcones Dr Ste 100, Austin, TX 78731",
@@ -174,8 +171,6 @@ export interface ShellOptions {
   bodyHtml: string;
   /** Optional badge text shown in the navy header, e.g. "Order confirmation". */
   kicker?: string;
-  /** Include the non-affiliation disclaimer in the footer (default true). */
-  disclaimer?: boolean;
   /** Optional status banner (tinted strip under the navy header). */
   banner?: { tone: Tone; text: string };
   /** Reference number repeated small in the footer. */
@@ -194,7 +189,6 @@ export function emailShell({
   preheader,
   bodyHtml,
   kicker,
-  disclaimer = true,
   banner,
   footerReference,
   pauseUrl,
@@ -205,9 +199,6 @@ export function emailShell({
     ? `<p style="margin:10px 0 0;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8AADD1;">${esc(kicker)}</p>`
     : "";
   const bannerHtml = banner ? statusBanner(banner.tone, banner.text) : "";
-  const disclaimerHtml = disclaimer
-    ? `<p style="margin:12px 0 0;font-size:11px;line-height:1.6;color:${BRAND.slate500};">${esc(NON_AFFILIATION_DISCLAIMER)}</p>`
-    : "";
   const referenceHtml = footerReference
     ? `<p style="margin:12px 0 0;font-size:11px;color:${BRAND.slate500};">Reference: <span style="font-family:'SF Mono',SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${esc(footerReference)}</span></p>`
     : "";
@@ -249,8 +240,7 @@ export function emailShell({
             <a href="mailto:${esc(BUSINESS.supportEmail)}" style="color:${BRAND.forest500};font-weight:600;text-decoration:none;">${esc(BUSINESS.supportEmail)}</a>${phone}
             — a real person reads every message.
           </p>
-          ${disclaimerHtml}
-          <p style="margin:12px 0 0;font-size:11px;line-height:1.6;color:${BRAND.slate500};">${esc(BUSINESS.legalName)} · ${esc(BUSINESS.address)}</p>
+          <p style="margin:12px 0 0;font-size:11px;line-height:1.6;color:${BRAND.slate500};">${esc(BUSINESS.legalName)} · <a href="mailto:${esc(BUSINESS.supportEmail)}" style="color:${BRAND.slate500};text-decoration:none;">${esc(BUSINESS.supportEmail)}</a></p>
           ${referenceHtml}
           ${pauseHtml}
           <p style="margin:12px 0 0;font-size:11px;color:${BRAND.slate500};">© ${year} AnglerPermit.com · <a href="${utmLink("/", campaign)}" style="color:${BRAND.slate500};">anglerpermit.com</a> · <a href="${utmLink("/terms", campaign)}" style="color:${BRAND.slate500};">Terms</a> · <a href="${utmLink("/privacy", campaign)}" style="color:${BRAND.slate500};">Privacy</a> · <a href="${utmLink("/refund", campaign)}" style="color:${BRAND.slate500};">Refund policy</a> · <a href="${utmLink("/contact", campaign)}" style="color:${BRAND.slate500};">Contact</a></p>
@@ -270,9 +260,7 @@ export function textFooter(opts?: { reference?: string; pauseUrl?: string }): st
     "—",
     `Questions? Just reply to this email or write to ${BUSINESS.supportEmail}.`,
     "",
-    NON_AFFILIATION_DISCLAIMER,
-    "",
-    `${BUSINESS.legalName} · ${BUSINESS.address}`,
+    `${BUSINESS.legalName} · ${BUSINESS.supportEmail}`,
   ];
   if (opts?.reference) lines.push(`Reference: ${opts.reference}`);
   if (opts?.pauseUrl) lines.push("", `Pause payment reminders: ${opts.pauseUrl}`);

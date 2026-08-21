@@ -148,10 +148,6 @@ export function buildApplicationReceivedEmail(ctx: LifecycleCtx): BuiltEmail {
       body: "A specialist checks every detail — typically within 1 business day.",
     },
     {
-      title: "We purchase your license",
-      body: `We submit it through ${state}'s official licensing system on your behalf.`,
-    },
-    {
       title: "Your license lands in your inbox",
       body: "As soon as it's issued, we'll email it to you ready to print or save to your phone.",
     },
@@ -191,8 +187,7 @@ export function buildApplicationReceivedEmail(ctx: LifecycleCtx): BuiltEmail {
     `Thanks for choosing AnglerPermit. Your ${state} fishing license application is in — here's exactly what happens next:`,
     "",
     "1. We review your application — a specialist checks every detail, typically within 1 business day.",
-    `2. We purchase your license — we submit it through ${state}'s official licensing system on your behalf.`,
-    "3. Your license lands in your inbox — ready to print or save to your phone.",
+    "2. Your license lands in your inbox — ready to print or save to your phone.",
     "",
     "APPLICATION SUMMARY",
     `Reference:   ${ctx.reference}`,
@@ -1043,7 +1038,6 @@ export function buildLicenseDeliveredOpsEmail(
       banner: { tone: "success", text: "Customer email + PDF sent" },
       footerReference: ctx.reference,
       campaign: "ops_license_delivered",
-      disclaimer: false,
     }),
     text,
   };

@@ -358,7 +358,6 @@ export function adminNewOrderEmail(
       preheader: `${state} · ${licenseName(ctx)} · ${total}`,
       kicker: checkoutStarted ? "Checkout started" : "Payment received",
       bodyHtml,
-      disclaimer: false,
     }),
     text,
   };
@@ -479,7 +478,7 @@ export function contactNotificationEmail(msg: ContactMessage): {
 
   return {
     subject,
-    html: emailShell({ preheader: msg.message.slice(0, 120), kicker: "Support", bodyHtml, disclaimer: false }),
+    html: emailShell({ preheader: msg.message.slice(0, 120), kicker: "Support", bodyHtml }),
     text,
   };
 }
