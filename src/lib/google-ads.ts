@@ -1,7 +1,29 @@
 /**
  * Google Ads conversion accounts + Purchase conversion labels for AnglerPermit.
  * Every ads ID must be configured site-wide; every send_to must fire on purchase.
+ *
+ * NOTE: Customer prices were raised 50% (PRICE_MARKUP 3 → 4.5), but the
+ * conversion value reported to Google Ads stays at the PRE-INCREASE price:
+ * a license now charged at $75 still reports $50 (see GOOGLE_ADS_VALUE_RATIO).
+ * transaction_id, currency, and all other conversion variables are unchanged.
+ * Reporting-only — customer-facing prices and charged amounts are untouched.
  */
+
+/**
+ * The markup whose prices Google Ads continues to receive (the pre-increase
+ * pricing tier). Keep CURRENT_PRICE_MARKUP in sync with PRICE_MARKUP in
+ * src/lib/state-config.ts (not imported to keep this module dependency-free
+ * for the root layout bundle).
+ */
+const REPORTED_PRICE_MARKUP = 3;
+const CURRENT_PRICE_MARKUP = 4.5;
+
+/**
+ * Fraction of the charged amount forwarded to Google Ads as the conversion
+ * value. With 3/4.5 this reports exactly the old markup-3 price for every
+ * license and add-on in every state: charged $75 → reported $50.
+ */
+export const GOOGLE_ADS_VALUE_RATIO = REPORTED_PRICE_MARKUP / CURRENT_PRICE_MARKUP;
 
 export type GoogleAdsConversion = {
   adsId: string;
@@ -65,6 +87,10 @@ function markFired(transactionId: string): boolean {
 /**
  * Fire Purchase conversion for every configured Google Ads account.
  * Safe to call multiple times for the same reference within a tab (sessionStorage).
+ *
+ * `opts.value` must be the FULL charged amount; the value actually sent to
+ * Google is opts.value × GOOGLE_ADS_VALUE_RATIO — the pre-increase (markup-3)
+ * price — rounded to cents. transaction_id and currency pass through as-is.
  */
 export function trackGoogleAdsPurchase(opts: {
   transactionId: string;
@@ -76,9 +102,10 @@ export function trackGoogleAdsPurchase(opts: {
   if (!transactionId) return;
   if (!markFired(transactionId)) return;
 
+  // Report the pre-increase price to Google Ads (all accounts, all states).
   const value =
     typeof opts.value === "number" && Number.isFinite(opts.value) && opts.value > 0
-      ? Math.round(opts.value * 100) / 100
+      ? Math.round(opts.value * GOOGLE_ADS_VALUE_RATIO * 100) / 100
       : 1;
   const currency = opts.currency ?? "USD";
 
