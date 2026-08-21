@@ -106,7 +106,7 @@ const en: Dict = {
   "wizard.driversLicense": "Driver's License",
   "wizard.optional": "optional",
   "wizard.dlScanTitle": "Scan Driver's License",
-  "wizard.dlScanHint": "Upload a photo or scan of your driver's license. Front and back help us file your application faster.",
+  "wizard.dlScanHint": "Upload a photo or scan of your driver's license. Front and back.",
   "wizard.dlFront": "Driver's License — Front",
   "wizard.dlBack": "Driver's License — Back",
   "wizard.dlClickFront": "Click to upload front",
