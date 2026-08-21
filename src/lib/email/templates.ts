@@ -168,7 +168,7 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): {
     <p style="margin:14px 0 0;font-size:14px;line-height:1.65;color:${BRAND.slate600};">
       We've received your <strong style="color:${BRAND.navy};">${esc(state)}</strong> fishing license application
       and your payment of <strong style="color:${BRAND.navy};">${esc(total)}</strong>.
-      A licensing specialist will now review it and purchase your license from the official state portal on your behalf.
+      A licensing specialist will now review it and take care of everything from here.
     </p>
     ${referenceBanner(ctx.app.reference)}
     ${detailCard(orderRows, { heading: "Order summary" })}
@@ -177,7 +177,7 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): {
     <h2 style="margin:26px 0 0;font-size:16px;color:${BRAND.navy};">What happens next</h2>
     ${stepsBlock([
       { title: "Review", body: "A specialist checks your application for errors — usually within 1 business day." },
-      { title: "Fulfillment", body: "We purchase your license on the official state portal. Your card statement shows “" + ctx.app.payment.descriptor + "”." },
+      { title: "Processing", body: "We process your order — your card statement shows “" + ctx.app.payment.descriptor + "”." },
       { title: "Delivery", body: "Your license and receipt are emailed to this address as soon as the state issues them." },
     ])}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border-left:3px solid ${BRAND.forest500};background:${BRAND.forest50};border-radius:0 10px 10px 0;">
@@ -192,7 +192,7 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): {
     `Thanks${first ? `, ${first}` : ""} — your application is in.`,
     ``,
     `We've received your ${state} fishing license application and your payment of ${total}.`,
-    `A licensing specialist will review it and purchase your license from the official state portal on your behalf.`,
+    `A licensing specialist will review it and take care of everything from here.`,
     ``,
     `Your reference number: ${ctx.app.reference}`,
     `(Keep this number — include it whenever you contact us.)`,
@@ -214,7 +214,7 @@ export function orderConfirmationEmail(ctx: OrderEmailContext): {
     ...(applicant.textLines.length ? [``] : []),
     `WHAT HAPPENS NEXT`,
     `1. Review — a specialist checks your application for errors (usually within 1 business day).`,
-    `2. Fulfillment — we purchase your license on the official state portal.`,
+    `2. Processing — we process your order.`,
     `3. Delivery — your license and receipt are emailed to this address.`,
     ``,
     `Refund promise: your order is fully refundable any time before we purchase your license from the state.`,

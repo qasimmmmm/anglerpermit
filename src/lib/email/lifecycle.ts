@@ -246,22 +246,12 @@ export interface ReceiptPayment {
 }
 
 export function buildPaymentReceiptEmail(ctx: LifecycleCtx, pay: ReceiptPayment): BuiltEmail {
-  const state = stateName(ctx);
-  const lic = license(ctx);
   const applicant = applicantSection(ctx);
   // Leading fish emoji distinguishes AnglerPermit receipts from other brand inboxes.
   const subject = `🐟 Your AnglerPermit receipt — ${formatPrice(ctx.amount)} (${ctx.reference})`;
   const preheader = "Payment confirmed. Fully refundable until your license purchase is completed.";
 
-  // Itemization: researched base prices are the state-fee portion; the
-  // remainder is our bundled service & processing fee. (Bases are never
-  // labeled "official fee" — repo honesty rule.)
-  const baseItems: Array<{ label: string; base: number }> = [];
-  if (lic) baseItems.push({ label: `${state} license fee — ${lic.name}`, base: lic.price });
-  for (const a of addOns(ctx)) baseItems.push({ label: a.name, base: a.price });
-  const stateFee = baseItems.reduce((s, i) => s + i.base, 0);
-  const serviceFee = Math.max(0, ctx.amount - stateFee);
-  const canItemize = lic !== null && stateFee > 0 && serviceFee >= 0;
+  // Receipt shows only the amount actually charged — no fee itemization.
 
   const method = [pay.brand, pay.last4 ? `ending ${pay.last4}` : ""].filter(Boolean).join(" ");
   const metaRows = [
@@ -271,13 +261,7 @@ export function buildPaymentReceiptEmail(ctx: LifecycleCtx, pay: ReceiptPayment)
     detailRow("Reference", esc(ctx.reference), { mono: true }),
   ].join("");
 
-  const itemRows = canItemize
-    ? [
-        ...baseItems.map((i) => detailRow(i.label, esc(formatPrice(i.base)))),
-        detailRow("Service & processing", esc(formatPrice(serviceFee))),
-        detailRow("Total charged", esc(formatPrice(ctx.amount)), { strong: true }),
-      ].join("")
-    : detailRow("Total charged", esc(formatPrice(ctx.amount)), { strong: true });
+  const itemRows = detailRow("Total charged", esc(formatPrice(ctx.amount)), { strong: true });
 
   const bodyHtml = `
     <h1 style="margin:0 0 14px;font-size:23px;line-height:1.3;font-weight:700;color:#0A2540;">Payment receipt</h1>
@@ -310,12 +294,6 @@ export function buildPaymentReceiptEmail(ctx: LifecycleCtx, pay: ReceiptPayment)
     `Reference:      ${ctx.reference}`,
     "",
     "RECEIPT",
-    ...(canItemize
-      ? [
-          ...baseItems.map((i) => `${i.label}: ${formatPrice(i.base)}`),
-          `Service & processing: ${formatPrice(serviceFee)}`,
-        ]
-      : []),
     `Total charged: ${formatPrice(ctx.amount)}`,
     "",
     ...applicant.textLines,
