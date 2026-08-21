@@ -705,13 +705,14 @@ export function ApplicationForm({ config }: { config: StateConfig }) {
   }, [step, applicantSubStep]);
 
   // Focused checkout: once the user is past license selection (wizard step 2+,
-  // i.e. step index >= 1 — including payment and the success screen), hide the
-  // global site footer via a body class (CSS: body.wizard-active
-  // footer[data-site-footer] { display: none }). Restored on step-1 return,
-  // unmount, and route change. Purely visual display:none — no scroll or
-  // layout-side effects, and keyboard/screen-reader flow is unaffected.
+  // i.e. step index >= 1), hide the global site footer via a body class
+  // (CSS: body.wizard-active footer[data-site-footer] { display: none })
+  // until payment completes — the success screen (step 4) shows the footer
+  // again. Restored on step-1 return, unmount, and route change. Purely
+  // visual display:none — no scroll or layout-side effects, and
+  // keyboard/screen-reader flow is unaffected.
   useEffect(() => {
-    const active = step >= 1;
+    const active = step >= 1 && step < 4;
     document.body.classList.toggle("wizard-active", active);
     return () => document.body.classList.remove("wizard-active");
   }, [step]);

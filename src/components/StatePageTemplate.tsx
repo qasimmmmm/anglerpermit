@@ -1,7 +1,6 @@
 import { FileCheck2, ShieldCheck } from "lucide-react";
 import type { StateConfig } from "@/lib/state-config";
 import { publicConfig } from "@/lib/state-config";
-import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { ApplicationForm } from "@/components/ApplicationForm";
 import { CompetitorApplyShell } from "@/components/CompetitorApplyShell";
 import { CaliforniaCompetitorApply } from "@/components/CaliforniaCompetitorApply";
@@ -91,15 +90,6 @@ export function StatePageTemplate({ config }: { config: StateConfig }) {
       <section id="application" className="scroll-mt-20 bg-slate-50 py-12 sm:py-16">
         <div className="container-site">
           <ApplicationForm config={pub} />
-        </div>
-      </section>
-
-      {/* Non-affiliation disclaimer — plain text, same wording as site footer. */}
-      <section className="border-t border-slate-200 py-8">
-        <div className="container-site max-w-3xl">
-          <p className="text-xs leading-relaxed text-slate-500">
-            {NON_AFFILIATION_DISCLAIMER}
-          </p>
         </div>
       </section>
     </>

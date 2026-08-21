@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { LicenseOption, StateConfig, TokenizedPayment } from "@/lib/state-config";
 import { computeOrderTotal, displayPrice } from "@/lib/state-config";
 import { US_STATE_OPTIONS } from "@/lib/us-states";
@@ -8,7 +8,6 @@ import { formatPrice } from "@/lib/format";
 import { PaymentStep } from "@/components/PaymentStep";
 import { PurchaseConversionBeacon } from "@/components/PurchaseConversionBeacon";
 import { LicenseStartDateField } from "@/components/LicenseStartDateField";
-import { NON_AFFILIATION_DISCLAIMER } from "@/lib/disclaimer";
 import { isoToMmDdYyyy, localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/i18n/LocaleProvider";
 import { DlUploadFields } from "@/components/DlUploadFields";
@@ -254,6 +253,17 @@ export function ColoradoCompetitorApply({ config }: { config: StateConfig }) {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
+
+  // Focused checkout: past license selection (step >= 1) hide the global site
+  // footer via a body class (CSS: body.wizard-active footer[data-site-footer]
+  // { display: none }) until payment completes — the success screen shows the
+  // footer again. Restored on unmount and on returning to step 0. Purely
+  // visual display:none — no scroll or layout side effects.
+  useEffect(() => {
+    const active = step >= 1 && !reference;
+    document.body.classList.toggle("wizard-active", active);
+    return () => document.body.classList.remove("wizard-active");
+  }, [step, reference]);
   const [conversionValue, setConversionValue] = useState(1);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   const [showConsentTerms, setShowConsentTerms] = useState(false);
@@ -852,7 +862,7 @@ export function ColoradoCompetitorApply({ config }: { config: StateConfig }) {
               </label>
               {showConsentTerms && (
                 <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                  {NON_AFFILIATION_DISCLAIMER} By submitting, you authorize AnglerPermit to assist
+                  By submitting, you authorize AnglerPermit to assist
                   with your Colorado fishing license application and to process payment for the
                   selected license.
                 </p>

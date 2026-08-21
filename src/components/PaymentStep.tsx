@@ -152,7 +152,6 @@ function CollectFieldFrame({
 
 export function PaymentStep({
   total,
-  stateName,
   processing,
   error,
   onPay,
@@ -579,7 +578,7 @@ export function PaymentStep({
           <Link href="/privacy" target="_blank" className="font-medium text-forest-700 underline">
             Privacy Policy
           </Link>{" "}
-          and authorize AnglerPermit to purchase this {stateName} license on your behalf.
+          and authorize AnglerPermit to charge your credit card.
         </p>
 
         <Button
