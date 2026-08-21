@@ -582,7 +582,7 @@ export function buildApplicantSchema(
  * REMOVED: the agency authorization now lives in the Terms of Service
  * ("Authorization to act as your agent") and in the one-line statement above
  * the pay button ("By paying, you agree … and authorize AnglerPermit to
- * purchase this license on your behalf."). Payment itself is the assent.
+ * charge your credit card."). Payment itself is the assent.
  */
 export const consentsSchema = z.object({
   accurateAndTerms: z.literal(true, {
